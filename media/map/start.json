@@ -1,0 +1,33 @@
+[
+    {
+        "base_entity": [
+            null
+        ],
+        "class": "playerstart",
+        "core_entity": {
+            "attached": "",
+            "attr1": 0,
+            "attr2": 0,
+            "attr3": 0,
+            "attr4": 0,
+            "attr5": 0,
+            "flags": 32,
+            "model_idx": 0,
+            "name": "playerstart_0",
+            "o": {
+                "x": 468.0,
+                "y": 628.0,
+                "z": 516.0
+            },
+            "reserved": 0
+        },
+        "ent_type": 2,
+        "et_type": 9,
+        "game_type": 9,
+        "playerstart": [
+            {
+                "yaw": 0.0
+            }
+        ]
+    }
+]

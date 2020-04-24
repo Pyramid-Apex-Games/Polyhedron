@@ -364,6 +364,7 @@ if (APPLE)
 else()
     target_link_libraries(Polyhedron
         enet
+        rt
         ${SDL2_LIBRARIES}
 		${SDL2_MIXER_LIBRARIES}
 		${SDL2_IMAGE_LIBRARIES}

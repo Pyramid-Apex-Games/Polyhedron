@@ -6,10 +6,9 @@
 namespace entities {
 namespace classes {
 
-DynamicLight::DynamicLight() : BasePhysicalEntity() {
-
-    ent_type = ENT_INANIMATE;
+DynamicLight::DynamicLight() : BasePhysicalEntity(), lightState(), lightMode() {
     et_type = ET_GAMESPECIFIC;
+    ent_type = ENT_INANIMATE;
     game_type = GAMEENTITY;
 
     setName("DynamicLight");
@@ -21,7 +20,7 @@ void DynamicLight::preload() {
 }
 
 void DynamicLight::think() {
-
+    adddynlight(this->o, 38, vec(255, 0, 0), 0, 0, 0, 0, vec(255, 0, 0));
 }
 
 void DynamicLight::render() {
@@ -33,7 +32,13 @@ void DynamicLight::setState(DYNAMIC_LIGHT_STATE &_lightState) {
     lightState = _lightState;
 }
 
+void DynamicLight::setMode(DYNAMIC_LIGHT_MODE &_lightMode) {
+    lightMode = _lightMode;
+}
+
 } // classes
 } // entities
 
+
 ADD_ENTITY_TO_FACTORY_SERIALIZED(DynamicLight, "dynamic_light", BasePhysicalEntity);
+     

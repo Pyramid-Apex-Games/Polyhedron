@@ -1,4 +1,6 @@
-#include "engine.h"
+#include "shared/cube.h"
+#include "engine/scriptexport.h"
+#include "engine/menus.h"
 
 void notifywelcome()
 {
@@ -73,6 +75,8 @@ SCRIPTEXPORT void pendingchanges(int *idx)
     }
 }
 
+VAR(mainmenu, 1, 1, 0);
+
 static int lastmainmenu = -1;
 
 void menuprocess()
@@ -85,7 +89,6 @@ void menuprocess()
     if(mainmenu && !isconnected(true)) UI::showui("main");
 }
 
-VAR(mainmenu, 1, 1, 0);
 
 void clearmainmenu()
 {

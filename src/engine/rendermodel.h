@@ -1,5 +1,7 @@
 #pragma once
 
+struct Texture;
+struct occludequery;
 struct mapmodelinfo { cubestr name; model *m = nullptr, *collide = nullptr; };
 
 extern vector<mapmodelinfo> mapmodels;
@@ -23,31 +25,10 @@ int batcheddynamicmodels();
 int batcheddynamicmodelbounds(int mask, vec &bbmin, vec &bbmax);
 void cleanupmodels();
 
-static inline model *loadmapmodel(int n)
-{
-    if(mapmodels.inrange(n))
-    {
-        model *m = mapmodels[n].m;
-        return m ? m : loadmodel(NULL, n);
-    }
-    return NULL;
-}
+model *loadmapmodel(int n);
 
-static inline model *loadmapmodel(const char *filename)
-{
-    loopv(mapmodels)
-    {
-        // Compare if the mapmodel's values equal each other.
-        model *m = mapmodels[i].m;
 
-        if (strcmp(m->name, filename) == 0)
-            // If they equal each other, it means we don't have to load it in again. Just return the pointer.
-            return m ? m : loadmodel(filename);
-        else
-            return NULL;
-    }
-    return NULL;
-}
+model *loadmapmodel(const char *filename);
 
 
 // WatIsDeze: Added so we can load mapmodels by string filename
@@ -96,4 +77,4 @@ static inline model *loadmapmodel(const char *filename)
     }
 }*/
 
-static inline mapmodelinfo *getmminfo(int n) { return mapmodels.inrange(n) ? &mapmodels[n] : NULL; }
+mapmodelinfo *getmminfo(int n);

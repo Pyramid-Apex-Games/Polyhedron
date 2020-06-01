@@ -1,5 +1,6 @@
-#include "engine.h"
-#include "help.h"
+#include "shared/cube.h"
+#include "engine/scriptexport.h"
+#include "engine/help.h"
 
 #include <map>
 

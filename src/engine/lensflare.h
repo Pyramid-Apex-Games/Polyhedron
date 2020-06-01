@@ -1,3 +1,8 @@
+#pragma once
+
+//from renderva.h
+int isvisiblesphere(float rad, const vec &cv);
+
 static const struct flaretype
 {
     int type;             /* flaretex index, 0..5, -1 for 6+random shine */

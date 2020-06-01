@@ -1,16 +1,17 @@
-#include "cube.h"
-#include "ents.h"
-#include "game.h"
-#include "engine.h"
-#include "ents.h"
-#include "baseentity.h"
+#include "shared/cube.h"
+#include "shared/ents.h"
+#include "shared/entities/baseentity.h"
 #include "shared/entities/basephysicalentity.h"
-#include "coreentity.h"
-#include "entityfactory.h"
+#include "shared/entities/coreentity.h"
+#include "shared/entities/entityfactory.h"
+#include "game/game.h"
+#include "engine/engine.h"
+#include "engine/texture.h"
+#include "engine/rendergl.h"
+#include "engine/nui/nui.h"
 #include <vector>
 #include <string>
 #include <variant>
-#include "engine/nui/nui.h"
 
 extern void boxs3D(const vec &o, vec s, int g);
 extern void boxs(int orient, vec o, const vec &s);

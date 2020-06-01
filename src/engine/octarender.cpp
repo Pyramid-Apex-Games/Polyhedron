@@ -1,9 +1,22 @@
 // octarender.cpp: fill vertex arrays with different cube surfaces.
 
-#include "engine.h"
-#include "ents.h"
+#include "shared/cube.h"
+#include "engine/light.h"
+#include "engine/texture.h"
+#include "engine/rendergl.h"
+#include "engine/octarender.h"
+#include "engine/renderva.h"
+#include "engine/renderlights.h"
+#include "engine/rendersky.h"
+#include "engine/material.h"
+#include "engine/renderparticles.h"
+#include "engine/grass.h"
+#include "engine/blend.h"
+#include "engine/menus.h"
+#include "engine/main/Compatibility.h"
+#include "engine/main/Renderer.h"
+#include "shared/ents.h"
 #include "shared/entities/decalentity.h"
-
 
 using namespace entities;
 using namespace classes;

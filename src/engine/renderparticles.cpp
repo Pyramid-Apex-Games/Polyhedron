@@ -1,10 +1,19 @@
 // renderparticles.cpp
 
-#include "engine.h"
-#include "engine/main/Application.h"
-#include "engine/hud.h"
+#include "shared/cube.h"
 #include "shared/entities/basephysicalentity.h"
-
+#include "engine/texture.h"
+#include "engine/pvs.h"
+#include "engine/font.h"
+#include "engine/rendergl.h"
+#include "engine/water.h"
+#include "engine/renderparticles.h"
+#include "engine/renderlights.h"
+#include "engine/menus.h"
+#include "engine/hud.h"
+#include "engine/main/Application.h"
+#include "engine/main/Renderer.h"
+#include "engine/main/Compatibility.h"
 
 Shader *particleshader = NULL, *particlenotextureshader = NULL, *particlesoftshader = NULL, *particletextshader = NULL;
 

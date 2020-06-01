@@ -7,6 +7,7 @@
 #include "tools.h"
 #include "texture.h"
 #include "engine/font.h"
+#include "engine/rendergl.h"
 #include "engine/main/Application.h"
 #include "engine/main/Window.h"
 #include "engine/main/GLContext.h"

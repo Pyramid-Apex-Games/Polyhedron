@@ -43,4 +43,7 @@ private:
     BackgroundInfo m_BackgroundMapInfo;
 };
 
+extern bool inbetweenframes, renderedframe;
+
+extern float loadprogress;
 

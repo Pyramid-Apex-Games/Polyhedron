@@ -1,7 +1,11 @@
-#include "engine.h"
+#include "shared/cube.h"
 #include "shared/stream.h"
 #include "shared/entities/basephysicalentity.h"
-
+#include "engine/light.h"
+#include "engine/texture.h"
+#include "engine/rendergl.h"
+#include "engine/renderva.h"
+#include "engine/renderlights.h"
 
 Texture *sky[6] = { 0, 0, 0, 0, 0, 0 }, *clouds[6] = { 0, 0, 0, 0, 0, 0 };
 

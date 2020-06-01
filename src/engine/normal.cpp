@@ -1,5 +1,9 @@
-#include "engine.h"
-#include "scriptexport.h"
+#include "shared/cube.h"
+#include "engine/light.h"
+#include "engine/texture.h"
+#include "engine/octarender.h"
+#include "engine/scriptexport.h"
+#include "engine/main/Compatibility.h"
 
 struct normalkey
 {

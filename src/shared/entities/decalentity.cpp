@@ -2,6 +2,7 @@
 #include "decalentity.h"
 #include "engine/texture.h"
 #include "engine/engine.h"
+#include "engine/physics.h"
 
 namespace entities {
 namespace classes {

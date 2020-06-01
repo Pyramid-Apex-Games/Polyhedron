@@ -1,5 +1,14 @@
+#include "../shared/geom/matrix4.h"
+
+#include "engine/texture.h"
+
 VARP(softexplosion, 0, 1, 1);
 VARP(softexplosionblend, 1, 16, 64);
+
+extern float ldrscale;
+extern matrix4 camprojmatrix;
+
+bool isfoggedsphere(float rad, const vec &cv);
 
 namespace sphere
 {

@@ -1,5 +1,7 @@
 // 6-directional octree heightfield map format
 #pragma once
+struct vertex;
+
 struct elementset
 {
     ushort texture, envmap;
@@ -392,3 +394,9 @@ static inline cubeext &ext(cube &c)
 {
     return *(c.ext ? c.ext : newcubeext(c));
 }
+
+extern const ivec cubecoords[8];
+extern const ivec facecoords[6][4];
+extern const uchar fv[6][4];
+extern const uchar fvmasks[64];
+extern const uchar faceedgesidx[6][4];

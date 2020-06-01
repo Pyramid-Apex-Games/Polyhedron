@@ -7,13 +7,19 @@
 //   avidemux - ok - 3Apr09-RockKeyman:had to swap UV channels as it showed up blue
 //   kino - ok
 
-#include "engine.h"
+#include "shared/cube.h"
 #include "shared/stream.h"
+#include "engine/texture.h"
+#include "engine/font.h"
+#include "engine/rendergl.h"
 #include "engine/main/Application.h"
 #include "engine/main/Window.h"
 #include "engine/main/GLContext.h"
+#include "engine/main/Renderer.h"
 #include "engine/hud.h"
 #include "engine/GLFeatures.h"
+#include "engine/main/FPS.h"
+#include "engine/main/Clock.h"
 #include <SDL_mixer.h>
 
 VAR(dbgmovie, 0, 0, 1);

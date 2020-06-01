@@ -3,11 +3,15 @@
 // they "felt right", and have no basis in reality. Collision detection is simplistic but
 // very robust (uses discrete steps at fixed fps).
 
-#include "engine.h"
-#include "mpr.h"
-#include "ents.h"
+#include "shared/ents.h"
+#include "engine/engine.h"
+#include "engine/world.h"
+#include "engine/model.h"
+#include "engine/rendermodel.h"
+#include "engine/mpr.h"
+#include "engine/main/Compatibility.h"
 
-#include "../game/entities/player.h"
+#include "game/entities/player.h"
 
 const int MAXCLIPOFFSET = 4;
 const int MAXCLIPPLANES = 1024;

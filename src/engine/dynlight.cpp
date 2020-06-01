@@ -1,9 +1,12 @@
-#include "engine.h"
-#include "ents.h"
+#include "shared/ents.h"
 #include "shared/entities/basephysicalentity.h"
+#include "engine/engine.h"
+#include "engine/pvs.h"
+#include "engine/renderva.h"
 
 VARNP(dynlights, usedynlights, 0, 1, 1);
 VARP(dynlightdist, 0, 1024, 10000);
+
 
 struct dynlight
 {

@@ -1,6 +1,8 @@
-#include "ents.h"
-
+#include "shared/ents.h"
+#include "engine/bih.h"
 enum { MDL_MD2 = 0, MDL_MD3, MDL_MD5, MDL_OBJ, MDL_SMD, MDL_IQM, NUMMODELTYPES };
+
+struct Shader;
 
 struct model
 {

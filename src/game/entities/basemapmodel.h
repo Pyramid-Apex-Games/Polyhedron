@@ -1,6 +1,7 @@
 #pragma once
 #include "shared/entities/basedynamicentity.h"
 #include "engine/engine.h"
+#include "engine/rendermodel.h"
 
 namespace entities
 {

@@ -1,5 +1,11 @@
-#include "engine.h"
 #include "shared/entities/basephysicalentity.h"
+#include "engine/engine.h"
+#include "engine/texture.h"
+#include "engine/rendergl.h"
+#include "engine/renderlights.h"
+#include "engine/octarender.h"
+#include "engine/material.h"
+#include "engine/water.h"
 
 #define NUMCAUSTICS 32
 

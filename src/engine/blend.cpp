@@ -1,5 +1,9 @@
-#include "engine.h"
-#include "GLFeatures.h"
+#include "shared/cube.h"
+#include "engine/light.h"
+#include "engine/texture.h"
+#include "engine/scriptexport.h"
+#include "engine/blend.h"
+#include "engine/GLFeatures.h"
 
 enum
 {

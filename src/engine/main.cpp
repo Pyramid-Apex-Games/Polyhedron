@@ -1,5 +1,5 @@
-#include "main/Application.h"
-#include "main/CommandlineArguments.h"
+#include "engine/main/Application.h"
+#include "engine/main/CommandlineArguments.h"
 
 #ifdef WIN32
 // Force Optimus setups to use the NVIDIA GPU

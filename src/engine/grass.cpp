@@ -1,5 +1,9 @@
-#include "engine.h"
+#include "shared/cube.h"
 #include "shared/entities/basephysicalentity.h"
+#include "engine/texture.h"
+#include "engine/rendergl.h"
+#include "engine/renderva.h"
+#include "engine/blend.h"
 
 VARP(grass, 0, 1, 1);
 VAR(dbggrass, 0, 0, 1);

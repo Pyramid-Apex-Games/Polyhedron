@@ -91,3 +91,9 @@ bool haveselent();
 undoblock *copyundoents(undoblock *u);
 void pasteundoent(int idx, entities::classes::CoreEntity *ue);
 void pasteundoents(undoblock *u);
+
+extern int worldscale, worldsize;
+extern int mapversion;
+extern char *maptitle;
+extern vector<int> entgroup;
+

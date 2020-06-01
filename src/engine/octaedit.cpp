@@ -1,13 +1,34 @@
-#include "engine.h"
+#include "shared/cube.h"
 #include "shared/stream.h"
+#include "engine/light.h"
+#include "engine/texture.h"
+#include "engine/pvs.h"
+#include "engine/rendergl.h"
+#include "engine/octaedit.h"
+#include "engine/octarender.h"
+#include "engine/renderva.h"
+#include "engine/renderlights.h"
+#include "engine/material.h"
+#include "engine/ui.h"
+#include "engine/menus.h"
+#include "engine/blend.h"
 #include "engine/hud.h"
+#include "engine/main/Compatibility.h"
 #include "engine/main/Application.h"
 #include "engine/main/Input.h"
 #include "engine/main/Window.h"
 #include "engine/main/GLContext.h"
+#include "engine/main/Renderer.h"
 #include "game/entities/player.h"
 
 extern int outline;
+
+
+//extern from menus.h
+extern int mainmenu;
+
+//REVIEW: only actual import from renderlights.h, just declare instead of including the whole header?
+void clearshadowcache();
 
 bool boxoutline = false;
 

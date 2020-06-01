@@ -1,8 +1,13 @@
-#include "engine.h"
-#include "ents.h"
+#include "engine/engine.h"
+#include "engine/texture.h"
+#include "engine/bih.h"
+#include "engine/model.h"
+#include "engine/rendermodel.h"
+#include "engine/stain.h"
+#include "shared/ents.h"
 #include "shared/entities/basephysicalentity.h"
 
-extern vec hitsurface;
+extern vec hitsurface; //physics
 
 bool BIH::triintersect(const mesh &m, int tidx, const vec &mo, const vec &mray, float maxdist, float &dist, int mode)
 {

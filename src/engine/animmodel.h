@@ -1,4 +1,16 @@
+#include "engine/model.h"
+#include "engine/texture.h"
+#include "engine/renderlights.h"
 #include "shared/stream.h"
+
+//extern from command.h
+extern int identflags;
+
+extern matrix4 camprojmatrix;
+
+void enablepolygonoffset(GLenum type);
+void disablepolygonoffset(GLenum type);
+
 
 VARP(fullbrightmodels, 0, 0, 200);
 VAR(testtags, 0, 0, 1);

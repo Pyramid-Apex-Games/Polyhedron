@@ -1,8 +1,13 @@
-#include "cube.h"
-#include "engine.h"
-#include "textedit.h"
+#include "shared/cube.h"
 #include "shared/entities/animinfo.h"
+#include "engine/texture.h"
+#include "engine/model.h"
+#include "engine/rendergl.h"
+#include "engine/octaedit.h"
+#include "engine/textedit.h"
+#include "engine/console.h"
 #include "engine/hud.h"
+#include "engine/main/Compatibility.h"
 
 namespace UI
 {

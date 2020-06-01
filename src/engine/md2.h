@@ -1,3 +1,6 @@
+//extern from command.h
+extern int identflags;
+
 struct md2;
 
 static const float md2normaltable[256][3] =

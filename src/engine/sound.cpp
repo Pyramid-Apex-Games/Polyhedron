@@ -1,10 +1,13 @@
 // sound.cpp: basic positional sound using sdl_mixer
 
-#include "engine.h"
-#include "engine/main/Application.h"
+#include "shared/cube.h"
 #include "shared/stream.h"
 #include "shared/zip.h"
-#include "../game/entities/player.h"
+#include "engine/menus.h"
+#include "engine/SoundConfig.h"
+#include "engine/main/Application.h"
+#include "engine/main/Compatibility.h"
+#include "game/entities/player.h"
 
 #include <SDL_mixer.h>
 

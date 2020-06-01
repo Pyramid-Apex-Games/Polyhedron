@@ -1,12 +1,32 @@
 // world.cpp: core map management stuff
-#include "engine.h"
+#include "shared/cube.h"
 #include "shared/ents.h"
 #include "shared/entities/coreentity.h"
+#include "shared/entities/decalentity.h"
+
+#include "engine/light.h"
+#include "engine/texture.h"
+#include "engine/model.h"
+#include "engine/pvs.h"
+#include "engine/rendergl.h"
+#include "engine/renderlights.h"
+#include "engine/octaedit.h"
+#include "engine/octarender.h"
+#include "engine/command.h"
+#include "engine/physics.h"
+#include "engine/renderparticles.h"
+#include "engine/stain.h"
+#include "engine/menus.h"
+#include "engine/blend.h"
+#include "engine/SoundConfig.h"
+#include "engine/main/Compatibility.h"
+
 #include "game/entities/player.h"
 #include "game/entities/playerstart.h"
-#include "shared/entities/decalentity.h"
 #include "game/entities/basemapmodel.h"
 #include "game/game.h"
+
+
 #include <cassert>
 
 VARR(mapversion, 1, MAPVERSION, 0);

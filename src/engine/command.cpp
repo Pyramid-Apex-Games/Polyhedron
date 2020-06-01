@@ -1,9 +1,12 @@
 // command.cpp: implements the parsing and execution of a tiny script language which
 // is largely backwards compatible with the quake console language.
 
-#include "engine.h"
+#include "shared/cube.h"
 #include "shared/stream.h"
-#include "tools/cubestr.h"
+#include "shared/tools/cubestr.h"
+#include "engine/help.h"
+#include "engine/rendergl.h"
+#include "engine/console.h"
 
 hashnameset<ident> idents; // contains ALL vars/commands/aliases
 vector<ident *> identmap;

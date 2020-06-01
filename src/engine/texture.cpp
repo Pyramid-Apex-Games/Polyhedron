@@ -1,13 +1,26 @@
 // texture.cpp: texture slot management
 
-#include "engine.h"
+#include "shared/cube.h"
 #include "shared/stream.h"
 #include "shared/zip.h"
 #include "shared/entities/basephysicalentity.h"
+#include "engine/engine.h"
+#include "engine/light.h"
+#include "engine/texture.h"
+#include "engine/command.h"
+#include "engine/rendergl.h"
+#include "engine/renderlights.h"
+#include "engine/octarender.h"
+#include "engine/material.h"
+#include "engine/client.h"
+#include "engine/rendersky.h"
 #include "engine/includegl.h"
+#include "engine/menus.h"
 #include "engine/main/Application.h"
 #include "engine/main/Window.h"
 #include "engine/main/GLContext.h"
+#include "engine/main/Renderer.h"
+#include "engine/main/Compatibility.h"
 #include "engine/GLFeatures.h"
 #include <SDL_image.h>
 

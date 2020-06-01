@@ -836,6 +836,29 @@ namespace {
 
         return line;
     }
+
+    nk_color LogLevelToColor(LogLevel level)
+    {
+        nk_color color {255, 255, 255, 255};
+        if (level & CON_INFO)
+        {
+            //default color
+        }
+        else if (level & CON_ERROR)
+        {
+            color.r = 217;
+            color.g = 58;
+            color.b = 54;
+        }
+        else if (level & CON_WARN)
+        {
+            color.r = 215;
+            color.g = 217;
+            color.b = 54;
+        }
+
+        return color;
+    }
 }
 void Console::Update()
 {
@@ -848,11 +871,12 @@ void Console::Update()
     }
 
     auto lineNum = std::max(0ul, m_ConsoleLines.size() - m_Config.Regular.LineNum);
-    auto height = (engine::nui::GetDevice().GetLineHeight() + 1.0f) * std::min((int)m_ConsoleLines.size(), m_Config.Regular.LineNum);
+    auto height = (engine::nui::GetDevice().GetLineHeight() + 1.0f) * std::min((int)m_ConsoleLines.size(), m_Config.Regular.LineNum) + 2.0f;
     engine::nui::GetNKContext()->style.window.fixed_background = nk_style_item_hide();
     engine::nui::GetNKContext()->style.window.border_color = nk_rgba(0,0,0,0);
     engine::nui::GetNKContext()->style.window.spacing = nk_vec2(0,0);
     engine::nui::GetNKContext()->style.window.padding = nk_vec2(4,4);
+//    engine::nui::GetNKContext()->style.window.
     engine::nui::GetNKContext()->style.scrollv.normal = nk_style_item_hide();
     engine::nui::GetNKContext()->style.scrollv.active = nk_style_item_hide();
     engine::nui::GetNKContext()->style.scrollv.hover = nk_style_item_hide();
@@ -870,8 +894,10 @@ void Console::Update()
 
         for (; lineNum < m_ConsoleLines.size(); ++lineNum)
         {
+            nk_color color = LogLevelToColor(m_ConsoleLines[lineNum].m_Level);
+
             nk_layout_row_dynamic(engine::nui::GetNKContext(), engine::nui::GetDevice().GetLineHeight(), 1);
-            nk_label(engine::nui::GetNKContext(), StripNewline(m_ConsoleLines[lineNum].m_Line).c_str(), NK_TEXT_LEFT);
+            nk_label_colored(engine::nui::GetNKContext(), StripNewline(m_ConsoleLines[lineNum].m_Line).c_str(), NK_TEXT_LEFT, color);
         }
     }
     nk_end(engine::nui::GetNKContext());

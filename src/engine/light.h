@@ -1,3 +1,7 @@
+struct cube;
+struct surfaceinfo;
+struct vertinfo;
+
 struct PackNode
 {
     PackNode *child1, *child2;

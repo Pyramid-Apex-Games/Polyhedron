@@ -1,5 +1,10 @@
-#include "engine.h"
+#include "shared/cube.h"
 #include "shared/entities/basephysicalentity.h"
+#include "engine/world.h"
+#include "engine/octa.h"
+#include "engine/octarender.h"
+#include "engine/main/Application.h"
+#include "engine/main/Compatibility.h"
 
 enum
 {

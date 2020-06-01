@@ -1,4 +1,14 @@
 #pragma once
+
+#include <shared/types.h>
+
+struct ivec;
+struct vec;
+template<class T> struct vector;
+struct tjoint;
+struct cube;
+struct vtxarray;
+
 extern ivec worldmin, worldmax, nogimin, nogimax;
 extern vector<tjoint> tjoints;
 extern vector<vtxarray *> varoot, valist;

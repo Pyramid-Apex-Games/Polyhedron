@@ -1,4 +1,7 @@
-#include "engine.h"
+#include "shared/cube.h"
+//#include "engine/engine.h"
+#include "engine/texture.h"
+#include "engine/rendergl.h"
 #include "engine/engine/font.h"
 
 void draw_textf(const char *fstr, float left, float top, ...)

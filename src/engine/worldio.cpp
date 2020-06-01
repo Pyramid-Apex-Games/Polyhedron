@@ -1,12 +1,23 @@
 // worldio.cpp: loading & saving of maps and savegames
 
-#include "engine.h"
+#include "engine/engine.h"
+#include "engine/texture.h"
+#include "engine/model.h"
+#include "engine/world.h"
+#include "engine/pvs.h"
+#include "engine/command.h"
+#include "engine/octaedit.h"
+#include "engine/octarender.h"
+#include "engine/rendermodel.h"
+#include "engine/menus.h"
+#include "engine/blend.h"
+#include "engine/SoundConfig.h"
+#include "engine/main/Compatibility.h"
 
 // Include game.h for our game entity casting.
 #include "game/game.h"
 #include "shared/stream.h"
 #include "shared/ents.h"
-#include "world.h"
 #include "shared/entities/basephysicalentity.h"
 
 // Use JSON, no shit.

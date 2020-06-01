@@ -1,6 +1,6 @@
 // console.cpp: the console buffer, its display, and command line control
 
-#include "engine.h"
+#include "shared/cube.h"
 #include "shared/stream.h"
 #include "game/entities/player.h"
 #include "engine/nui/nui.h"

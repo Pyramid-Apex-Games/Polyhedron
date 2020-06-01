@@ -5,6 +5,8 @@
 struct undoblock;
 struct block3;
 
+extern vector<ushort> texmru;
+
 void cancelsel();
 void rendertexturepanel(int w, int h);
 void addundo(undoblock *u);

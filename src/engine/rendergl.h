@@ -2,6 +2,7 @@
 #include "shared/geom/matrix4.h"
 #include "shared/geom/vec.h"
 #include "shared/geom/bvec.h"
+#include "shared/entities/basephysicalentity.h"
 #include "glad/glad.h"
 
 extern int glversion, glslversion, glcompat;
@@ -10,6 +11,7 @@ extern int maxdrawbufs, maxdualdrawbufs;
 enum { DRAWTEX_NONE = 0, DRAWTEX_ENVMAP, DRAWTEX_MINIMAP, DRAWTEX_MODELPREVIEW };
 
 extern int vieww, viewh;
+extern int screenw, screenh, renderw, renderh, hudw, hudh;
 extern int fov;
 extern float curfov, fovy, aspect, forceaspect;
 extern float nearplane;
@@ -23,6 +25,10 @@ extern int fog;
 extern bvec fogcolour;
 extern vec curfogcolor;
 extern int wireframe;
+
+extern int xtraverts, xtravertsva;
+
+extern entities::classes::BasePhysicalEntity *camera1;                // special ent that acts as camera, same object as player in FPS mode
 
 extern int glerr;
 void glerror(const char *file, int line, GLenum error);

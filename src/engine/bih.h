@@ -2,7 +2,7 @@
 #define BIH_H
 
 struct stainrenderer;
-
+struct Texture;
 struct BIH
 {
     struct node

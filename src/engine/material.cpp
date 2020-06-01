@@ -1,4 +1,11 @@
-#include "engine.h"
+#include "engine/engine.h"
+#include "engine/texture.h"
+#include "engine/rendergl.h"
+#include "engine/renderva.h"
+#include "engine/renderlights.h"
+#include "engine/octarender.h"
+#include "engine/material.h"
+#include "engine/water.h"
 #include "shared/entities/basephysicalentity.h"
 
 struct QuadNode

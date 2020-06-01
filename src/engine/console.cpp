@@ -877,22 +877,31 @@ void Console::Update()
 
     auto lineNum = std::max(0ul, m_ConsoleLines.size() - m_Config.Regular.LineNum);
     auto height = (engine::nui::GetDevice().GetLineHeight() + 1.0f) * std::min((int)m_ConsoleLines.size(), m_Config.Regular.LineNum) + 2.0f;
-    engine::nui::GetNKContext()->style.window.fixed_background = nk_style_item_hide();
-    engine::nui::GetNKContext()->style.window.border_color = nk_rgba(0,0,0,0);
-    engine::nui::GetNKContext()->style.window.spacing = nk_vec2(0,0);
-    engine::nui::GetNKContext()->style.window.padding = nk_vec2(4,4);
-//    engine::nui::GetNKContext()->style.window.
-    engine::nui::GetNKContext()->style.scrollv.normal = nk_style_item_hide();
-    engine::nui::GetNKContext()->style.scrollv.active = nk_style_item_hide();
-    engine::nui::GetNKContext()->style.scrollv.hover = nk_style_item_hide();
-    engine::nui::GetNKContext()->style.scrollv.cursor_normal = nk_style_item_hide();
-    engine::nui::GetNKContext()->style.scrollv.cursor_active = nk_style_item_hide();
-    engine::nui::GetNKContext()->style.scrollv.cursor_hover = nk_style_item_hide();
+    nk_style_push_style_item(
+        engine::nui::GetNKContext(),
+        &engine::nui::GetNKContext()->style.window.fixed_background,
+        nk_style_item_hide()
+    );
+    nk_style_push_color(
+        engine::nui::GetNKContext(),
+        &engine::nui::GetNKContext()->style.window.border_color,
+        nk_rgba(0,0,0,0)
+    );
+    nk_style_push_vec2(
+        engine::nui::GetNKContext(),
+        &engine::nui::GetNKContext()->style.window.spacing,
+        nk_vec2(0,0)
+    );
+    nk_style_push_vec2(
+        engine::nui::GetNKContext(),
+        &engine::nui::GetNKContext()->style.window.padding,
+        nk_vec2(4,4)
+    );
     if (nk_begin(
         engine::nui::GetNKContext(),
         "",
         nk_rect(0.0f, 0.0f, m_BufferedWidth, height),
-        0
+        NK_WINDOW_NOT_INTERACTIVE | NK_WINDOW_NO_SCROLLBAR
     ))
     {
         nk_layout_set_min_row_height(engine::nui::GetNKContext(), engine::nui::GetDevice().GetLineHeight());
@@ -906,6 +915,10 @@ void Console::Update()
         }
     }
     nk_end(engine::nui::GetNKContext());
+    nk_style_pop_style_item(engine::nui::GetNKContext());
+    nk_style_pop_color(engine::nui::GetNKContext());
+    nk_style_pop_vec2(engine::nui::GetNKContext());
+    nk_style_pop_vec2(engine::nui::GetNKContext());
 }
 
 void Console::Add(LogLevel level, const std::string& text)

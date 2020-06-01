@@ -18,7 +18,10 @@ Input::~Input()
 {
     SDL_ShowCursor(SDL_TRUE);
     SDL_SetRelativeMouseMode(SDL_FALSE);
-//    if(screen) SDL_SetWindowGrab(screen, SDL_FALSE);
+    if (m_App.GetWindow().GetWindowHandle())
+    {
+        SDL_SetWindowGrab(m_App.GetWindow().GetWindowHandle(), SDL_FALSE);
+    }
 }
 
 void Input::HandleEvent(const SDL_Event& event)

@@ -7,6 +7,11 @@
 #include "engine/main/Application.h"
 #include "engine/main/Window.h"
 #include "engine/main/GLContext.h"
+#include "engine/main/Compatibility.h"
+#include "engine/engine/font.h"
+#include "engine/command.h"
+#include "engine/menus.h"
+#include "engine/ui.h"
 #include "console.h"
 #include <list>
 #include <nuklear.h>

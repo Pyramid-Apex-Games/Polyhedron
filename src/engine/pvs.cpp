@@ -1,5 +1,6 @@
 #include "shared/cube.h"
-#include "shared/entities/basephysicalentity.h"
+#include "shared/entities/DynamicEntity.h"
+#include "shared/entities/MovableEntity.h"
 #include "engine/world.h"
 #include "engine/octa.h"
 #include "engine/octarender.h"

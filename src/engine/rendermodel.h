@@ -32,7 +32,7 @@ model *loadmapmodel(const char *filename);
 
 
 // WatIsDeze: Added so we can load mapmodels by string filename
-/*static inline int loadmapmodel(const char *filename, entities::classes::CoreEntity *ent)
+/*static inline int loadmapmodel(const char *filename, Entity *ent)
 {
     int idx = -1;
 

@@ -1,5 +1,6 @@
 // renderva.cpp: handles the occlusion and rendering of vertex arrays
 
+#include <game/entities/LightEntity.h>
 #include "shared/cube.h"
 #include "engine/texture.h"
 #include "engine/model.h"
@@ -14,7 +15,7 @@
 #include "engine/main/Compatibility.h"
 
 // Included especially for base and animated map models.
-#include "game/entities/basemapmodel.h"
+#include "game/entities/ModelEntity.h"
 #include "engine/GLFeatures.h"
 
 static inline void drawtris(GLsizei numindices, const GLvoid *indices, ushort minvert, ushort maxvert)
@@ -483,7 +484,7 @@ extern int octaentsize;
 
 static octaentities *visiblemms, **lastvisiblemms;
 
-void findvisiblemms(const vector<entities::classes::CoreEntity *> &ents, bool doquery)
+void findvisiblemms(const vector<Entity *> &ents, bool doquery)
 {
     visiblemms = NULL;
     lastvisiblemms = &visiblemms;
@@ -506,12 +507,12 @@ void findvisiblemms(const vector<entities::classes::CoreEntity *> &ents, bool do
             int visible = 0;
             loopv(oe->mapmodels)
             {
-                auto e = dynamic_cast<entities::classes::BaseEntity *>(ents[oe->mapmodels[i]]);
+                auto e = dynamic_cast<ModelEntity *>(ents[oe->mapmodels[i]]);
                 if (!e)
 					continue;
-				if(e->flags&entities::EntityFlags::EF_NOVIS)
+				if(e->flags&EntityFlags::EF_NOVIS)
 					continue;
-				e->flags |= entities::EntityFlags::EF_RENDER;
+				e->flags |= EntityFlags::EF_RENDER;
                 ++visible;
             }
             if(!visible) continue;
@@ -534,21 +535,22 @@ void findvisiblemms(const vector<entities::classes::CoreEntity *> &ents, bool do
 
 VAR(oqmm, 0, 4, 8);
 
-static inline void rendermapmodel(entities::classes::CoreEntity *e)
+static inline void rendermapmodel(Entity *ee)
 {
-	if (e->et_type != ET_MAPMODEL)
+    auto* e = dynamic_cast<ModelEntity*>(ee);
+	if (!e)
         return;
 
     int anim = ANIM_MAPMODEL|ANIM_LOOP, basetime = 0;
-    if(e->flags&entities::EntityFlags::EF_ANIM) ((entities::classes::BaseMapModel*)e)->onAnimate(anim, basetime);
-	rendermapmodel(e->model_idx, anim, e->o, e->attr2, e->attr3, e->attr4, MDL_CULL_VFC | MDL_CULL_DIST, basetime, e->attr5 > 0 ? e->attr5/100.0f : 1.0f);
+    if(e->flags&EntityFlags::EF_ANIM) ((ModelEntity*)e)->onAnimate(anim, basetime);
+	rendermapmodel(e->model_idx, anim, e->o, e->d.x, e->d.y, e->d.z, MDL_CULL_VFC | MDL_CULL_DIST, basetime, e->scale > 0 ? e->scale/100.0f : 1.0f);
 }
 
 void rendermapmodels()
 {
     static int skipoq = 0;
     bool doquery = !drawtex && oqfrags && oqmm;
-    const auto& ents = entities::getents();
+    const auto& ents = getents();
     findvisiblemms(ents, doquery);
 
     for(octaentities *oe = visiblemms; oe; oe = oe->next) if(oe->distance>=0)
@@ -556,12 +558,12 @@ void rendermapmodels()
         bool rendered = false;
         loopv(oe->mapmodels)
         {
-            auto e = dynamic_cast<entities::classes::BaseEntity *>(ents[oe->mapmodels[i]]);
+            auto e = dynamic_cast<ModelEntity *>(ents[oe->mapmodels[i]]);
             if (!e)
 				continue;
 				
             //conoutf("oe mapmodel: %d (%s)", oe->mapmodels[i], e.flags&EF_RENDER ? "render" : "no render");
-			if(!(e->flags&entities::EntityFlags::EF_RENDER)) continue;
+			if(!(e->flags&EntityFlags::EF_RENDER)) continue;
             if(!rendered)
             {
                 rendered = true;
@@ -569,7 +571,7 @@ void rendermapmodels()
                 if(oe->query) startmodelquery(oe->query);
             }
 			rendermapmodel(e);
-			e->flags &= ~entities::EntityFlags::EF_RENDER;
+			e->flags &= ~EntityFlags::EF_RENDER;
         }
         if(rendered && oe->query) endmodelquery();
     }
@@ -1126,23 +1128,23 @@ void findshadowmms()
 void batchshadowmapmodels(bool skipmesh)
 {
     if(!shadowmms) return;
-    int nflags = entities::EntityFlags::EF_NOVIS|entities::EntityFlags::EF_NOSHADOW;
-    if(skipmesh) nflags |= entities::EntityFlags::EF_SHADOWMESH;
-    const auto &ents = entities::getents();
+    int nflags = EntityFlags::EF_NOVIS|EntityFlags::EF_NOSHADOW;
+    if(skipmesh) nflags |= EntityFlags::EF_SHADOWMESH;
+    const auto &ents = getents();
     for(octaentities *oe = shadowmms; oe; oe = oe->rnext) loopvk(oe->mapmodels)
     {
-        auto e = dynamic_cast<entities::classes::BaseEntity *>(ents[oe->mapmodels[k]]);
+        auto e = dynamic_cast<ModelEntity *>(ents[oe->mapmodels[k]]);
         if (!e) continue;
 		if(e->flags&nflags) continue;
-		e->flags |= entities::EntityFlags::EF_RENDER;
+		e->flags |= EntityFlags::EF_RENDER;
     }
     for(octaentities *oe = shadowmms; oe; oe = oe->rnext) loopvj(oe->mapmodels)
     {
-        auto e = dynamic_cast<entities::classes::BaseEntity *>(ents[oe->mapmodels[j]]);
+        auto e = dynamic_cast<ModelEntity *>(ents[oe->mapmodels[j]]);
         if (!e) continue;
-		if(!(e->flags&entities::EntityFlags::EF_RENDER)) continue;
+		if(!(e->flags&EntityFlags::EF_RENDER)) continue;
 		rendermapmodel(e);
-		e->flags &= ~entities::EntityFlags::EF_RENDER;
+		e->flags &= ~EntityFlags::EF_RENDER;
     }
 }
 
@@ -2641,21 +2643,21 @@ static void genshadowmeshtris(shadowmesh &m, int sides, shadowdrawinfo draws[6],
 
 static void genshadowmeshmapmodels(shadowmesh &m, int sides, shadowdrawinfo draws[6])
 {
-    const auto &ents = entities::getents();
+    const auto &ents = getents();
     for(octaentities *oe = shadowmms; oe; oe = oe->rnext) loopvk(oe->mapmodels)
     {
-        auto e = dynamic_cast<entities::classes::BaseEntity *>(ents[oe->mapmodels[k]]);
+        auto e = dynamic_cast<ModelEntity *>(ents[oe->mapmodels[k]]);
         if (!e) continue;
-		if(e->flags&(entities::EntityFlags::EF_NOVIS|entities::EntityFlags::EF_NOSHADOW)) continue;
-		e->flags |= entities::EntityFlags::EF_RENDER;
+		if(e->flags&(EntityFlags::EF_NOVIS|EntityFlags::EF_NOSHADOW)) continue;
+		e->flags |= EntityFlags::EF_RENDER;
     }
     vector<triangle> tris;
     for(octaentities *oe = shadowmms; oe; oe = oe->rnext) loopvj(oe->mapmodels)
     {
-        auto e = dynamic_cast<entities::classes::BaseEntity *>(ents[oe->mapmodels[j]]);
+        auto e = dynamic_cast<ModelEntity *>(ents[oe->mapmodels[j]]);
         if (!e) continue;
-		if(!(e->flags&entities::EntityFlags::EF_RENDER)) continue;
-		e->flags &= ~entities::EntityFlags::EF_RENDER;
+		if(!(e->flags&EntityFlags::EF_RENDER)) continue;
+		e->flags &= ~EntityFlags::EF_RENDER;
 
 
 		model *mm = loadmapmodel(e->model_idx);
@@ -2663,10 +2665,10 @@ static void genshadowmeshmapmodels(shadowmesh &m, int sides, shadowdrawinfo draw
 
         matrix4x3 orient;
         orient.identity();
-		if(e->attr2) orient.rotate_around_z(sincosmod360(e->attr2));
-		if(e->attr3) orient.rotate_around_x(sincosmod360(e->attr3));
-		if(e->attr4) orient.rotate_around_y(sincosmod360(-e->attr4));
-		if(e->attr5 > 0) orient.scale(e->attr5/100.0f);
+		if(e->d.x) orient.rotate_around_z(sincosmod360(e->d.x));
+		if(e->d.y) orient.rotate_around_x(sincosmod360(e->d.y));
+		if(e->d.z) orient.rotate_around_y(sincosmod360(-e->d.z));
+		if(e->scale > 0) orient.scale(e->scale/100.0f);
 		orient.settranslation(e->o);
         tris.setsize(0);
         mm->genshadowmesh(tris, orient);
@@ -2677,11 +2679,11 @@ static void genshadowmeshmapmodels(shadowmesh &m, int sides, shadowdrawinfo draw
             addshadowmeshtri(m, sides, draws, t.a, t.b, t.c);
         }
 
-		e->flags |= entities::EntityFlags::EF_SHADOWMESH;
+		e->flags |= EntityFlags::EF_SHADOWMESH;
     }
 }
 
-static void genshadowmesh(int idx, entities::classes::CoreEntity *e)
+static void genshadowmesh(int idx, Entity *e)
 {
     shadowmesh m;
     m.type = calcshadowinfo(e, m.origin, m.radius, m.spotloc, m.spotangle, shadowbias);
@@ -2717,12 +2719,12 @@ void clearshadowmeshes()
     if(shadowvbos.length()) { glCheckError(glDeleteBuffers_(shadowvbos.length(), shadowvbos.getbuf()); shadowvbos.setsize(0)); }
     if(shadowmeshes.numelems)
     {
-        auto &ents = entities::getents();
+        auto &ents = getents();
         loopv(ents)
         {
-            auto e = dynamic_cast<entities::classes::BaseEntity *>(ents[i]);
+            auto e = dynamic_cast<ModelEntity *>(ents[i]);
             if (!e) continue;
-			if(e->flags&entities::EntityFlags::EF_SHADOWMESH) e->flags &= ~entities::EntityFlags::EF_SHADOWMESH;
+			if(e->flags&EntityFlags::EF_SHADOWMESH) e->flags &= ~EntityFlags::EF_SHADOWMESH;
         }
     }
     shadowmeshes.clear();
@@ -2739,26 +2741,27 @@ void genshadowmeshes()
 
     renderprogress(0, "generating shadow meshes..");
 
-    auto &ents = entities::getents();
+    auto &ents = getents();
     loopv(ents)
     {
-        auto e = dynamic_cast<entities::classes::BaseEntity *>(ents[i]);
+        auto e = dynamic_cast<ModelEntity *>(ents[i]);
         if (!e) continue;
-		if(e->et_type != ET_LIGHT) continue;
+		if(!dynamic_cast<LightEntity*>(e)) continue;
 		genshadowmesh(i, e);
     }
 }
 
-shadowmesh *findshadowmesh(int idx, entities::classes::CoreEntity *e)
+shadowmesh *findshadowmesh(int idx, Entity *e)
 {
     shadowmesh *m = shadowmeshes.access(idx);
     if(!m || m->type != shadowmapping || m->origin != shadoworigin || m->radius < shadowradius) return NULL;
     switch(m->type)
     {
-        case SM_SPOT:
-			if(!e->attached || e->attached->et_type != ET_SPOTLIGHT || m->spotloc != e->attached->o || m->spotangle < clamp(int(e->attached->attr1), 1, 89))
-                return NULL;
-            break;
+        //FIXME: Attachement feature
+//        case SM_SPOT:
+//			if(!e->attached || e->attached->et_type != ET_SPOTLIGHT || m->spotloc != e->attached->o || m->spotangle < clamp(int(e->attached->attr1), 1, 89))
+//                return NULL;
+//            break;
     }
     return m;
 }

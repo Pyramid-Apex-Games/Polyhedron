@@ -6,7 +6,8 @@
 #include "engine/octarender.h"
 #include "engine/material.h"
 #include "engine/water.h"
-#include "shared/entities/basephysicalentity.h"
+#include "shared/entities/MovableEntity.h"
+#include "shared/entities/DynamicEntity.h"
 
 struct QuadNode
 {

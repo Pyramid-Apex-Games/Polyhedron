@@ -3,14 +3,8 @@
 #include "Renderer.h"
 #include "Input.h"
 
-namespace entities
-{
-    namespace classes
-    {
-        class Player;
-    }
-}
-entities::classes::Player *player = nullptr;
+
+SkeletalEntity *player = nullptr;
 
 bool interceptkey(int sym)
 {

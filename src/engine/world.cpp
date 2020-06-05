@@ -1,8 +1,8 @@
 // world.cpp: core map management stuff
 #include "shared/cube.h"
 #include "shared/ents.h"
-#include "shared/entities/coreentity.h"
-#include "shared/entities/decalentity.h"
+#include "shared/entities/Entity.h"
+#include "shared/entities/DecalEntity.h"
 
 #include "engine/light.h"
 #include "engine/texture.h"
@@ -21,13 +21,14 @@
 #include "engine/SoundConfig.h"
 #include "engine/main/Compatibility.h"
 
-#include "game/entities/player.h"
-#include "game/entities/playerstart.h"
-#include "game/entities/basemapmodel.h"
+#include "game/entities/SkeletalEntity.h"
+#include "game/entities/PlayerSpawnEntity.h"
+#include "game/entities/ModelEntity.h"
 #include "game/game.h"
 
 
 #include <cassert>
+#include <game/entities/LightEntity.h>
 
 VARR(mapversion, 1, MAPVERSION, 0);
 VARNR(mapscale, worldscale, 1, 0, 0);
@@ -38,33 +39,33 @@ VARNR(emptymap, _emptymap, 1, 0, 0);
 VAR(octaentsize, 0, 64, 1024);
 VAR(entselradius, 0, 2, 10);
 
-inline void transformbb(const entities::classes::CoreEntity *e, vec &center, vec &radius)
+inline void transformbb(const Entity *e, vec &center, vec &radius)
 {
-	if(e->attr5 > 0) { float scale = e->attr5/100.0f; center.mul(scale); radius.mul(scale); }
-	rotatebb(center, radius, e->attr2, e->attr3, e->attr4);
+	if(e->scale > 0) { float scale = e->scale/100.0f; center.mul(scale); radius.mul(scale); }
+	rotatebb(center, radius, e->d.x, e->d.y, e->d.z);
 }
 
-void mmboundbox(const entities::classes::CoreEntity *e, model *m, vec &center, vec &radius)
+void mmboundbox(const Entity *e, model *m, vec &center, vec &radius)
 {
     m->boundbox(center, radius);
     transformbb(e, center, radius);
 }
 
-inline void mmcollisionbox(const entities::classes::CoreEntity *e, model *m, vec &center, vec &radius)
+inline void mmcollisionbox(const Entity *e, model *m, vec &center, vec &radius)
 {
     m->collisionbox(center, radius);
     transformbb(e, center, radius);
 }
 
-static inline void decalboundbox(const entities::classes::CoreEntity *e, DecalSlot &s, vec &center, vec &radius)
+static inline void decalboundbox(const Entity *e, DecalSlot &s, vec &center, vec &radius)
 {
-	float size = max(float(e->attr5), 1.0f);
+	float size = max(float(e->scale), 1.0f);
     center = vec(0, s.depth * size/2, 0);
     radius = vec(size/2, s.depth * size/2, size/2);
-	rotatebb(center, radius, e->attr2, e->attr3, e->attr4);
+	rotatebb(center, radius, e->d.x, e->d.y, e->d.z);
 }
 
-bool getentboundingbox(const entities::classes::CoreEntity *e, ivec &o, ivec &r)
+bool getentboundingbox(const Entity *e, ivec &o, ivec &r)
 {
 	vec fo;
 	vec fr;
@@ -81,7 +82,7 @@ enum
     MODOE_CHANGED  = 1<<2
 };
 
-void modifyoctaentity(int flags, int id, entities::classes::CoreEntity *e, cube *c, const ivec &cor, int size, const ivec &bo, const ivec &br, int leafsize, vtxarray *lastva = NULL)
+void modifyoctaentity(int flags, int id, Entity *e, cube *c, const ivec &cor, int size, const ivec &bo, const ivec &br, int leafsize, vtxarray *lastva = NULL)
 {
     loopoctabox(cor, size, bo, br)
     {
@@ -99,8 +100,8 @@ void modifyoctaentity(int flags, int id, entities::classes::CoreEntity *e, cube 
 			}
             octaentities &oe = *c[i].ext->ents;
             
-            auto e_decal = dynamic_cast<entities::classes::DecalEntity*>(e);
-            auto e_mapmodel = dynamic_cast<entities::classes::BaseMapModel*>(e);
+            auto e_decal = dynamic_cast<DecalEntity*>(e);
+            auto e_mapmodel = dynamic_cast<ModelEntity*>(e);
             
             if (e_decal)
             {
@@ -115,7 +116,7 @@ void modifyoctaentity(int flags, int id, entities::classes::CoreEntity *e, cube 
 			}
 			else if (e_mapmodel)
 			{
-				if(loadmapmodel(e->model_idx))
+				if(loadmapmodel(e_mapmodel->model_idx))
 				{
 					if(va)
 					{
@@ -136,10 +137,10 @@ void modifyoctaentity(int flags, int id, entities::classes::CoreEntity *e, cube 
         else if(c[i].ext && c[i].ext->ents)
         {
             octaentities &oe = *c[i].ext->ents;
-			const auto& ents = entities::getents();
+			const auto& ents = getents();
 			
-            auto e_decal = dynamic_cast<entities::classes::DecalEntity*>(e);
-            auto e_mapmodel = dynamic_cast<entities::classes::BaseMapModel*>(e);
+            auto e_decal = dynamic_cast<DecalEntity*>(e);
+            auto e_mapmodel = dynamic_cast<ModelEntity*>(e);
 
 			if (e_decal)
 			{
@@ -178,7 +179,7 @@ void modifyoctaentity(int flags, int id, entities::classes::CoreEntity *e, cube 
 					oe.bbmin.add(oe.size);
 					loopvj(oe.mapmodels)
 					{
-						entities::classes::CoreEntity *e = entities::getents()[oe.mapmodels[j]];
+						Entity *e = getents()[oe.mapmodels[j]];
 						ivec eo, er;
 						if(getentboundingbox(e, eo, er))
 						{
@@ -224,18 +225,18 @@ void modifyoctaentity(int flags, int id, entities::classes::CoreEntity *e, cube 
 vector<int> outsideents;
 int spotlights = 0, volumetriclights = 0, nospeclights = 0;
 
-static bool modifyoctaent(int flags, int id, entities::classes::CoreEntity *e)
+static bool modifyoctaent(int flags, int id, Entity *e)
 {
 	if(flags&MODOE_ADD)
 	{
-		if (e->flags&entities::EntityFlags::EF_OCTA)
+		if (e->flags&EntityFlags::EF_OCTA)
 		{
 			return false;
 		}
 	}
 	else
 	{
-		if (!(e->flags&entities::EntityFlags::EF_OCTA))
+		if (!(e->flags&EntityFlags::EF_OCTA))
 		{
 			return false;
 		}
@@ -261,24 +262,26 @@ static bool modifyoctaent(int flags, int id, entities::classes::CoreEntity *e)
         if(diff && (limit > octaentsize/2 || diff < leafsize*2)) leafsize *= 2;
         modifyoctaentity(flags, id, e, worldroot, ivec(0, 0, 0), worldsize>>1, o, r, leafsize);
     }
-	e->flags ^= entities::EntityFlags::EF_OCTA;
-	switch(e->et_type)
+	e->flags ^= EntityFlags::EF_OCTA;
+    if (auto* el = dynamic_cast<LightEntity*>(e); el)
     {
-        case ET_LIGHT:
-            clearlightcache(id);
-			if(e->attr5&L_VOLUMETRIC) { if(flags&MODOE_ADD) volumetriclights++; else --volumetriclights; }
-			if(e->attr5&L_NOSPEC) { if(!(flags&MODOE_ADD ? nospeclights++ : --nospeclights)) cleardeferredlightshaders(); }
-            break;
-        case ET_SPOTLIGHT: if(!(flags&MODOE_ADD ? spotlights++ : --spotlights)) { cleardeferredlightshaders(); cleanupvolumetric(); } break;
-        case ET_PARTICLES: clearparticleemitters(); break;
-        case ET_DECAL: if(flags&MODOE_CHANGED) changed(o, r, false); break;
+        clearlightcache(id);
+        if(el->type&L_VOLUMETRIC) { if(flags&MODOE_ADD) volumetriclights++; else --volumetriclights; }
+        if(el->type&L_NOSPEC) { if(!(flags&MODOE_ADD ? nospeclights++ : --nospeclights)) cleardeferredlightshaders(); }
+    }
+//FIXME: implement SpotlightEntity and ParticleEntity
+//        case ET_SPOTLIGHT: if(!(flags&MODOE_ADD ? spotlights++ : --spotlights)) { cleardeferredlightshaders(); cleanupvolumetric(); } break;
+//        case ET_PARTICLES: clearparticleemitters(); break;
+    if (auto* ed = dynamic_cast<DecalEntity*>(e); ed)
+    {
+        if(flags&MODOE_CHANGED) changed(o, r, false);
     }
     return true;
 }
 
 static inline bool modifyoctaent(int flags, int id)
 {
-    auto &ents = entities::getents();
+    auto &ents = getents();
 	return ents.inrange(id) && modifyoctaent(flags, id, ents[id]);
 }
 
@@ -290,7 +293,7 @@ static inline void removeentityedit(int id) { modifyoctaent(MODOE_UPDATEBB|MODOE
 void freeoctaentities(cube &c)
 {
     if(!c.ext) return;
-    if(entities::getents().length())
+    if(getents().length())
     {
         while(c.ext->ents && !c.ext->ents->mapmodels.empty()) removeentity(c.ext->ents->mapmodels.pop());
         while(c.ext->ents && !c.ext->ents->decals.empty())    removeentity(c.ext->ents->decals.pop());
@@ -305,7 +308,7 @@ void freeoctaentities(cube &c)
 
 void entitiesinoctanodes()
 {
-    auto &ents = entities::getents();
+    auto &ents = getents();
 
     loopv(ents) {
         if (ents.inrange(i)) {
@@ -320,7 +323,7 @@ void entitiesinoctanodes()
 
 static inline void findents(octaentities &oe, int low, int high, bool notspawned, const vec &pos, const vec &invradius, vector<int> &found)
 {
-    auto &ents = entities::getents();
+    auto &ents = getents();
     loopv(oe.other)
     {
         int id = oe.other[i];
@@ -328,7 +331,7 @@ static inline void findents(octaentities &oe, int low, int high, bool notspawned
         if (ents.inrange(id)) {
             auto e = ents[id];
             // TODO: Fix this, et_type? and ent_type?
-			if(e->et_type >= low && e->et_type <= high && (e->spawned || notspawned) && vec(e->o).sub(pos).mul(invradius).squaredlen() <= 1) found.add(id);
+			if(/*e->et_type >= low && e->et_type <= high && */ (e->spawned || notspawned) && vec(e->o).sub(pos).mul(invradius).squaredlen() <= 1) found.add(id);
         }
     }
 }
@@ -370,7 +373,7 @@ void findents(int low, int high, bool notspawned, const vec &pos, const vec &rad
     if(c->children && 1<<scale >= octaentsize) findents(c->children, ivec(bo).mask(~((2<<scale)-1)), 1<<scale, bo, br, low, high, notspawned, pos, invradius, found);
 }
 
-const char *entname(entities::classes::CoreEntity *e)
+const char *entname(Entity *e)
 {
     return e->name.c_str();
 }
@@ -384,7 +387,7 @@ bool undonext = true;
 VARF(entediting, 0, 0, 1, {
 	if(!entediting)
 	{
-		entities::send_entity_event(enthover, entities::EntityEventHoverStop());
+		send_entity_event(enthover, EntityEventHoverStop());
 		entcancel();
 		efocus = enthover = -1;
 	}
@@ -417,7 +420,7 @@ SCRIPTEXPORT void entcancel()
 {
     loopv(entgroup)
     {
-        entities::send_entity_event(entgroup[i], entities::EntityEventSelectStop());
+        send_entity_event(entgroup[i], EntityEventSelectStop());
     }
     entgroup.shrink(0);
 }
@@ -426,7 +429,7 @@ void entadd(int id)
 {
     undonext = true;
     entgroup.add(id);
-	entities::send_entity_event(id, entities::EntityEventSelectStart());
+	send_entity_event(id, EntityEventSelectStart());
 }
 
 undoblock *newundoent()
@@ -436,7 +439,7 @@ undoblock *newundoent()
     undoblock *u = (undoblock *)new uchar[sizeof(undoblock) + numents*sizeof(undoent)];
     u->numents = numents;
     undoent *e = (undoent *)(u + 1);
-    auto& ents = entities::getents();
+    auto& ents = getents();
     loopv(entgroup)
     {
         e->i = entgroup[i];
@@ -456,63 +459,65 @@ void makeundoent()
     if(u) addundo(u);
 }
 
-void detachentity(entities::classes::CoreEntity *e)
+void detachentity(Entity *e)
 {
-	if(!e->attached) return;
-	e->attached->attached = NULL;
-	e->attached = NULL;
+    //FIXME: Attachement feature
+//	if(!e->attached) return;
+//	e->attached->attached = NULL;
+//	e->attached = NULL;
 }
 
 VAR(attachradius, 1, 100, 1000);
 
-void attachentity(entities::classes::CoreEntity *e)
+void attachentity(Entity *e)
 {
-    switch(e->et_type)
-    {
-        case ET_SPOTLIGHT:
-            break;
-
-        default:
-            if(e->et_type<ET_GAMESPECIFIC || !entities::mayattach(e)) return;
-            break;
-    }
-
-	detachentity(e);
-
-    auto &ents = entities::getents();
-    int closest = -1;
-    float closedist = 1e10f;
-    loopv(ents)
-    {
-        auto a = ents[i];
-        if (!a) continue;
-        
-        if(a->attached) continue;
-        switch(e->et_type)
-        {
-            case ET_SPOTLIGHT:
-                if(a->et_type!=ET_LIGHT) continue;
-                break;
-
-            default:
-                if(e->et_type<ET_GAMESPECIFIC || !entities::attachent(e, a)) continue;
-                break;
-        }
-        float dist = e->o.dist(a->o);
-        if(dist < closedist)
-        {
-            closest = i;
-            closedist = dist;
-        }
-    }
-    if(closedist>attachradius) return;
-    e->attached = ents[closest];
-    ents[closest]->attached = e;
+    //FIXME: Attache entity feature
+//    switch(e->et_type)
+//    {
+//        case ET_SPOTLIGHT:
+//            break;
+//
+//        default:
+//            if(e->et_type<ET_GAMESPECIFIC || !mayattach(e)) return;
+//            break;
+//    }
+//
+//	detachentity(e);
+//
+//    auto &ents = getents();
+//    int closest = -1;
+//    float closedist = 1e10f;
+//    loopv(ents)
+//    {
+//        auto a = ents[i];
+//        if (!a) continue;
+//
+//        if(a->attached) continue;
+//        switch(e->et_type)
+//        {
+//            case ET_SPOTLIGHT:
+//                if(a->et_type!=ET_LIGHT) continue;
+//                break;
+//
+//            default:
+//                if(e->et_type<ET_GAMESPECIFIC || !entitities_attachable(e, a)) continue;
+//                break;
+//        }
+//        float dist = e->o.dist(a->o);
+//        if(dist < closedist)
+//        {
+//            closest = i;
+//            closedist = dist;
+//        }
+//    }
+//    if(closedist>attachradius) return;
+//    e->attached = ents[closest];
+//    ents[closest]->attached = e;
 }
 
 void attachentities()
 {
-    auto  &ents = entities::getents();
+    auto  &ents = getents();
     loopv(ents) attachentity(ents[i]);
 }
 
@@ -520,34 +525,34 @@ void attachentities()
 // e         entity, currently edited ent
 // n         int,    index to currently edited ent
 #define addimplicit(f)    { if(entgroup.empty() && enthover>=0) { entadd(enthover); undonext = (enthover != oldhover); f; entgroup.drop(); } else f; }
-#define entfocusv(i, f, v){ int n = efocus = (i); if(n>=0) { entities::classes::CoreEntity *e = v[n]; f; } }
-#define entfocus(i, f)    entfocusv(i, f, entities::getents())
+#define entfocusv(i, f, v){ int n = efocus = (i); if(n>=0) { Entity *e = v[n]; f; } }
+#define entfocus(i, f)    entfocusv(i, f, getents())
 #define enteditv(i, f, v) \
 { \
     entfocusv(i, \
     { \
-        int old_et_type = e->et_type; \
+        /*int old_et_type = e->et_type; \
         int old_ent_type = e->ent_type; \
-        int old_game_type = e->game_type; \
+        int old_game_type = e->game_type;*/ \
         removeentityedit(n);  \
         f; \
-        if(old_et_type!=e->et_type) detachentity(e); \
-        if(e->et_type!=ET_EMPTY) { addentityedit(n); if(old_et_type!=e->et_type) attachentity(e); } \
-        entities::editent(n, true); \
+        /*if(old_et_type!=e->et_type)*/ detachentity(e); \
+        if(e->classname!="core_entity") { addentityedit(n); /*if(old_et_type!=e->et_type)*/ attachentity(e); } \
+        editent(n, true); \
         clearshadowcache(); \
     }, v); \
 }
-#define entedit(i, f)   enteditv(i, f, entities::getents())
-#define addgroup(exp)   { auto &ents = entities::getents(); loopv(ents) entfocusv(i, if(exp) entadd(n), ents); }
+#define entedit(i, f)   enteditv(i, f, getents())
+#define addgroup(exp)   { auto &ents = getents(); loopv(ents) entfocusv(i, if(exp) entadd(n), ents); }
 #define setgroup(exp)   { entcancel(); addgroup(exp); }
-#define groupeditloop(f){ auto &ents = entities::getents(); entlooplevel++; int _ = efocus; loopv(entgroup) enteditv(entgroup[i], f, ents); efocus = _; entlooplevel--; }
+#define groupeditloop(f){ auto &ents = getents(); entlooplevel++; int _ = efocus; loopv(entgroup) enteditv(entgroup[i], f, ents); efocus = _; entlooplevel--; }
 #define groupeditpure(f){ if(entlooplevel>0) { entedit(efocus, f); } else { groupeditloop(f); commitchanges(); } }
 #define groupeditundo(f){ makeundoent(); groupeditpure(f); }
 #define groupedit(f)    { addimplicit(groupeditundo(f)); }
 
 vec getselpos()
 {
-    auto &ents = entities::getents();
+    auto &ents = getents();
     if(entgroup.length() && ents.inrange(entgroup[0])) return ents[entgroup[0]]->o;
     if(ents.inrange(enthover)) return ents[enthover]->o;
     return vec(sel.o);
@@ -562,19 +567,20 @@ undoblock *copyundoents(undoblock *u)
     undoblock *c = newundoent();
     loopi(u->numents)
     {
-		if(e[i].e->et_type==ET_EMPTY)
+//		if(e[i].e->et_type==ET_EMPTY)
+        if(e[i].e->classname == "core_entity")
 		{
-			entities::send_entity_event(e[i].i, entities::EntityEventSelectStop());
+			send_entity_event(e[i].i, EntityEventSelectStop());
 			entgroup.removeobj(e[i].i);
 		}
 	}
     return c;
 }
 
-void pasteundoent(int idx, entities::classes::CoreEntity* ue)
+void pasteundoent(int idx, Entity* ue)
 {
     if(idx < 0 || idx >= MAXENTS) return;
-    auto &ents = entities::getents();
+    auto &ents = getents();
     while(ents.length() < idx)
     {
 		auto ne = new_game_entity(true, ue->o, idx, "core_entity");
@@ -613,7 +619,7 @@ SCRIPTEXPORT void entrotate(int *cw)
     );
 }
 
-void entselectionbox(const entities::classes::CoreEntity *e, vec &eo, vec &es)
+void entselectionbox(const Entity *e, vec &eo, vec &es)
 {
 	vec bbmin;
 	vec bbmax;
@@ -629,7 +635,7 @@ void entselectionbox(const entities::classes::CoreEntity *e, vec &eo, vec &es)
 	return;
 
     model *m = NULL;
-    const char *mname = entities::entmodel(e);
+    const char *mname = entmodel(e);
     if(mname && (m = loadmodel(mname)))
     {
         m->collisionbox(eo, es);
@@ -639,15 +645,15 @@ void entselectionbox(const entities::classes::CoreEntity *e, vec &eo, vec &es)
         eo.y += e->o.y;
         eo.z = e->o.z - entselradius + es.z;
     }
-	else if(e->et_type == ET_MAPMODEL && (m = loadmapmodel(e->model_idx)))
+	else if(auto em = dynamic_cast<const ModelEntity*>(e); em && (m = loadmapmodel(em->model_idx)))
     {
         mmcollisionbox(e, m, eo, es);
         es.max(entselradius);
         eo.add(e->o);
     }
-    else if(e->et_type == ET_DECAL)
+    else if(auto ed = dynamic_cast<const DecalEntity*>(e); ed)
     {
-        DecalSlot &s = lookupdecalslot(e->attr1, false);
+        DecalSlot &s = lookupdecalslot(ed->m_DecalSlot, false);
         decalboundbox(e, s, eo, es);
         es.max(entselradius);
         eo.add(e->o);
@@ -703,7 +709,7 @@ void entdrag(const vec &ray)
 
 VAR(showentradius, 0, 1, 1);
 
-void renderentring(const entities::classes::CoreEntity *e, float radius, int axis)
+void renderentring(const Entity *e, float radius, int axis)
 {
     if(radius <= 0) return;
     gle::defvertex();
@@ -719,23 +725,24 @@ void renderentring(const entities::classes::CoreEntity *e, float radius, int axi
     xtraverts += gle::end();
 }
 
-void renderentsphere(const entities::classes::CoreEntity *e, float radius)
+void renderentsphere(const Entity *e, float radius)
 {
     if(radius <= 0) return;
     loopk(3) renderentring(e, radius, k);
 }
 
-void renderentattachment(const entities::classes::CoreEntity *e)
+void renderentattachment(const Entity *e)
 {
-    if(!e->attached) return;
-    gle::defvertex();
-    gle::begin(GL_LINES);
-    gle::attrib(e->o);
-    gle::attrib(e->attached->o);
-    xtraverts += gle::end();
+    //FIXME: Attachement feature
+//    if(!e->attached) return;
+//    gle::defvertex();
+//    gle::begin(GL_LINES);
+//    gle::attrib(e->o);
+//    gle::attrib(e->attached->o);
+//    xtraverts += gle::end();
 }
 
-void renderentarrow(const entities::classes::CoreEntity *e, const vec &dir, float radius)
+void renderentarrow(const Entity *e, const vec &dir, float radius)
 {
     if(radius <= 0) return;
     float arrowsize = min(radius/8, 0.5f);
@@ -757,7 +764,7 @@ void renderentarrow(const entities::classes::CoreEntity *e, const vec &dir, floa
     xtraverts += gle::end();
 }
 
-void renderentcone(const entities::classes::CoreEntity *e, const vec &dir, float radius, float angle)
+void renderentcone(const Entity *e, const vec &dir, float radius, float angle)
 {
     if(radius <= 0) return;
     vec spot = vec(dir).mul(radius*cosf(angle*RAD)).add(e->o), spoke;
@@ -780,7 +787,7 @@ void renderentcone(const entities::classes::CoreEntity *e, const vec &dir, float
     xtraverts += gle::end();
 }
 
-void renderentbox(const entities::classes::CoreEntity *e, const vec &center, const vec &radius, int yaw, int pitch, int roll)
+void renderentbox(const Entity *e, const vec &center, const vec &radius, int yaw, int pitch, int roll)
 {
     matrix4x3 orient;
     orient.identity();
@@ -821,9 +828,9 @@ void renderentbox(const entities::classes::CoreEntity *e, const vec &center, con
     xtraverts += gle::end();
 }
 
-void renderentradius(entities::classes::CoreEntity *e, bool color)
+void renderentradius(Entity *e, bool color)
 {
-    switch(e->et_type)
+/*    switch(e->et_type)
     {
         case ET_LIGHT:
             if(e->attr1 <= 0) break;
@@ -860,7 +867,7 @@ void renderentradius(entities::classes::CoreEntity *e, bool color)
         case ET_MAPMODEL:
         {
             if(color) gle::colorf(0, 1, 1);
-            entities::entradius(e, color);
+            entradius(e, color);
             vec dir;
             vecfromyawpitch(e->attr2, e->attr3, 1, 0, dir);
             renderentarrow(e, dir, 4);
@@ -870,7 +877,7 @@ void renderentradius(entities::classes::CoreEntity *e, bool color)
         case ET_PLAYERSTART:
         {
             if(color) gle::colorf(0, 1, 1);
-            entities::entradius(e, color);
+            entradius(e, color);
             vec dir;
             vecfromyawpitch(e->attr1, 0, 1, 0, dir);
             renderentarrow(e, dir, 4);
@@ -890,10 +897,10 @@ void renderentradius(entities::classes::CoreEntity *e, bool color)
             if(e->et_type>=ET_GAMESPECIFIC)
             {
                 if(color) gle::colorf(0, 1, 1);
-                entities::entradius(e, color);
+                entradius(e, color);
             }
             break;
-    }
+    }*/
 }
 
 static void renderenticosahedron(const vec &eo, vec es)
@@ -983,9 +990,9 @@ void renderentselection(const vec &o, const vec &ray, bool entmoving)
 //        xtraverts += gle::end();
     }
 
-    if(enthover >= 0 && enthover < entities::getents().length())
+    if(enthover >= 0 && enthover < getents().length())
     {
-//		auto highlighted_ent = entities::getents()[enthover];
+//		auto highlighted_ent = getents()[enthover];
 //		float cameraRelativeTickness = clamp(0.015f*camera1->o.dist(highlighted_ent->o)*tan(fovy*0.5f*RAD), 0.1f, 1.0f);
 //		highlighted_ent->renderHighlight(entselradius, entorient, cameraRelativeTickness);
 //
@@ -1017,7 +1024,7 @@ bool enttoggle(int id)
 	}
     else
     {
-		entities::send_entity_event(i, entities::EntityEventSelectStop());
+		send_entity_event(i, EntityEventSelectStop());
         entgroup.remove(i);
 	}
     return i < 0;
@@ -1032,15 +1039,15 @@ bool hoveringonent(int ent, int orient)
     {
 		if (enthover != ent)
 		{
-			entities::send_entity_event(ent, entities::EntityEventHoverStart(entorient));
+			send_entity_event(ent, EntityEventHoverStart(entorient));
 			if (enthover >= 0)
 			{
-				entities::send_entity_event(enthover, entities::EntityEventHoverStop());
+				send_entity_event(enthover, EntityEventHoverStop());
 			}
 		}
 		else if (oldOrient != entorient)
 		{
-			entities::send_entity_event(ent, entities::EntityEventHoverStart(entorient));
+			send_entity_event(ent, EntityEventHoverStart(entorient));
 		}
 		efocus = enthover = ent;
         return true;
@@ -1048,7 +1055,7 @@ bool hoveringonent(int ent, int orient)
     efocus = entgroup.empty() ? -1 : entgroup.last();
     if (enthover >= 0)
     {
-		entities::send_entity_event(enthover, entities::EntityEventHoverStop());
+		send_entity_event(enthover, EntityEventHoverStop());
 	}
     enthover = -1;
     return false;
@@ -1063,7 +1070,7 @@ SCRIPTEXPORT_AS(entadd) void entadd_scriptimpl()
         if(entgroup.find(enthover) < 0)
         {
 			entadd(enthover);
-			entities::send_entity_event(enthover, entities::EntityEventMoveStart());
+			send_entity_event(enthover, EntityEventMoveStart());
 		}
         if(entmoving > 1) entmoving = 1;
     }
@@ -1094,7 +1101,7 @@ SCRIPTEXPORT_AS(entmoving) void entmoving_scriptimpl(CommandTypes::Boolean n)
 			entmoving = 0;
 			if (!hasNoEntover)
 			{
-				entities::send_entity_event(enthover, entities::EntityEventMoveStop());
+				send_entity_event(enthover, EntityEventMoveStop());
 			}
 		}
         else
@@ -1107,7 +1114,7 @@ SCRIPTEXPORT_AS(entmoving) void entmoving_scriptimpl(CommandTypes::Boolean n)
             {
 				entmoving = 1;
 			}
-			entities::send_entity_event(enthover, entities::EntityEventMoveStart());
+			send_entity_event(enthover, EntityEventMoveStart());
         }
     }
     intret(entmoving);
@@ -1154,20 +1161,27 @@ SCRIPTEXPORT void entautoview(int *dir)
 SCRIPTEXPORT void delent()
 {
     if(noentedit()) return;
-    groupedit(e->et_type = ET_EMPTY;);
+    std::vector<Entity*> entitiesToDelete;
+
+    groupedit(entitiesToDelete.push_back(e););
     entcancel();
+
+    for (auto& e : entitiesToDelete)
+    {
+        delete e;
+    }
 }
 
 int findtype(char *what)
 {
-    for(int i = 0; *entities::entname(i); i++) if(strcmp(what, entities::entname(i))==0) return i;
+    for(int i = 0; *entname(i); i++) if(strcmp(what, entname(i))==0) return i;
     conoutf(CON_ERROR, "unknown entity type \"%s\"", what);
     return ET_EMPTY;
 }
 
 VAR(entdrop, 0, 2, 3);
 
-bool dropentity(entities::classes::CoreEntity *e, int drop = -1)
+bool dropentity(Entity *e, int drop = -1)
 {
     if (!e) {
         return false;
@@ -1175,9 +1189,11 @@ bool dropentity(entities::classes::CoreEntity *e, int drop = -1)
 
     vec radius(4.0f, 4.0f, 4.0f);
     if(drop<0) drop = entdrop;
-    if(e->et_type == ET_MAPMODEL)
+    auto em = dynamic_cast<ModelEntity*>(e);
+    auto el = dynamic_cast<LightEntity*>(e);
+    if(em)
     {
-        model *m = loadmapmodel(e->model_idx);
+        model *m = loadmapmodel(em->model_idx);
         if(m)
         {
             vec center;
@@ -1190,7 +1206,7 @@ bool dropentity(entities::classes::CoreEntity *e, int drop = -1)
     switch(drop)
     {
     case 1:
-        if(e->et_type != ET_LIGHT && e->et_type != ET_SPOTLIGHT)
+        if(el /*&& e->et_type != ET_SPOTLIGHT*/)
            dropenttofloor(e);
         break;
     case 2:
@@ -1210,7 +1226,7 @@ bool dropentity(entities::classes::CoreEntity *e, int drop = -1)
         else
             e->o[D[d]] += sel.grid + radius[D[d]];
 
-        if(e->et_type != ET_LIGHT && e->et_type != ET_SPOTLIGHT)
+        if(el /*&& e->et_type != ET_SPOTLIGHT*/)
             dropenttofloor(e);
         break;
     }
@@ -1226,14 +1242,14 @@ SCRIPTEXPORT void dropent()
 SCRIPTEXPORT void attachent()
 {
     if(noentedit()) return;
-    groupedit(attachentity((entities::classes::BasePhysicalEntity*)&e));
+    groupedit(attachentity((MovableEntity*)&e));
 }
 
 static int keepents = 0;
 //
-//entities::classes::CoreEntity *newentity(bool local, const vec &o, int type, int v1, int v2, int v3, int v4, int v5, int &idx, bool fix = true)
+//Entity *newentity(bool local, const vec &o, int type, int v1, int v2, int v3, int v4, int v5, int &idx, bool fix = true)
 //{
-//    auto &ents = entities::getents();
+//    auto &ents = getents();
 //
 //    // If local, we ensure it is not out of bounds, if it is, we return NULL and warn our player.
 //    if(local)
@@ -1254,11 +1270,11 @@ static int keepents = 0;
 //    } else {
 //        while(ents.length() < idx)
 //        {
-//            ents.add(entities::newgameentity(""))->et_type = ET_EMPTY;
+//            ents.add(newgameentity(""))->et_type = ET_EMPTY;
 //        }
 //    }
 //
-//    auto e = entities::newgameentity("");
+//    auto e = newgameentity("");
 //    e->o = o;
 //    e->attr1 = v1;
 //    e->attr2 = v2;
@@ -1273,7 +1289,7 @@ static int keepents = 0;
 //
 //    if(ents.inrange(idx))
 //    {
-//		entities::deletegameentity(ents[idx]);
+//		deletegameentity(ents[idx]);
 //		ents[idx] = e;
 //	}
 //    else
@@ -1307,25 +1323,25 @@ static int keepents = 0;
 namespace {
 	void find_next_entity_index(int &idx)
 	{
-		auto &ents = entities::getents();
+		auto &ents = getents();
 		idx = -1;
 		
-		for (int i = keepents; i < ents.length(); i++)
-		{
-			if(ents[i]->et_type == ET_EMPTY)
-			{
-				conoutf("idx = %i", idx);
-				idx = i;
-				break;
-			}
-		}
+//		for (int i = keepents; i < ents.length(); i++)
+//		{
+//			if(ents[i]->et_type == ET_EMPTY)
+//			{
+//				conoutf("idx = %i", idx);
+//				idx = i;
+//				break;
+//			}
+//		}
 	}
 }
 
-entities::classes::CoreEntity *new_game_entity(bool local, const vec &o, int &idx, const char *strclass)
+Entity *new_game_entity(bool local, const vec &o, int &idx, const char *strclass)
 {
     // Retreive the list of entities.
-    auto &ents = entities::getents();
+    auto &ents = getents();
 
     // If local, we ensure it is not out of bounds, if it is, we return NULL and warn our player.
     if (local)
@@ -1349,13 +1365,13 @@ entities::classes::CoreEntity *new_game_entity(bool local, const vec &o, int &id
         }
     }
 
-    entities::classes::CoreEntity *ent = entities::EntityFactory::constructEntity(std::string(strclass));
+    Entity *ent = EntityFactory::constructEntity(std::string(strclass));
 
     ent->o = o;
 
 	if (ents.inrange(idx))
 	{
-		entities::deletegameentity(ents[idx]);
+		deletegameentity(ents[idx]);
         ents[idx] = ent;
 	}
 	else
@@ -1368,14 +1384,14 @@ entities::classes::CoreEntity *new_game_entity(bool local, const vec &o, int &id
 	makeundoent();
 	removeentityedit(idx);
 	addentityedit(idx);
-	entities::editent(idx, true);
+	editent(idx, true);
 	clearshadowcache();
 	commitchanges();
 	
     return ent;
 }
 
-entities::classes::CoreEntity *new_game_entity(int &idx, entities::classes::CoreEntity *copy)
+Entity *new_game_entity(int &idx, Entity *copy)
 {
 	find_next_entity_index(idx);
 	auto ent = new_game_entity(true, copy->o, idx, copy->currentClassname().c_str());
@@ -1401,7 +1417,7 @@ SCRIPTEXPORT void newgent(char *classname)
 }
 
 int entcopygrid;
-vector<entities::classes::CoreEntity*> entcopybuf;
+vector<Entity*> entcopybuf;
 
 SCRIPTEXPORT void entcopy()
 {
@@ -1415,7 +1431,8 @@ SCRIPTEXPORT void entcopy()
 
 SCRIPTEXPORT void entpaste()
 {
-    if(noentedit() || entcopybuf.empty()) return;
+    //FIXME: Copy/Paste Entities feature
+    /*if(noentedit() || entcopybuf.empty()) return;
     entcancel();
     float m = float(sel.grid)/float(entcopygrid);
     loopv(entcopybuf)
@@ -1423,7 +1440,7 @@ SCRIPTEXPORT void entpaste()
         const auto c = entcopybuf[i];
         vec o = vec(c->o).mul(m).add(vec(sel.o));
         int idx = -1;
-        entities::classes::CoreEntity *e = new_game_entity(idx, c);
+        Entity *e = new_game_entity(idx, c);
         if(!e) continue;
         e->o = o;
         entadd(idx);
@@ -1431,7 +1448,7 @@ SCRIPTEXPORT void entpaste()
     }
     keepents = 0;
     int j = 0;
-    groupeditundo(e->et_type = entcopybuf[j++]->et_type;);
+    groupeditundo(e->et_type = entcopybuf[j++]->et_type;);*/
 }
 
 SCRIPTEXPORT void entreplace()
@@ -1459,21 +1476,21 @@ SCRIPTEXPORT void entset(char *what, int *a1, int *a2, int *a3, int *a4, int *a5
     assert(false);
 }
 
-void printent(entities::classes::CoreEntity *e, char *buf, int len)
-{
-	nformatcubestr(buf, len, "%s", e->name.c_str());
-}
+//void printent(Entity *e, char *buf, int len)
+//{
+//	nformatcubestr(buf, len, "%s", e->name.c_str());
+//}
 
 SCRIPTEXPORT void nearestent()
 {
     if(noentedit()) return;
     int closest = -1;
     float closedist = 1e16f;
-    auto &ents = entities::getents();
+    auto &ents = getents();
     loopv(ents)
     {
-        entities::classes::CoreEntity *e = ents[i];
-        if(e->et_type == ET_EMPTY) continue;
+        Entity *e = ents[i];
+//        if(e->et_type == ET_EMPTY) continue;
         float dist = e->o.dist(player->o);
         if(dist < closedist)
         {
@@ -1491,7 +1508,7 @@ SCRIPTEXPORT void enthavesel()
 
 SCRIPTEXPORT void entselect(CommandTypes::Expression body)
 {
-    if(!noentedit()) addgroup(e->et_type != ET_EMPTY && entgroup.find(n)<0 && executebool(body));
+    if(!noentedit()) addgroup(/*e->et_type != ET_EMPTY && */ entgroup.find(n)<0 && executebool(body));
 }
 
 SCRIPTEXPORT void entloop(CommandTypes::Expression body)
@@ -1504,10 +1521,10 @@ SCRIPTEXPORT void insel()
     entfocus(efocus, intret(pointinsel(sel, e->o)));
 }
 
-SCRIPTEXPORT void entget()
-{
-    entfocus(efocus, cubestr s; printent(e, s, sizeof(s)); result(s));
-}
+//SCRIPTEXPORT void entget()
+//{
+//    entfocus(efocus, cubestr s; printent(e, s, sizeof(s)); result(s));
+//}
 
 SCRIPTEXPORT void entindex()
 {
@@ -1519,17 +1536,17 @@ SCRIPTEXPORT void enttype(char *type, CommandTypes::ArgLen numargs)
     if(*numargs >= 1)
     {
         int typeidx = findtype(type);
-        if(typeidx != ET_EMPTY) groupedit(e->et_type = typeidx);
+//        if(typeidx != ET_EMPTY) groupedit(e->et_type = typeidx);
     }
     else entfocus(efocus,
     {
-        result(entities::entname(e->et_type));
+        result(e->classname.c_str());
     })
 }
 
 SCRIPTEXPORT void entattr(int *attr, int *val, CommandTypes::ArgLen numargs)
 {
-    if(*numargs >= 2)
+    /*if(*numargs >= 2)
     {
         if(*attr >= 0 && *attr <= 4)
             groupedit(
@@ -1553,17 +1570,19 @@ SCRIPTEXPORT void entattr(int *attr, int *val, CommandTypes::ArgLen numargs)
             case 3: intret(e->attr4); break;
             case 4: intret(e->attr5); break;
         }
-    })
+    })*/
 }
 
 // TODO: Is this still needed?
+// MvK: pretty sure, no
+/*
 int findentity(int type, int index, int attr1, int attr2)
 {
-    const auto &ents = entities::getents();
+    const auto &ents = getents();
     if(index > ents.length()) index = ents.length();
     else for(int i = index; i<ents.length(); i++)
     {
-        entities::classes::CoreEntity *e = ents[i];
+        Entity *e = ents[i];
         if (e->et_type == ET_MAPMODEL && (attr1 < 0 || e->model_idx == attr1) && (attr2 < 0 || e->attr2 == attr2))
             return i;
         if(e->et_type==type && (attr1<0 || e->attr1==attr1) && (attr2<0 || e->attr2==attr2))
@@ -1571,18 +1590,18 @@ int findentity(int type, int index, int attr1, int attr2)
     }
     loopj(index)
     {
-        entities::classes::CoreEntity *e = ents[j];
+        Entity *e = ents[j];
         if (e->et_type == ET_MAPMODEL && (attr1 < 0 || e->model_idx == attr1) && (attr2 < 0 || e->attr2 == attr2))
             return j;
         if(e->et_type==type && (attr1<0 || e->attr1==attr1) && (attr2<0 || e->attr2==attr2))
             return j;
     }
     return -1;
-}
+}*/
 
 int findentity_byclass(const std::string &classname)
 {
-	const auto &ents = entities::getents();
+	const auto &ents = getents();
 	for(int i = 0; i <ents.length(); i++)
 	{
 		if (ents[i]->classname != classname) continue;
@@ -1595,15 +1614,15 @@ int findentity_byclass(const std::string &classname)
 
 
 // We do not need forceent = -1 anymore atm, neither do we need tag = 0 for now. But it's here for backwards reasons.
-void findplayerspawn(entities::classes::Player *d, int forceent, int tag) // Place at spawn (some day, random spawn).
+void findplayerspawn(SkeletalEntity *d, int forceent, int tag) // Place at spawn (some day, random spawn).
 {
-	auto startEntity = getentitybytype<entities::classes::PlayerStart>();
+	auto startEntity = getentitybytype<PlayerSpawnEntity>();
 
 	if (startEntity)
 	{
 		d->o = startEntity->o;
 		d->o.z += 1;
-		d->yaw = startEntity->yaw;
+		d->d.x = startEntity->d.x;
 	}
 	else
 	{
@@ -1611,7 +1630,7 @@ void findplayerspawn(entities::classes::Player *d, int forceent, int tag) // Pla
 		
 		d->o.x = d->o.y = d->o.z = 0.5f*worldsize;
 		d->o.z += 1;
-		d->yaw = 0.0f;
+		d->d.x = 0.0f;
 	}
 	
 	d->resetinterp();
@@ -1649,19 +1668,19 @@ void findplayerspawn(entities::classes::Player *d, int forceent, int tag) // Pla
 //    }
 //    if(pick>=0)
 //    {
-//        const vector<extentity *> &ents = entities::getents();
-//        d->pitch = 0;
-//        d->roll = 0;
+//        const vector<extentity *> &ents = getents();
+//        d->d.y = 0;
+//        d->d.z = 0;
 //        for(int attempt = pick;;)
 //        {
 //            d->o = ents[attempt]->o;
-//            d->yaw = ents[attempt]->attr1;
+//            d->d.x = ents[attempt]->attr1;
 //            if(entinmap(d, true)) break;
 //            attempt = findentity(ET_PLAYERSTART, attempt+1, -1, tag);
 //            if(attempt<0 || attempt==pick)
 //            {
 //                d->o = ents[pick]->o;
-//                d->yaw = ents[pick]->attr1;
+//                d->d.x = ents[pick]->attr1;
 //                entinmap(d);
 //                break;
 //            }
@@ -1676,12 +1695,12 @@ void findplayerspawn(entities::classes::Player *d, int forceent, int tag) // Pla
 //}
 //int findentity_byclass(const std::string &classname, int index, int attr1, int attr2)
 //{
-//    const auto &ents = entities::getents();
+//    const auto &ents = getents();
 //    if(index > ents.length()) index = ents.length();
 //    else {
 //        for(int i = index; i<ents.length(); i++)
 //        {
-//            entities::classes::CoreEntity *e = ents[i];
+//            Entity *e = ents[i];
 
 //            if(e->classname == classname) {
 //				conoutf("Found Entity by Class: %s , %s", classname.c_str(), e->classname.c_str());
@@ -1693,7 +1712,7 @@ void findplayerspawn(entities::classes::Player *d, int forceent, int tag) // Pla
 //    return index;
 //}
 
-//void findplayerspawn(entities::classes::Player *d, int forceent, int tag) // place at random spawn
+//void findplayerspawn(SkeletalEntity *d, int forceent, int tag) // place at random spawn
 //{
 //	int pick = forceent;
 //	if(pick < 0)
@@ -1718,19 +1737,19 @@ void findplayerspawn(entities::classes::Player *d, int forceent, int tag) // Pla
 //	}
 //	if(pick>=0)
 //	{
-//		const auto &ents = entities::getents();
-//		d->pitch = 0;
-//		d->roll = 0;
+//		const auto &ents = getents();
+//		d->d.y = 0;
+//		d->d.z = 0;
 //		for(int attempt = pick; attempt < ents.length(); attempt++ )
 //		{
 //			d->o = ents[attempt]->o;
-//			d->yaw = ents[attempt]->attr1;
+//			d->d.x = ents[attempt]->attr1;
 //			if(entinmap(d, true)) break;
 //			attempt = findentity_byclass("playerstart", attempt+1, -1, tag);
 //			if(attempt < 0 || attempt==pick)
 //			{
 //				d->o = ents[pick]->o;
-//				d->yaw = ents[pick]->attr1;
+//				d->d.x = ents[pick]->attr1;
 //				entinmap(d);
 //				break;
 //			}
@@ -1769,7 +1788,7 @@ void resetmap()
     pruneundos();
     clearmapcrc();
 
-    entities::clearents();
+    clearents();
     outsideents.setsize(0);
     spotlights = 0;
     volumetriclights = 0;
@@ -1891,7 +1910,7 @@ SCRIPTEXPORT void shrinkmap()
     worldsize /= 2;
 
     ivec offset(octant, ivec(0, 0, 0), worldsize);
-    auto &ents = entities::getents();
+    auto &ents = getents();
     loopv(ents) ents[i]->o.sub(vec(offset));
 
     shrinkblendmap(octant);

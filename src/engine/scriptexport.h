@@ -24,6 +24,8 @@
 
 
 #define PHUI_HIDDEN(label) __attribute__((annotate("phui;" #label ";hidden")))
+#define PHUI_VEC(label) __attribute__((annotate("phui;vec;" #label)))       //FIXME: automate this based on type and just use PHUI instead
+#define PHUI_IVEC(label) __attribute__((annotate("phui;ivec;" #label)))     //FIXME: automate this based on type and just use PHUI instead
 #define PHUI_SLIDER(label, minVal, maxVal, stepVal) __attribute__((annotate("phui;slider;" #label ";" #minVal ";" #maxVal ";" #stepVal)))
 #define PHUI_CHECKBOX(label) __attribute__((annotate("phui;checkbox;" #label)))
 #define PHUI_INPUT(label) __attribute__((annotate("phui;input;" #label )))

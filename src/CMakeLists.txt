@@ -289,38 +289,40 @@ list(APPEND fileListGame
 )
 
 list(APPEND fileListGameEntities
-    game/entities/basemapmodel.cpp
-    game/entities/basemapmodel.h
-    game/entities/door.cpp
-    game/entities/door.h
-    game/entities/dynamiclight.cpp
-    game/entities/dynamiclight.h
-    game/entities/basemonster.cpp
-    game/entities/basemonster.h
-    game/entities/playerstart.cpp
-    game/entities/playerstart.h
-    game/entities/player.cpp
-    game/entities/player.h
+        game/entities/ModelEntity.cpp
+        game/entities/ModelEntity.h
+        game/entities/DoorEntity.cpp
+        game/entities/DoorEntity.h
+        game/entities/LightEntity.cpp
+        game/entities/LightEntity.h
+        game/entities/MonsterEntity.cpp
+        game/entities/MonsterEntity.h
+        game/entities/PlayerSpawnEntity.cpp
+        game/entities/PlayerSpawnEntity.h
+        game/entities/SkeletalEntity.cpp
+        game/entities/SkeletalEntity.h
+        game/entities/SoundEntity.cpp
+        game/entities/SoundEntity.h
 )
 
 list(APPEND fileListSharedEntities
-    shared/entities/animinfo.h
-    shared/entities/attributes.h
-    shared/entities/attributes.cpp
-    shared/entities/coreentity.h
-    shared/entities/coreentity.cpp
-    shared/entities/baseentity.h
-    shared/entities/baseentity.cpp
-    shared/entities/basedynamicentity.cpp
-    shared/entities/basedynamicentity.h
-    shared/entities/basephysicalentity.cpp
-    shared/entities/basephysicalentity.h
-    shared/entities/decalentity.h
-    shared/entities/decalentity.cpp
-    shared/entities/entityfactory.h
-    shared/entities/entityfactory.cpp
+    shared/entities/DecalEntity.cpp
+    shared/entities/DecalEntity.h
+    shared/entities/DynamicEntity.cpp
+    shared/entities/DynamicEntity.h
+    shared/entities/Entity.cpp
+    shared/entities/Entity.h
     shared/entities/EntityEditorMenu.cpp
     shared/entities/EntityEditorMenu.h
+    shared/entities/EntityFactory.cpp
+    shared/entities/EntityFactory.h
+    shared/entities/EnvMapEntity.cpp
+    shared/entities/EnvMapEntity.h
+    shared/entities/MovableEntity.cpp
+    shared/entities/MovableEntity.h
+    shared/entities/animinfo.h
+    shared/entities/attributes.cpp
+    shared/entities/attributes.h
 )
 
 list(APPEND extRenderdocFiles

@@ -27,7 +27,7 @@ void cleanupvolumetric();
 void findshadowvas();
 void findshadowmms();
 
-int calcshadowinfo(const entities::classes::CoreEntity *e, vec &origin, float &radius, vec &spotloc, int &spotangle, float &bias);
+int calcshadowinfo(const Entity *e, vec &origin, float &radius, vec &spotloc, int &spotangle, float &bias);
 int dynamicshadowvabounds(int mask, vec &bbmin, vec &bbmax);
 void rendershadowmapworld();
 void batchshadowmapmodels(bool skipmesh = false);

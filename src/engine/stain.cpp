@@ -7,7 +7,8 @@
 #include "engine/stain.h"
 #include "engine/menus.h"
 #include "engine/main/Renderer.h"
-#include "shared/entities/basephysicalentity.h"
+#include "shared/entities/DynamicEntity.h"
+#include "game/entities/ModelEntity.h"
 
 struct stainvert
 {
@@ -694,22 +695,24 @@ struct stainrenderer
 
     void genmmtris(octaentities &oe)
     {
-        const auto &ents = entities::getents();
+        const auto &ents = getents();
         loopv(oe.mapmodels)
         {
-            auto e = ents[oe.mapmodels[i]];
+            auto e = dynamic_cast<ModelEntity*>(ents[oe.mapmodels[i]]);
+            if (!e)
+                continue;
             
 			model *m = loadmapmodel(e->model_idx);
             if(!m) continue;
 
             vec center, radius;
-			float rejectradius = m->collisionbox(center, radius), scale = e->attr5 > 0 ? e->attr5/100.0f : 1;
+			float rejectradius = m->collisionbox(center, radius), scale = e->scale > 0 ? e->scale/100.0f : 1;
             center.mul(scale);
 			if(staincenter.reject(vec(e->o).add(center), stainradius + rejectradius*scale)) continue;
 
             if(m->animated() || (!m->bih && !m->setBIH())) continue; 
 
-			int yaw = e->attr2, pitch = e->attr3, roll = e->attr4;
+			int yaw = e->d.x, pitch = e->d.y, roll = e->d.z;
 
 			m->bih->genstaintris(this, staincenter, stainradius, e->o, yaw, pitch, roll, scale);
         }

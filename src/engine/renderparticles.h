@@ -1,5 +1,5 @@
 #pragma once
- namespace entities { namespace classes { class CoreEntity; } }
+ class Entity;
 
 extern int particlelayers;
 
@@ -12,5 +12,5 @@ void seedparticles();
 void updateparticles();
 void debugparticles();
 void renderparticles(int layer = PL_ALL);
-bool printparticles(entities::classes::CoreEntity *e, char *buf, int len);
+bool printparticles(Entity *e, char *buf, int len);
 void cleanupparticles();

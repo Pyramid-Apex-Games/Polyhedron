@@ -2,12 +2,7 @@
 #include "nuklear_polyhedron.h"
 
 struct nk_context;
-
-namespace entities {
-    namespace classes {
-        class CoreEntity;
-    }
-}
+class Entity;
 
 namespace engine {
 	namespace nui {
@@ -26,8 +21,8 @@ namespace engine {
 		nk_context* GetNKContext();
 		NkPolyhedron& GetDevice();
 
-        void StartEntityEditor(entities::classes::CoreEntity* entity);
-        void StopEntityEditor(entities::classes::CoreEntity* entity);
+        void StartEntityEditor(Entity* entity);
+        void StopEntityEditor(Entity* entity);
 
 
 		void DemoUI();

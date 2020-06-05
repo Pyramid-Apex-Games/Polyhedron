@@ -19,9 +19,9 @@
 #include "engine/octaedit.h"
 #include "engine/command.h"
 #include "engine/renderparticles.h"
-#include "shared/entities/entityfactory.h"
-#include "game/entities/player.h"
-#include "shared/entities/coreentity.h"
+#include "shared/entities/EntityFactory.h"
+#include "game/entities/SkeletalEntity.h"
+#include "shared/entities/Entity.h"
 #include <SDL.h>
 
 VAR(numcpus, 1, 1, 16);
@@ -99,8 +99,8 @@ Application::Application(const CommandlineArguments& commandlineArguments)
 
     //FIXME: move to game
     game::initclient();
-    player = game::player1 = dynamic_cast<entities::classes::Player*>(game::iterdynents(0));
-    camera1 = game::player1->camera;
+    player = game::player1 = dynamic_cast<SkeletalEntity*>(game::iterdynents(0));
+    camera1 = new MovableEntity();
     //emptymap(0, true, NULL, false);
 
     execfile("config/stdlib.cfg", true);
@@ -133,6 +133,7 @@ Application::~Application()
     m_Python.release();
     m_Renderer.release();
     m_Window.release();
+    delete camera1;
 }
 
 namespace game {

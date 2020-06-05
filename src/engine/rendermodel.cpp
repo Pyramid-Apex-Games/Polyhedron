@@ -1,6 +1,6 @@
 #include "shared/cube.h"
 #include "shared/ents.h"
-#include "shared/entities/basedynamicentity.h"
+#include "shared/entities/MovableEntity.h"
 #include "engine/pvs.h"
 #include "engine/rendergl.h"
 #include "engine/renderlights.h"
@@ -8,7 +8,7 @@
 #include "engine/renderva.h"
 #include "engine/main/Compatibility.h"
 #include "engine/main/Renderer.h"
-#include "game/entities/basemapmodel.h"
+#include "game/entities/ModelEntity.h"
 
 //extern from command.h
 extern int identflags;
@@ -413,12 +413,12 @@ void flushpreloadedmodels(bool msg)
 
 void preloadusedmapmodels(bool msg, bool bih)
 {
-	auto &ents = entities::getents();
+	auto &ents = getents();
 	vector<int> used;
 	loopv(ents)
 	{
-		auto e = ents[i];
-		if(e->et_type==ET_MAPMODEL && e->et_type >= 0 && used.find(e->et_type) < 0) used.add(e->model_idx);
+		auto e = dynamic_cast<ModelEntity*>(ents[i]);
+		if(e && used.find(e->model_idx) < 0) used.add(e->model_idx);
 	}
 
 	vector<const char *> col;
@@ -553,7 +553,7 @@ struct batchedmodel
 		int visible;
 		int culled;
 	};
-	entities::classes::BaseMapModel *d;
+	ModelEntity *d;
 	int next;
 };
 struct modelbatch
@@ -609,7 +609,7 @@ static inline void renderbatchedmodel(model *m, const batchedmodel &b)
 		if(b.flags&MDL_FULLBRIGHT) anim |= ANIM_FULLBRIGHT;
 	}
 
-	m->render(anim, b.basetime, b.basetime2, b.pos, b.yaw, b.pitch, b.roll, (entities::classes::BaseDynamicEntity*)b.d, a, b.sizescale, b.colorscale);
+	m->render(anim, b.basetime, b.basetime2, b.pos, b.yaw, b.pitch, b.roll, (MovableEntity*)b.d, a, b.sizescale, b.colorscale);
 }
 
 VAR(maxmodelradiusdistance, 10, 200, 1000);
@@ -619,7 +619,7 @@ static inline void enablecullmodelquery()
 	startbb();
 }
 
-static inline void rendercullmodelquery(model *m, entities::classes::BaseDynamicEntity *d, const vec &center, float radius)
+static inline void rendercullmodelquery(model *m, MovableEntity *d, const vec &center, float radius)
 {
 	if(fabs(camera1->o.x-center.x) < radius+1 &&
 	   fabs(camera1->o.y-center.y) < radius+1 &&
@@ -641,7 +641,7 @@ static inline void disablecullmodelquery()
 	endbb();
 }
 
-static inline int cullmodel(model *m, const vec &center, float radius, int flags, entities::classes::BaseMapModel *d = NULL)
+static inline int cullmodel(model *m, const vec &center, float radius, int flags, ModelEntity *d = NULL)
 {
 	if(flags&MDL_CULL_DIST && center.dist(camera1->o)/radius>maxmodelradiusdistance) return MDL_CULL_DIST;
 	if(flags&MDL_CULL_VFC && isfoggedsphere(radius, center)) return MDL_CULL_VFC;
@@ -1006,7 +1006,7 @@ void rendermapmodel(int idx, int anim, const vec &o, float yaw, float pitch, flo
 	addbatchedmodel(m, b, batchedmodels.length()-1);
 }
 
-void rendermodel(const char *mdl, int anim, const vec &o, float yaw, float pitch, float roll, int flags, entities::classes::BaseMapModel *d, modelattach *a, int basetime, int basetime2, float size, const vec4 &color)
+void rendermodel(const char *mdl, int anim, const vec &o, float yaw, float pitch, float roll, int flags, ModelEntity *d, modelattach *a, int basetime, int basetime2, float size, const vec4 &color)
 {
 	model *m = loadmodel(mdl);
 	if(!m) return;
@@ -1014,7 +1014,7 @@ void rendermodel(const char *mdl, int anim, const vec &o, float yaw, float pitch
 	vec center, bbradius;
 	m->boundbox(center, bbradius);
 	float radius = bbradius.magnitude();
-	entities::classes::BaseDynamicEntity *dynent = dynamic_cast<entities::classes::BaseDynamicEntity*>(d);
+	MovableEntity *dynent = dynamic_cast<MovableEntity*>(d);
 	if(dynent)
 	{
 		if(dynent->ragdoll)
@@ -1098,7 +1098,7 @@ hasboundbox:
 	addbatchedmodel(m, b, batchedmodels.length()-1);
 }
 
-int intersectmodel(const std::string &mdl, int anim, const vec &pos, float yaw, float pitch, float roll, const vec &o, const vec &ray, float &dist, int mode, entities::classes::BaseDynamicEntity *d, modelattach *a, int basetime, int basetime2, float size)
+int intersectmodel(const std::string &mdl, int anim, const vec &pos, float yaw, float pitch, float roll, const vec &o, const vec &ray, float &dist, int mode, MovableEntity *d, modelattach *a, int basetime, int basetime2, float size)
 {
 	model *m = loadmodel(mdl.c_str());
 	if(!m) return -1;
@@ -1180,7 +1180,7 @@ void loadskin(const char *dir, const char *altdir, Texture *&skin, Texture *&mas
 	tryload(masks, NULL, NULL, "masks");
 }
 
-void setbbfrommodel(entities::classes::BasePhysicalEntity *d, const std::string &mdl)
+void setbbfrommodel(MovableEntity *d, const std::string &mdl)
 {
 	model *m = loadmodel(mdl.c_str());
 	if(!m) return;

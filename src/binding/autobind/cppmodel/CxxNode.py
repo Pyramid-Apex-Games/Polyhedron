@@ -3,6 +3,7 @@ from enum import Flag, auto
 import sys
 
 class Generator(Flag):
+    Noop = 0
     Json = auto()
     Attributes = auto()
     CubeScript = auto()
@@ -12,7 +13,7 @@ class Generator(Flag):
 
 class CxxNode():
     
-    def __init__(self, parser, sourceObject, parent = None, generateFor = Generator.All):
+    def __init__(self, parser, sourceObject, parent = None, generateFor = Generator.Noop):
         # self.cxxtype = cxxtype
         self.sourceObject = sourceObject
         self.parent = parent

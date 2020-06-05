@@ -4,23 +4,13 @@
 #include "engine/scriptexport.h"
 
 struct Texture;
+class MovableEntity;
+class SkeletalEntity;
 
-namespace entities
-{
-    namespace classes
-    {
-        class Player;
-        class BasePhysicalEntity;
-    }
+extern SkeletalEntity *player;
+namespace game {
+    extern SkeletalEntity *player1;
 }
-
-namespace game
-{
-    extern entities::classes::Player *player1;
-    extern entities::classes::BasePhysicalEntity *camera1;
-}
-
-extern entities::classes::Player *player;
 
 enum { KR_CONSOLE = 1<<0, KR_GUI = 1<<1, KR_EDITMODE = 1<<2 };
 enum { TI_CONSOLE = 1<<0, TI_GUI = 1<<1 };

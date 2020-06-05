@@ -2,16 +2,14 @@
 #include "engine/scriptexport.h"
 
 #include "entities.h"
-#include "entities/player.h"
+#include "entities/SkeletalEntity.h"
 
 // This file its soul purpose is to have all CubeScript COMMAND definitions located in a single file.
 //---------------------------------------------------------------------------------------------//
 // VARIABLES USED BY COMMANDS.                                                                 //
 //---------------------------------------------------------------------------------------------//
 // COMMAND(S): ent_....
-namespace entities {
-    int edit_entity = -1;
-}
+int edit_entity = -1;
 
 namespace game {
     //---------------------------------------------------------------------------------------------//
@@ -21,11 +19,11 @@ namespace game {
     // args: (str)key (str)value.
     SCRIPTEXPORT void ent_set_attr(char *key, tagval *value)
     {
-        auto& ents = entities::getents();
+        auto& ents = getents();
 
-        if (entities::edit_entity > -1 && entities::edit_entity < ents.length())
+        if (edit_entity > -1 && edit_entity < ents.length())
         {
-            auto ent = ents[entities::edit_entity];
+            auto ent = ents[edit_entity];
             
             if (value->type == VAL_INT)
             {
@@ -54,9 +52,9 @@ namespace game {
     // args: (str)key
     SCRIPTEXPORT void ent_get_attr(char *attribute_key)
     {
-        auto& ents = entities::getents();
+        auto& ents = getents();
 
-        if (entities::edit_entity > -1 && entities::edit_entity < ents.length())
+        if (edit_entity > -1 && edit_entity < ents.length())
         {
             if (attribute_key == nullptr || attribute_key[0] == '\0')
             {
@@ -64,7 +62,7 @@ namespace game {
                 return;
             }
 
-            auto ent = ents[entities::edit_entity];
+            auto ent = ents[edit_entity];
             auto val = ent->getAttribute(attribute_key);
 
 			try {
@@ -110,11 +108,11 @@ namespace game {
     SCRIPTEXPORT void ent_list_attr(ident *id, CommandTypes::Expression body)
     {
 		loopstart(id, stack);
-        auto& ents = entities::getents();
+        auto& ents = getents();
 
-        if (entities::edit_entity > -1 && entities::edit_entity < ents.length())
+        if (edit_entity > -1 && edit_entity < ents.length())
         {
-            auto ent = ents[entities::edit_entity];
+            auto ent = ents[edit_entity];
 
 			auto attributeList = ent->attributes();
             for(auto row : attributeList)
@@ -168,7 +166,7 @@ namespace game {
         if(player1->state!=CS_EDITING) return;
         player1->o = getselpos();
         vec dir;
-        vecfromyawpitch(player1->yaw, player1->pitch, 1, 0, dir);
+        vecfromyawpitch(player1->d.x, player1->d.y, 1, 0, dir);
         player1->o.add(dir.mul(-32));
         player1->resetinterp();
     }

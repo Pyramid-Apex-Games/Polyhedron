@@ -2,7 +2,7 @@
 
 #include "shared/cube.h"
 #include "shared/stream.h"
-#include "game/entities/player.h"
+#include "game/entities/SkeletalEntity.h"
 #include "engine/nui/nui.h"
 #include "engine/main/Application.h"
 #include "engine/main/Window.h"

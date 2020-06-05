@@ -6,6 +6,7 @@
 #include "vec.h"
 #include "plane.h"
 #include "constants.h"
+#include <nlohmann/json.hpp>
 #include <algorithm>
 #include <math.h>
 
@@ -33,3 +34,15 @@ float ivec::dist(const plane &p) const { return x*p.x + y*p.y + z*p.z + p.offset
 
 ivec ivec::floor(const vec &o) { return ivec(int(::floor(o.x)), int(::floor(o.y)), int(::floor(o.z))); }
 ivec ivec::ceil(const vec &o) { return ivec(int(::ceil(o.x)), int(::ceil(o.y)), int(::ceil(o.z))); }
+
+
+void to_json(nlohmann::json& document, const ivec& v)
+{
+	document = nlohmann::json{{"x", v.x}, {"y", v.y}, {"z", v.z}};
+}
+
+void from_json(const nlohmann::json& document, ivec& v) {
+	document.at("x").get_to(v.x);
+	document.at("y").get_to(v.y);
+	document.at("z").get_to(v.z);
+}

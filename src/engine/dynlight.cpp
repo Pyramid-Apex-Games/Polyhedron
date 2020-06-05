@@ -1,5 +1,6 @@
 #include "shared/ents.h"
-#include "shared/entities/basephysicalentity.h"
+#include "shared/entities/DynamicEntity.h"
+#include "shared/entities/MovableEntity.h"
 #include "engine/engine.h"
 #include "engine/pvs.h"
 #include "engine/renderva.h"
@@ -14,7 +15,7 @@ struct dynlight
     float radius, initradius, curradius, dist;
     vec color, initcolor, curcolor;
     int fade, peak, expire, flags;
-    entities::classes::CoreEntity *owner;
+    Entity *owner;
     vec dir;
     int spot;
 
@@ -57,7 +58,7 @@ struct dynlight
 vector<dynlight> dynlights;
 vector<dynlight *> closedynlights;
 
-void adddynlight(const vec &o, float radius, const vec &color, int fade, int peak, int flags, float initradius, const vec &initcolor, entities::classes::CoreEntity *owner, const vec &dir, int spot)
+void adddynlight(const vec &o, float radius, const vec &color, int fade, int peak, int flags, float initradius, const vec &initcolor, Entity *owner, const vec &dir, int spot)
 {
     if(!usedynlights) return;
     if(o.dist(camera1->o) > dynlightdist || radius <= 0) return;
@@ -88,7 +89,7 @@ void cleardynlights()
     else if(faded>0) dynlights.remove(0, faded);
 }
 
-void removetrackeddynlights(entities::classes::CoreEntity *owner)
+void removetrackeddynlights(Entity *owner)
 {
     loopvrev(dynlights) if(owner ? dynlights[i].owner == owner : dynlights[i].owner != NULL) dynlights.remove(i);
 }
@@ -111,8 +112,8 @@ int finddynlights()
 {
     closedynlights.setsize(0);
     if(!usedynlights) return 0;
-    entities::classes::BasePhysicalEntity e;
-    e.ent_type = ENT_CAMERA;
+    MovableEntity e;
+//    e.ent_type = ENT_CAMERA;
     loopvj(dynlights)
     {
         dynlight &d = dynlights[j];

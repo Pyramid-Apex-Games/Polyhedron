@@ -1384,7 +1384,7 @@ struct skelmodel : animmodel
         void buildhitdata(const uchar *hitzones);
         void intersect(skelhitdata *z, part *p, const skelmodel::skelcacheentry &sc, const vec &o, const vec &ray);
 
-        void intersect(const animstate *as, float pitch, const vec &axis, const vec &forward, entities::classes::BaseDynamicEntity *d, part *p, const vec &o, const vec &ray)
+        void intersect(const animstate *as, float pitch, const vec &axis, const vec &forward, MovableEntity *d, part *p, const vec &o, const vec &ray)
         {
             if(!hitdata) return;
 
@@ -1405,7 +1405,7 @@ struct skelmodel : animmodel
             if(!vbocache->vbuf) genvbo(*vbocache);
         }
 
-        void render(const animstate *as, float pitch, const vec &axis, const vec &forward, entities::classes::BaseDynamicEntity *d, part *p)
+        void render(const animstate *as, float pitch, const vec &axis, const vec &forward, MovableEntity *d, part *p)
         {
             if(skel->shouldcleanup()) { skel->cleanup(); disablevbo(); }
 

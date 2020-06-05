@@ -93,9 +93,8 @@ class CppParser:
         if cursor.spelling:
             for c in cursor.get_children():
                 if c.kind == cindex.CursorKind.CXX_BASE_SPECIFIER:
-                    if c.spelling.find("entities") != -1:
-                        collected_classes.append(c)
-                        collected_class_names.append(c.spelling)
+                    collected_classes.append(c)
+                    collected_class_names.append(c.spelling)
 
             self.hierarchy_cache[cursor.spelling] = [collected_classes, collected_class_names]
 
@@ -104,7 +103,7 @@ class CppParser:
         i = 0
         curlen = len(all_class_names)
         while i < curlen:
-            cclass = all_class_names[i].replace("class entities::classes::", "")
+            cclass = all_class_names[i].replace("class ", "")
             if cclass in self.hierarchy_cache:
                 moreclasses = self.hierarchy_cache[cclass][1]
                 all_class_names.extend(moreclasses)
@@ -129,7 +128,15 @@ class CppParser:
                 cursor_file_no_ext = os.path.splitext(str(cursor.location.file))[0]
                 if cursor_file_no_ext == file_no_ext:
                     return True
-        return False        
+        return False
+
+    def cursor_is_not_a_forward_decl(self, cursor):
+        definition = cursor.get_definition()
+        if definition is None:
+            return False
+
+        return cursor == definition
+
 
     def record_cursor_by_usr(self, cursor, cursor_usr):
         if not cursor_usr in self.usr_cache:
@@ -197,7 +204,8 @@ class CppParser:
                                     for classObj in mayNeedCxxObjects:
                                         if str(classObj) == className:
                                             mayNeedCxxObjects.remove(classObj)
-                                            classObj.generateFor = Generator.Json
+                                            if classObj.generateFor ^ Generator.Json:
+                                                classObj.generateFor |= Generator.Json
                                             break;
                                     needJsonFunctions[-1]["cxxClass"] = classObj
                                     return mayNeedFunc
@@ -209,20 +217,27 @@ class CppParser:
                                 cindex.CursorKind.STRUCT_DECL,
                                 cindex.CursorKind.CLASS_TEMPLATE,
                                 cindex.CursorKind.CLASS_TEMPLATE_PARTIAL_SPECIALIZATION]):
-                inherits = self.cursor_class_inherits_from(cursor)
-                if self.cursor_is_part_of_file_or_header(cursor, file):
-                    if 'class entities::classes::CoreEntity' in inherits:
-                        print(">>> class {} inherits from CoreEntity!".format(cursor.spelling), file=sys.stderr)
-                        return CxxClass(self, cursor, parent)
-                    elif cursor.spelling == 'CoreEntity':
-                        if "coreentity.cpp" in file or "coreentity.h" in file:
-                            print(">>> class {} IS CoreEntity!".format(cursor.spelling), file=sys.stderr)
-                            return CxxClass(self, cursor, parent)
-                    elif cursor.spelling != '':
-                        mayNeedClass = CxxClass(self, cursor, parent)
-                        mayNeedCxxObjects.append(mayNeedClass)
-                        # print(">>> saved class {}, we may need it later..".format(cursor.spelling), file=sys.stderr)
-                        return mayNeedClass
+                if self.cursor_is_not_a_forward_decl(cursor):
+                    inherits = self.cursor_class_inherits_from(cursor)
+                    if self.cursor_is_part_of_file_or_header(cursor, file):
+                        if 'class Entity' in inherits:
+                            print(">>> class {} inherits from Entity!".format(cursor.spelling), file=sys.stderr)
+                            cxxClass = CxxClass(self, cursor, parent)
+                            if cxxClass.generateFor ^ Generator.Attributes | Generator.Json | Generator.CubeScript:
+                                cxxClass.generateFor |= Generator.Attributes | Generator.Json | Generator.CubeScript
+                            return cxxClass
+                        elif cursor.spelling == 'Entity':
+                            if "Entity.cpp" in file or "Entity.h" in file:
+                                print(">>> class {} IS Entity!".format(cursor.spelling), file=sys.stderr)
+                            cxxClass = CxxClass(self, cursor, parent)
+                            if cxxClass.generateFor ^ Generator.Attributes | Generator.CubeScript:
+                                cxxClass.generateFor |= Generator.Attributes | Generator.CubeScript
+                            return cxxClass
+                        elif cursor.spelling != '':
+                            mayNeedClass = CxxClass(self, cursor, parent)
+                            mayNeedCxxObjects.append(mayNeedClass)
+                            # print(">>> saved class {}, we may need it later..".format(cursor.spelling), file=sys.stderr)
+                            return mayNeedClass
             if type(parent) == CxxClass:
                 if self.cursor_is_part_of_file_or_header(cursor, file):
                     if (cursor.kind in [cindex.CursorKind.FIELD_DECL #,
@@ -301,9 +316,9 @@ class CppParser:
             if attribData[1] == "BINDOPT_GENERATORS":
                 generatorFlag = self.stringToGenerateForFlag(attribData[3])
                 if (attribData[2] == "BINDOPER_ADD"):
-                    cxxFunction.generateFor = cxxFunction.generateFor | generatorFlag
+                    cxxFunction.generateFor |= generatorFlag
                 if (attribData[2] == "BINDOPER_DROP"):
-                    cxxFunction.generateFor = cxxFunction.generateFor ^ generatorFlag
+                    cxxFunction.generateFor ^= generatorFlag
                 if (attribData[2] == "BINDOPER_SET"):
                     cxxFunction.generateFor = generatorFlag
 

@@ -58,7 +58,7 @@ struct vertex { vec pos; bvec4 norm; vec tc; bvec4 tangent; };
 template <class ET>
 ET* getentitybytype(int searchStartIndex = 0)
 {
-	const auto &ents = entities::getents();
+	const auto &ents = getents();
 	for(int i = searchStartIndex; i < ents.length(); i++)
 	{
 		auto e = dynamic_cast<ET*>(ents[i]);
@@ -69,11 +69,11 @@ ET* getentitybytype(int searchStartIndex = 0)
 	return nullptr;
 }
 
-entities::classes::CoreEntity *new_game_entity(bool local, const vec &o, int &idx, const char *strclass = "");
+Entity *new_game_entity(bool local, const vec &o, int &idx, const char *strclass = "");
 
-inline void transformbb(const entities::classes::CoreEntity *e, vec &center, vec &radius);
-void mmboundbox(const entities::classes::CoreEntity *e, model *m, vec &center, vec &radius);
-inline void mmcollisionbox(const entities::classes::CoreEntity *e, model *m, vec &center, vec &radius);
+inline void transformbb(const Entity *e, vec &center, vec &radius);
+void mmboundbox(const Entity *e, model *m, vec &center, vec &radius);
+inline void mmcollisionbox(const Entity *e, model *m, vec &center, vec &radius);
 
 extern vector<int> outsideents;
 
@@ -86,10 +86,10 @@ bool pointinsel(const selinfo &sel, const vec &o);
 void resetmap();
 void startmap(const char *name);
 
-const char *entname(entities::classes::CoreEntity *e);
+const char *entname(Entity *e);
 bool haveselent();
 undoblock *copyundoents(undoblock *u);
-void pasteundoent(int idx, entities::classes::CoreEntity *ue);
+void pasteundoent(int idx, Entity *ue);
 void pasteundoents(undoblock *u);
 
 extern int worldscale, worldsize;

@@ -1,13 +1,13 @@
 #include "game.h"
 #include "engine/scriptexport.h"
 #include "entities.h"
-#include "entities/player.h"
+#include "entities/SkeletalEntity.h"
 
 namespace game
 {
     void renderentities(RenderPass pass)
     {
-		auto& ents = entities::getents();
+		auto& ents = getents();
 		
         for (int i = 0; ents.inrange(i); ++i)
         {
@@ -32,7 +32,7 @@ namespace game
     }
 
 
-    void drawhudmodel(entities::classes::CoreEntity *d, int anim, int basetime) {
+    void drawhudmodel(Entity *d, int anim, int basetime) {
 
     }
 
@@ -44,7 +44,7 @@ namespace game
 
     }
 
-    vec hudgunorigin(int gun, const vec &from, const vec &to, entities::classes::CoreEntity *d) {
+    vec hudgunorigin(int gun, const vec &from, const vec &to, Entity *d) {
         vec offset(from);
 
         return offset;

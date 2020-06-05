@@ -1,4 +1,5 @@
-#include "shared/entities/basephysicalentity.h"
+#include "shared/entities/DynamicEntity.h"
+#include "shared/entities/MovableEntity.h"
 #include "engine/engine.h"
 #include "engine/texture.h"
 #include "engine/rendergl.h"

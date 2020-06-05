@@ -1,5 +1,5 @@
 #include "EntityEditorMenu.h"
-#include "shared/entities/coreentity.h"
+#include "shared/entities/Entity.h"
 #include "engine/main/Application.h"
 #include "engine/main/Window.h"
 #include "engine/main/GLContext.h"
@@ -7,7 +7,7 @@
 #include "shared/Easing.h"
 #include <variant>
 
-EntityEditorMenu::EntityEditorMenu(entities::classes::CoreEntity* entity)
+EntityEditorMenu::EntityEditorMenu(Entity* entity)
     : m_Entity(entity)
     , m_AnimSlideInStart(totalmillis)
 {
@@ -89,7 +89,7 @@ void EntityEditorMenu::Render()
     nk_end(engine::nui::GetNKContext());
 }
 
-void EntityEditorMenu::RenderHeader(const entities::attrubuteRow_T& attrs)
+void EntityEditorMenu::RenderHeader(const attrubuteRow_T& attrs)
 {
     nk_layout_row_dynamic(engine::nui::GetNKContext(), 30, 1);
     auto headerString = std::get<std::string>(attrs[1]);
@@ -97,7 +97,7 @@ void EntityEditorMenu::RenderHeader(const entities::attrubuteRow_T& attrs)
     nk_label(engine::nui::GetNKContext(), headerString.c_str(), NK_TEXT_CENTERED);
 }
 
-void EntityEditorMenu::RenderInput(const entities::attrubuteRow_T& attrs)
+void EntityEditorMenu::RenderInput(const attrubuteRow_T& attrs)
 {
     auto variableKey = std::get<std::string>(attrs[1]);
     auto storageKey = __lastHeader + "_" + variableKey;
@@ -123,7 +123,7 @@ void EntityEditorMenu::RenderInput(const entities::attrubuteRow_T& attrs)
 }
 
 //TODO: replace with template to switch between int/float
-void EntityEditorMenu::RenderSlider(const entities::attrubuteRow_T& attrs)
+void EntityEditorMenu::RenderSlider(const attrubuteRow_T& attrs)
 {
     auto variableKey = std::get<std::string>(attrs[1]);
     auto storageKey = __lastHeader + "_" + variableKey;
@@ -135,9 +135,10 @@ void EntityEditorMenu::RenderSlider(const entities::attrubuteRow_T& attrs)
         __sliderStorage[storageKey] = valueStorage;
     }
 
-    auto minValue = std::get<float>(attrs[3]);
-    auto maxValue = std::get<float>(attrs[4]);
-    auto stepValue = std::get<float>(attrs[5]);
+    //FIXME: why are these attribs string to begin with? Issue with the PHUI macro? Issue with the python/libclang?
+    auto minValue = std::stof(std::get<std::string>(attrs[3]));
+    auto maxValue = std::stof(std::get<std::string>(attrs[4]));
+    auto stepValue = std::stof(std::get<std::string>(attrs[5]));
 
     auto workValue = __sliderStorage[storageKey];
     nk_slider_float(engine::nui::GetNKContext(), minValue, &workValue, maxValue, stepValue);
@@ -150,7 +151,7 @@ void EntityEditorMenu::RenderSlider(const entities::attrubuteRow_T& attrs)
 }
 
 //TODO: replace with template to switch between int/float
-void EntityEditorMenu::RenderSliderInt(const entities::attrubuteRow_T& attrs)
+void EntityEditorMenu::RenderSliderInt(const attrubuteRow_T& attrs)
 {
     auto variableKey = std::get<std::string>(attrs[1]);
     auto storageKey = __lastHeader + "_" + variableKey;
@@ -176,7 +177,7 @@ void EntityEditorMenu::RenderSliderInt(const entities::attrubuteRow_T& attrs)
     }
 }
 
-void EntityEditorMenu::RenderCheckbox(const entities::attrubuteRow_T& attrs)
+void EntityEditorMenu::RenderCheckbox(const attrubuteRow_T& attrs)
 {
     auto variableKey = std::get<std::string>(attrs[1]);
     auto storageKey = __lastHeader + "_" + variableKey;
@@ -214,7 +215,7 @@ void EntityEditorMenu::RenderCheckbox(const entities::attrubuteRow_T& attrs)
     }
 }
 
-bool EntityEditorMenu::HasEntity(entities::classes::CoreEntity* entity)
+bool EntityEditorMenu::HasEntity(Entity* entity)
 {
     return entity == m_Entity;
 }

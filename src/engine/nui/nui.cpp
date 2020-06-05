@@ -83,7 +83,7 @@ namespace engine { namespace nui {
         std::unique_ptr<EntityEditorMenu> ActiveEntityEditorMenu;
     }
 
-    void StartEntityEditor(entities::classes::CoreEntity* entity)
+    void StartEntityEditor(Entity* entity)
     {
         if (::editmode)
         {
@@ -105,7 +105,7 @@ namespace engine { namespace nui {
         }
     }
 
-    void StopEntityEditor(entities::classes::CoreEntity* entity)
+    void StopEntityEditor(Entity* entity)
     {
         if (ActiveEntityEditorMenu && ActiveEntityEditorMenu->HasEntity(entity))
         {

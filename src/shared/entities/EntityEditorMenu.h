@@ -1,33 +1,28 @@
 #pragma once
-#include "entityfactory.h"
+#include "EntityFactory.h"
 #include <string>
 
-namespace entities
-{
-    namespace classes
-    {
-        class CoreEntity;
-    }
-}
+class Entity;
+
 
 class EntityEditorMenu
 {
 public:
-    EntityEditorMenu(entities::classes::CoreEntity* entity);
+    EntityEditorMenu(Entity* entity);
 
     void Render();
-    void RenderHeader(const entities::attrubuteRow_T& attrs);
-    void RenderInput(const entities::attrubuteRow_T& attrs);
-    void RenderSlider(const entities::attrubuteRow_T& attrs);
-    void RenderSliderInt(const entities::attrubuteRow_T& attrs);
-    void RenderCheckbox(const entities::attrubuteRow_T& attrs);
+    void RenderHeader(const attrubuteRow_T& attrs);
+    void RenderInput(const attrubuteRow_T& attrs);
+    void RenderSlider(const attrubuteRow_T& attrs);
+    void RenderSliderInt(const attrubuteRow_T& attrs);
+    void RenderCheckbox(const attrubuteRow_T& attrs);
 
-    bool HasEntity(entities::classes::CoreEntity* entity);
+    bool HasEntity(Entity* entity);
     void Hide();
     void Show();
 
 private:
-    entities::classes::CoreEntity* m_Entity;
+    Entity* m_Entity;
     bool m_Closed = false;
     float m_Width = 400;
     int m_AnimSlideInDuration = 500;

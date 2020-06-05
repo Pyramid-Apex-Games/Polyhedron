@@ -1,5 +1,7 @@
+#include <game/entities/LightEntity.h>
 #include "shared/cube.h"
-#include "shared/entities/basephysicalentity.h"
+#include "shared/entities/DynamicEntity.h"
+#include "shared/entities/MovableEntity.h"
 #include "engine/light.h"
 #include "engine/texture.h"
 #include "engine/pvs.h"
@@ -1638,17 +1640,18 @@ struct lightinfo
         if(spot > 0) calcspot();
         calcscissor();
     }
-    lightinfo(int i, const entities::classes::CoreEntity *e)
-	: ent(i), shadowmap(-1), flags(e->attr5),
-	o(e->o), color(vec(e->attr2, e->attr3, e->attr4).max(0)), radius(e->attr1), dist(camera1->o.dist(e->o)),
+    lightinfo(int i, const Entity *e)
+	: ent(i), shadowmap(-1), flags(e->scale),
+	o(e->o), color(vec(e->d.x, e->d.y, e->d.z).max(0)), radius(e->scale), dist(camera1->o.dist(e->o)),
         dir(0, 0, 0), spot(0), query(NULL)
     {
-		if(e->attached && e->attached->et_type == ET_SPOTLIGHT)
-        {
-			dir = vec(e->attached->o).sub(e->o).normalize();
-			spot = clamp(int(e->attached->attr1), 1, 89);
-            calcspot();
-        }
+        //FIXME: attached feature / spotlight feature
+//		if(e->attached && e->attached->et_type == ET_SPOTLIGHT)
+//        {
+//			dir = vec(e->attached->o).sub(e->o).normalize();
+//			spot = clamp(int(e->attached->attr1), 1, 89);
+//            calcspot();
+//        }
         calcscissor();
     }
         
@@ -3504,14 +3507,14 @@ VAR(debuglightscissor, 0, 0, 1);
 
 void viewlightscissor()
 {
-    auto &ents = entities::getents();
+    auto &ents = getents();
     gle::defvertex(2);
     loopv(entgroup)
     {
         int idx = entgroup[i];
-        if(ents.inrange(idx) && ents[idx]->et_type == ET_LIGHT)
+        if(ents.inrange(idx) && dynamic_cast<LightEntity*>(ents[idx]))
         {
-            auto e = dynamic_cast<entities::classes::BaseEntity *>(ents[idx]);
+            auto e = ents[idx];
 			loopvj(lights) if(lights[j].o == e->o)
             {
                 lightinfo &l = lights[j];
@@ -3535,16 +3538,16 @@ void collectlights()
     if(lights.length()) return;
 
     // point lights processed here
-    const auto &ents = entities::getents();
+    const auto &ents = getents();
     if(!editmode || !fullbright) loopv(ents)
     {
-        const auto e = dynamic_cast<entities::classes::BaseEntity *>(ents[i]);
-        if(!e || e->et_type != ET_LIGHT || e->attr1 <= 0) continue;
+        const auto e = dynamic_cast<LightEntity *>(ents[i]);
+        if(!e || e->radius <= 0) continue;
 
         if(smviscull)
         {
-            if(isfoggedsphere(e->attr1, e->o)) continue;
-            if(pvsoccludedsphere(e->o, e->attr1)) continue;
+            if(isfoggedsphere(e->radius, e->o)) continue;
+            if(pvsoccludedsphere(e->o, e->radius)) continue;
         }
 
 		lightinfo &l = lights.add(lightinfo(i, e));
@@ -4376,24 +4379,24 @@ void rendercsmshadowmaps()
     }
 }
 
-int calcshadowinfo(const entities::classes::CoreEntity *e, vec &origin, float &radius, vec &spotloc, int &spotangle, float &bias)
+int calcshadowinfo(const Entity *e, vec &origin, float &radius, vec &spotloc, int &spotangle, float &bias)
 {
-	if(e->attr5&L_NOSHADOW || e->attr1 <= smminradius) return SM_NONE;
+	if(e->flags&L_NOSHADOW || e->radius <= smminradius) return SM_NONE;
 
 	origin = e->o;
-	radius = e->attr1;
+	radius = e->radius;
     int type, w, border;
     float lod;
-	if(e->attached && e->attached->et_type == ET_SPOTLIGHT)
-    {
-        type = SM_SPOT;
-        w = 1;
-        border = 0;
-        lod = smspotprec;
-		spotloc = e->attached->o;
-		spotangle = clamp(int(e->attached->attr1), 1, 89);
-    }
-    else
+//	if(e->attached && e->attached->et_type == ET_SPOTLIGHT)
+//    {
+//        type = SM_SPOT;
+//        w = 1;
+//        border = 0;
+//        lod = smspotprec;
+//		spotloc = e->attached->o;
+//		spotangle = clamp(int(e->attached->attr1), 1, 89);
+//    }
+//    else
     {
         type = SM_CUBEMAP;
         w = 3;
@@ -4435,7 +4438,7 @@ void rendershadowmaps(int offset = 0)
 
     glEnable(GL_SCISSOR_TEST);
 
-    const auto &ents = entities::getents();
+    const auto &ents = getents();
     for(int i = offset; i < shadowmaps.length(); i++)
     {
         shadowmapinfo &sm = shadowmaps[i];

@@ -1,37 +1,32 @@
-#ifndef __ENTITIES_H__
-#define __ENTITIES_H__
+#pragma once
 #include "shared/tools/vector.h"
 
-namespace entities
-{
-    namespace classes {
-        class CoreEntity;
-        class BaseEntity;
-        class BasePhysicalEntity;
-        class BaseDynamicEntity;
-        class BaseMapModel;
-        class DynamicLight;
-        class Player;
-    }
 
-    // Entity arrays.
-    extern vector<classes::BaseEntity *> g_ents;
-    extern vector<classes::BaseEntity *> g_lightEnts;
+class Entity;
+class BaseEntity;
+class MovableEntity;
+class DynamicEntity;
+class ModelEntity;
+//class DynamicLight;
+class LightEntity;
+class SkeletalEntity;
 
-    //
-    // Entity core functions.
-    //
-    // Preloads the entities.
-    extern void preloadentities();
+// Entity arrays.
+extern vector<Entity *> g_ents;
+extern vector<LightEntity *> g_lightEnts;
 
-    // Renders all the entities.
-   // extern void renderentities();
+//
+// Entity core functions.
+//
+// Preloads the entities.
+extern void preloadentities();
 
-    // Sets the spawn state on a given entity index.
-    extern void setspawn(int i, bool on);
+// Renders all the entities.
+// extern void renderentities();
 
-    // Resets all the spawns.
-    extern void resetspawns();
-}
+// Sets the spawn state on a given entity index.
+extern void setspawn(int i, bool on);
 
-#endif // __ENTITIES_H__
+// Resets all the spawns.
+extern void resetspawns();
+

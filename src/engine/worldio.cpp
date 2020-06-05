@@ -18,7 +18,8 @@
 #include "game/game.h"
 #include "shared/stream.h"
 #include "shared/ents.h"
-#include "shared/entities/basephysicalentity.h"
+#include "shared/entities/DynamicEntity.h"
+#include "game/entities/ModelEntity.h"
 
 // Use JSON, no shit.
 using json = nlohmann::json;
@@ -43,11 +44,11 @@ SCRIPTEXPORT void fixmapname(char *name)
     validmapname(name, name, NULL, "");
 }
 
-static void fixent(entities::classes::CoreEntity *e, int version)
+static void fixent(Entity *e, int version)
 {
     if(version <= 0)
     {
-		if(e->et_type >= ET_DECAL) e->et_type++;
+//		if(e->et_type >= ET_DECAL) e->et_type++;
     }
 }
 
@@ -84,7 +85,7 @@ static bool loadmapheader(stream *f, const char *ogzname, mapheader &hdr, octahe
     return true;
 }
 
-bool loadents(const char *fname, vector<entities::classes::BasePhysicalEntity> &ents, uint *crc)
+bool loadents(const char *fname, vector<MovableEntity> &ents, uint *crc)
 {
 /*    cubestr name;
     validmapname(name, fname);
@@ -136,7 +137,7 @@ bool loadents(const char *fname, vector<entities::classes::BasePhysicalEntity> &
         if(eif > 0) f->seek(eif, SEEK_CUR);
         if(samegame)
         {
-            entities::readent(e, NULL, hdr.version);
+            readent(e, NULL, hdr.version);
         }
         else if(e.type>=ET_GAMESPECIFIC)
         {
@@ -629,8 +630,8 @@ bool save_world(const char *mname, bool nolms)
     hdr.headersize = sizeof(hdr);
     hdr.worldsize = worldsize;
     hdr.numents = 0;
-    const auto &ents = entities::getents();
-    loopv(ents) if(ents[i]->et_type!=ET_EMPTY || nolms) hdr.numents++;
+    const auto &ents = getents();
+    loopv(ents) if(nolms) hdr.numents++;
     hdr.numpvs = nolms ? 0 : getnumviewcells();
     hdr.blendmap = shouldsaveblendmap();
     hdr.numvars = 0;
@@ -672,7 +673,7 @@ bool save_world(const char *mname, bool nolms)
 
     f->putchar((int)strlen(game::gameident()));
     f->write(game::gameident(), (int)strlen(game::gameident())+1);
-    //f->putlil<ushort>(entities::extraentinfosize());
+    //f->putlil<ushort>(extraentinfosize());
     vector<char> extras;
     game::writegamedata(extras);
     f->putlil<ushort>(extras.length());
@@ -686,7 +687,7 @@ bool save_world(const char *mname, bool nolms)
 
     loopv(ents)
     {
-        if(ents[i]->et_type!=ET_EMPTY || nolms)
+        if(nolms)
         {
 			json eleDoc {};
 			ents[i]->saveToJson(eleDoc);
@@ -839,7 +840,7 @@ bool load_world(const char *mname, const char *cname)        // Does not support
     if(failed) conoutf(CON_ERROR, "garbage in map");
 
     // Get a reference to the entities array.
-    auto &ents = entities::getents();
+    auto &ents = getents();
 
     // One of the only few places where we'll use exceptions. We hate them.
     try	{
@@ -857,7 +858,7 @@ bool load_world(const char *mname, const char *cname)        // Does not support
 
             vec pos;
             int index = -1;
-            entities::classes::CoreEntity *ent = new_game_entity(true, pos, index, classname.c_str());
+            Entity *ent = new_game_entity(true, pos, index, classname.c_str());
 			ent->loadFromJson(element);
 		}
 	}
@@ -870,7 +871,7 @@ bool load_world(const char *mname, const char *cname)        // Does not support
     {
         conoutf(CON_WARN, "warning: map has %d entities", hdr.numents);
         // TODO: What to do here?
-        //f->seek((hdr.numents-MAXENTS)*(samegame ? sizeof(entities::classes::CoreEntity) + einfosize : eif), SEEK_CUR);
+        //f->seek((hdr.numents-MAXENTS)*(samegame ? sizeof(Entity) + einfosize : eif), SEEK_CUR);
     }
 
     renderprogress(0, "validating...");
@@ -1036,19 +1037,19 @@ SCRIPTEXPORT void writecollideobj(char *name)
         conoutf(CON_ERROR, "geometry for collide model not selected");
         return;
     }
-    auto &ents = entities::getents();
-    entities::classes::CoreEntity *mm = NULL;
+    auto &ents = getents();
+    ModelEntity *mm = nullptr;
     loopv(entgroup)
     {
-        auto e = ents[entgroup[i]];
-		if(e->et_type != ET_MAPMODEL || !pointinsel(sel, e->o)) continue;
+        auto e = dynamic_cast<ModelEntity*>(ents[entgroup[i]]);
+		if(!e || !pointinsel(sel, e->o)) continue;
 		mm = e;
         break;
     }
     if(!mm) loopv(ents)
     {
-        auto e = ents[i];
-		if(e->et_type != ET_MAPMODEL || !pointinsel(sel, e->o)) continue;
+        auto e = dynamic_cast<ModelEntity*>(ents[i]);
+		if(!e || !pointinsel(sel, e->o)) continue;
 		mm = e;
         break;
     }
@@ -1068,8 +1069,8 @@ SCRIPTEXPORT void writecollideobj(char *name)
 
     matrix4x3 xform;
     m->calctransform(xform);
-    float scale = mm->attr5 > 0 ? mm->attr5/100.0f : 1;
-    int yaw = mm->attr2, pitch = mm->attr3, roll = mm->attr4;
+    float scale = mm->scale > 0 ? mm->scale/100.0f : 1;
+    int yaw = mm->d.x, pitch = mm->d.y, roll = mm->d.z;
     matrix3 orient;
     orient.identity();
     if(scale != 1) orient.scale(scale);
@@ -1137,10 +1138,3 @@ SCRIPTEXPORT void writecollideobj(char *name)
 }
 
 #endif
-
-
-// >>>>>>>>>> SCRIPTBIND >>>>>>>>>>>>>> //
-#if 0
-#include "/Users/micha/dev/ScMaMike/src/build/binding/..+engine+worldio.binding.cpp"
-#endif
-// <<<<<<<<<< SCRIPTBIND <<<<<<<<<<<<<< //

@@ -1,6 +1,8 @@
+#include <game/entities/LightEntity.h>
 #include "shared/cube.h"
-#include "shared/entities/baseentity.h"
-#include "shared/entities/basephysicalentity.h"
+#include "shared/entities/Entity.h"
+#include "shared/entities/DynamicEntity.h"
+#include "shared/entities/MovableEntity.h"
 
 #include "engine/light.h"
 #include "engine/texture.h"
@@ -286,9 +288,11 @@ void clearlightcache(int id)
 {
     if(id >= 0)
     {
-        const auto light = entities::getents()[id];
+        const auto* light = dynamic_cast<LightEntity*>(getents()[id]);
+        if (!light)
+            return;
         
-		int radius = light->attr1;
+		int radius = light->radius;
         if(radius <= 0) return;
 		for(int x = int(max(light->o.x-radius, 0.0f))>>lightcachesize, ex = int(min(light->o.x+radius, worldsize-1.0f))>>lightcachesize; x <= ex; x++)
 			for(int y = int(max(light->o.y-radius, 0.0f))>>lightcachesize, ey = int(min(light->o.y+radius, worldsize-1.0f))>>lightcachesize; y <= ey; y++)
@@ -310,7 +314,6 @@ void clearlightcache(int id)
 
 const vector<int> &checklightcache(int x, int y)
 {
-    using namespace entities;
 
     x >>= lightcachesize;
     y >>= lightcachesize;
@@ -319,24 +322,20 @@ const vector<int> &checklightcache(int x, int y)
 
     lce.lights.setsize(0);
     int csize = 1<<lightcachesize, cx = x<<lightcachesize, cy = y<<lightcachesize;
-    auto &ents = entities::getents();
+    auto &ents = getents();
     loopv(ents)
     {
-        const entities::classes::BasePhysicalEntity *light = (entities::classes::BasePhysicalEntity*)ents[i];
-		switch(light->et_type)
+        const auto *light = dynamic_cast<LightEntity*>(ents[i]);
+		if(light)
         {
-            case ET_LIGHT:
-            {
-				int radius = light->attr1;
-                if(radius <= 0 ||
-				   light->o.x + radius < cx || light->o.x - radius > cx + csize ||
-				   light->o.y + radius < cy || light->o.y - radius > cy + csize)
-                    continue;
-                break;
-            }
-            default: continue;
+            int radius = light->radius;
+            if(radius <= 0 ||
+               light->o.x + radius < cx || light->o.x - radius > cx + csize ||
+               light->o.y + radius < cy || light->o.y - radius > cy + csize)
+                continue;
+
+            lce.lights.add(i);
         }
-        lce.lights.add(i);
     }
 
     lce.x = x;
@@ -646,7 +645,7 @@ void initlights()
     loaddeferredlightshaders();
 }
 
-void lightreaching(const vec &target, vec &color, vec &dir, bool fast, entities::classes::BasePhysicalEntity *t, float minambient)
+void lightreaching(const vec &target, vec &color, vec &dir, bool fast, MovableEntity *t, float minambient)
 {
     if(fullbright && editmode)
     {
@@ -656,21 +655,21 @@ void lightreaching(const vec &target, vec &color, vec &dir, bool fast, entities:
     }
 
     color = dir = vec(0, 0, 0);
-    const auto& ents = entities::getents();
+    const auto& ents = getents();
     const vector<int> &lights = checklightcache(int(target.x), int(target.y));
     loopv(lights)
     {
-        entities::classes::BasePhysicalEntity *e = dynamic_cast<entities::classes::BasePhysicalEntity*>(ents[lights[i]]);
+        auto *e = dynamic_cast<LightEntity*>(ents[lights[i]]);
         if (!e)
 			continue;
 			
-		if(e->et_type != ET_LIGHT || e->attr1 <= 0)
+		if(e->radius <= 0)
             continue;
 
         vec ray(target);
 		ray.sub(e->o);
         float mag = ray.magnitude();
-		if(mag >= float(e->attr1))
+		if(mag >= float(e->radius))
             continue;
 
         if(mag < 1e-4f) ray = vec(0, 0, -1);
@@ -681,21 +680,22 @@ void lightreaching(const vec &target, vec &color, vec &dir, bool fast, entities:
                 continue;
         }
 
-		float intensity = 1 - mag / float(e->attr1);
-		if(e->attached && e->attached->et_type==ET_SPOTLIGHT)
-        {
-			vec spot = vec(e->attached->o).sub(e->o).normalize();
-			float spotatten = 1 - (1 - ray.dot(spot)) / (1 - cos360(clamp(int(e->attached->attr1), 1, 89)));
-            if(spotatten <= 0) continue;
-            intensity *= spotatten;
-        }
+		float intensity = 1 - mag / float(e->radius);
+        //FIXME: support Entity attachable
+//		if(e->attached && e->attached->et_type==ET_SPOTLIGHT)
+//        {
+//			vec spot = vec(e->attached->o).sub(e->o).normalize();
+//			float spotatten = 1 - (1 - ray.dot(spot)) / (1 - cos360(clamp(int(e->attached->attr1), 1, 89)));
+//            if(spotatten <= 0) continue;
+//            intensity *= spotatten;
+//        }
 
         //if(target==player->o)
         //{
         //    conoutf(CON_DEBUG, "%d - %f %f", i, intensity, mag);
         //}
 
-		vec lightcol = vec(e->attr2, e->attr3, e->attr4).mul(1.0f/255).max(0);
+		vec lightcol = vec(e->d.x, e->d.y, e->d.z).mul(1.0f/255).max(0);
         color.add(vec(lightcol).mul(intensity));
         dir.add(vec(ray).mul(-intensity*lightcol.x*lightcol.y*lightcol.z));
     }
@@ -710,9 +710,3 @@ void lightreaching(const vec &target, vec &color, vec &dir, bool fast, entities:
     else dir.normalize();
 }
 
-
-// >>>>>>>>>> SCRIPTBIND >>>>>>>>>>>>>> //
-#if 0
-#include "/Users/micha/dev/ScMaMike/src/build/binding/..+engine+light.binding.cpp"
-#endif
-// <<<<<<<<<< SCRIPTBIND <<<<<<<<<<<<<< //

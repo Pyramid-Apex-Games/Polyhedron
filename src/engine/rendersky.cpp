@@ -1,6 +1,7 @@
 #include "shared/cube.h"
 #include "shared/stream.h"
-#include "shared/entities/basephysicalentity.h"
+#include "shared/entities/MovableEntity.h"
+#include "shared/entities/DynamicEntity.h"
 #include "engine/light.h"
 #include "engine/texture.h"
 #include "engine/rendergl.h"

@@ -1,8 +1,8 @@
 #include "game.h"
 #include "entities.h"
-#include "entities/playerstart.h"
-#include "entities/player.h"
-#include "entities/dynamiclight.h"
+#include "entities/PlayerSpawnEntity.h"
+#include "entities/SkeletalEntity.h"
+#include "entities/LightEntity.h"
 #include "engine/scriptexport.h"
 
 
@@ -10,10 +10,10 @@
 namespace game
 {
     // Global player entity pointer.
-    ::entities::classes::Player *player1 = NULL;
+    ::SkeletalEntity *player1 = NULL;
 
     // List of connected players. (For future network usage.)
-	//vector<::entities::classes::Player*> players;
+	//vector<::SkeletalEntity*> players;
 
     // Networking State properties.
     bool connected = false;
@@ -47,20 +47,19 @@ namespace game
             player1->reset();
             player1->respawn();
         } else {
-            player1 = new entities::classes::Player();
+            player1 = new SkeletalEntity();
             player1->respawn();
         }
     }
 
     void updateentities() {
-        // Execute think actions for entities.
-        loopv(entities::getents())
+        loopv(getents())
         {
-            // Let's go at it!
-            if (entities::getents().inrange(i)) {
-                entities::classes::BaseEntity *e = dynamic_cast<entities::classes::BaseEntity *>(entities::getents()[i]);
-                if (e != NULL && e->ent_type != ENT_PLAYER)
-                    e->think();
+            if (getents().inrange(i)) {
+                send_entity_event(i, EntityEventTick());
+//                classes::BaseEntity *e = dynamic_cast<classes::BaseEntity *>(getents()[i]);
+//                if (e != NULL && e->ent_type != ENT_PLAYER)
+//                    e->think();
             }
 
         }
@@ -106,16 +105,16 @@ namespace game
     }
 
     // Never seen an implementation of this function, should be part of BaseEntity.
-    void dynentcollide(entities::classes::BaseDynamicEntity *d, entities::classes::BaseDynamicEntity *o, const vec &dir) {
-        conoutf("dynentcollide D et_type: %i ent_type: %i game_type: %i --- O et_type: %i ent_type: %i game_type %i", d->et_type, d->ent_type, d->game_type, o->et_type, o->ent_type, o->game_type);
+    void dynentcollide(MovableEntity *d, MovableEntity *o, const vec &dir) {
+//        conoutf("dynentcollide D et_type: %i ent_type: %i game_type: %i --- O et_type: %i ent_type: %i game_type %i", d->et_type, d->ent_type, d->game_type, o->et_type, o->ent_type, o->game_type);
     }
 
-    void mapmodelcollide(entities::classes::CoreEntity *d, entities::classes::CoreEntity *o, const vec &dir) {
-        conoutf("mmcollide D et_type: %i ent_type: %i game_type: %i --- O et_type: %i ent_type: %i game_type %i", d->et_type, d->ent_type, d->game_type, o->et_type, o->ent_type, o->game_type);
+    void mapmodelcollide(Entity *d, Entity *o, const vec &dir) {
+//        conoutf("mmcollide D et_type: %i ent_type: %i game_type: %i --- O et_type: %i ent_type: %i game_type %i", d->et_type, d->ent_type, d->game_type, o->et_type, o->ent_type, o->game_type);
     }
 
     // Never seen an implementation of this function, should be part of BaseEntity.
-    void bounced(entities::classes::BasePhysicalEntity *d, const vec &surface) {}
+    void bounced(MovableEntity *d, const vec &surface) {}
 
     // Unsure what to do with these yet.
     void edittrigger(const selinfo &sel, int op, int arg1, int arg2, int arg3, const VSlot *vs) {
@@ -136,7 +135,7 @@ namespace game
         //clearprojectiles();
         //clearbouncers();
     }
-    void suicide(entities::classes::CoreEntity *d) {
+    void suicide(Entity *d) {
 
     }
     void newmap(int size) {
@@ -144,7 +143,7 @@ namespace game
         maptime = 0;
 
         // Clear old entity list..
-        entities::clearents();
+        clearents();
 
         // SpawnPlayer.
         SpawnPlayer();
@@ -159,7 +158,7 @@ namespace game
     void startmap(const char *name)
     {
         // Reset entity spawns.
-		entities::resetspawns();
+		resetspawns();
 
         // Spawn our player.
         SpawnPlayer();
@@ -194,7 +193,7 @@ namespace game
     }
 
     void preload() {
-        entities::preloadentities();
+        preloadentities();
     }
 
     void renderavatar() {
@@ -215,31 +214,31 @@ namespace game
         return player1->state!=CS_DEAD;
     }
 
-    bool allowmove(entities::classes::BasePhysicalEntity *d)
+    bool allowmove(MovableEntity *d)
     {
         return true;
         //if(d->ent_type!=ENT_PLAYER) return true;
         //return !d->ms_lastaction || lastmillis-d->ms_lastaction>=1000;
     }
 
-    entities::classes::CoreEntity *iterdynents(int i) {
+    Entity *iterdynents(int i) {
         if (i == 0) {
             return player1;
         } else {
-            if (i < entities::getents().length()) {
-                return dynamic_cast<entities::classes::BaseEntity *>(entities::getents()[i]);
+            if (i < getents().length()) {
+                return dynamic_cast<DynamicEntity *>(getents()[i]);
             } else {
                 return nullptr;
             }
         }
 
-        //if (i < entities::g_lightEnts.length()) return (entities::classes::BaseEntity*)entities::g_lightEnts[i];
-        //    i -= entities::g_lightEnts.length();
+        //if (i < g_lightEnts.length()) return (classes::BaseEntity*)g_lightEnts[i];
+        //    i -= g_lightEnts.length();
         //return NULL;
     }
     // int numdynents() { return players.length()+monsters.length()+movables.length(); }
     int numdynents() {
-        return entities::getents().length() + 1; // + 1 is for the player.
+        return getents().length() + 1; // + 1 is for the player.
     }
 
     // This function should be used to render HUD View stuff etc.
@@ -259,14 +258,14 @@ namespace game
     }
 
     void setupcamera() {
-        entities::classes::BasePhysicalEntity *target = dynamic_cast<entities::classes::BasePhysicalEntity*>(player1);
+        MovableEntity *target = dynamic_cast<MovableEntity*>(player1);
         //assert(target);
         if(target)
         {
             player1->strafe = target->strafe;
             player1->move = target->move;
-            player1->yaw = target->yaw;
-            player1->pitch = target->state==CS_DEAD ? 0 : target->pitch;
+            player1->d.x = target->d.x;
+            player1->d.y = target->state==CS_DEAD ? 0 : target->d.y;
             player1->o = target->o;
             player1->resetinterp();
         }
@@ -284,26 +283,26 @@ namespace game
         return player1->state!=CS_EDITING;
     }
 
-    void lighteffects(entities::classes::CoreEntity *e, vec&color, vec &dir) {
+    void lighteffects(Entity *e, vec&color, vec &dir) {
     }
 
     void renderDynamicLights() {
         // Loop through our light entities and render them all.
-        auto &ents = entities::getents();
+        auto &ents = getents();
         loopv(ents)
         {
             // Let's go at it!
-            auto e = dynamic_cast<entities::classes::DynamicLight *>(ents[i]);
+            auto e = dynamic_cast<LightEntity *>(ents[i]);
             if (!e) continue;
             
             e->render(game::RenderPass::Lights);
         }
     }
 
-    void dynlighttrack(entities::classes::CoreEntity *owner, vec &o, vec &hud) {
+    void dynlighttrack(Entity *owner, vec &o, vec &hud) {
     }
 
-    void particletrack(entities::classes::CoreEntity *owner, vec &o, vec &d) {
+    void particletrack(Entity *owner, vec &o, vec &d) {
     }
 
     void writegamedata(vector<char> &extras) {
@@ -343,7 +342,7 @@ namespace game
 
     //---------------------------------------------------------------
 
-    void physicstrigger(entities::classes::BasePhysicalEntity *d, bool local, int floorlevel, int waterlevel, int material)
+    void physicstrigger(MovableEntity *d, bool local, int floorlevel, int waterlevel, int material)
     {
         // This function seems to be used for playing material audio. No worries about that atm.
 /*        if     (waterlevel>0) { if(material!=MAT_LAVA) playsound(S_SPLASHOUT, d==player1 ? NULL : &d->o); }

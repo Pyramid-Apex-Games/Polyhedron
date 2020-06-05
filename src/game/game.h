@@ -4,19 +4,14 @@
 #include "cube.h"
 #include "ents.h"
 
-namespace entities
-{
-	namespace classes
-	{
-		class Player;
-		class BaseEntity;
-	}
-}
+
+class SkeletalEntity;
+class Entity;
 
 namespace game
 {
     // Extern variables.
-    extern entities::classes::Player *player1;  // Main player entity in the game code.
+    extern SkeletalEntity *player1;  // Main player entity in the game code.
     extern int maptime, maprealtime;            // Times.
     extern cubestr clientmap;                   // The map the client is currently running or loading.
 
@@ -34,7 +29,7 @@ namespace game
     extern float clipconsole(float w, float h);
 
     // Physics.
-    extern void physicstrigger(entities::classes::BasePhysicalEntity *d, bool local, int floorlevel, int waterlevel, int material);
+    extern void physicstrigger(MovableEntity *d, bool local, int floorlevel, int waterlevel, int material);
 
     // Renderer.
     #define MAXTEAMS 2
@@ -45,15 +40,15 @@ namespace game
         bool ragdoll;
     };
 
-    extern void saveragdoll(entities::classes::CoreEntity *d);
+    extern void saveragdoll(Entity *d);
     extern void clearragdolls();
     extern void moveragdolls();
-    extern const playermodelinfo &getplayermodelinfo(entities::classes::CoreEntity *d);
-    extern int getplayercolor(entities::classes::CoreEntity *d, int team);
+    extern const playermodelinfo &getplayermodelinfo(Entity *d);
+    extern int getplayercolor(Entity *d, int team);
     extern int chooserandomplayermodel(int seed);
     extern void syncplayer();
     extern void swayhudgun(int curtime);
-    extern vec hudgunorigin(int gun, const vec &from, const vec &to, entities::classes::CoreEntity *d);
+    extern vec hudgunorigin(int gun, const vec &from, const vec &to, Entity *d);
 }
 
 #endif

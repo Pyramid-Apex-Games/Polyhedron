@@ -32,9 +32,9 @@
 #include "engine/hud.h"
 #include "engine/GLFeatures.h"
 #include "game/game.h"
-#include "game/entities/player.h"
+#include "game/entities/SkeletalEntity.h"
 #include "game/game.h"
-#include "game/entities/player.h"
+#include "game/entities/SkeletalEntity.h"
 
 int hasstencil = 0;
 
@@ -247,17 +247,17 @@ VAR(wireframe, 0, 0, 1);
 
 SCRIPTEXPORT void getcamyaw()
 {
-    floatret(camera1->yaw);
+    floatret(camera1->d.x);
 }
 
 SCRIPTEXPORT void getcampitch()
 {
-    floatret(camera1->pitch);
+    floatret(camera1->d.y);
 }
 
 SCRIPTEXPORT void getcamroll()
 {
-    floatret(camera1->roll);
+    floatret(camera1->d.z);
 }
 
 SCRIPTEXPORT void getcampos()
@@ -272,9 +272,9 @@ void setcammatrix()
 {
     // move from RH to Z-up LH quake style worldspace
     cammatrix = viewmatrix;
-    cammatrix.rotate_around_y(camera1->roll*RAD);
-    cammatrix.rotate_around_x(camera1->pitch*-RAD);
-    cammatrix.rotate_around_z(camera1->yaw*-RAD);
+    cammatrix.rotate_around_y(camera1->d.z*RAD);
+    cammatrix.rotate_around_x(camera1->d.y*-RAD);
+    cammatrix.rotate_around_z(camera1->d.x*-RAD);
     cammatrix.translate(vec(camera1->o).neg());
 
     cammatrix.transposedtransformnormal(vec(viewmatrix.b), camdir);
@@ -364,17 +364,17 @@ FVAR(thirdpersondistance, 0, 10, 25);
 FVAR(thirdpersonup, -25, 0, 25);
 FVAR(thirdpersonside, -25, 0, 25);
 
-entities::classes::BasePhysicalEntity *camera1 = NULL;
+MovableEntity *camera1 = NULL;
 bool detachedcamera = false;
 bool isthirdperson() { return player!=camera1 || detachedcamera; }
 
 void fixcamerarange()
 {
     const float MAXPITCH = 90.0f;
-    if(camera1->pitch>MAXPITCH) camera1->pitch = MAXPITCH;
-    if(camera1->pitch<-MAXPITCH) camera1->pitch = -MAXPITCH;
-    while(camera1->yaw<0.0f) camera1->yaw += 360.0f;
-    while(camera1->yaw>=360.0f) camera1->yaw -= 360.0f;
+    if(camera1->d.y>MAXPITCH) camera1->d.y = MAXPITCH;
+    if(camera1->d.y<-MAXPITCH) camera1->d.y = -MAXPITCH;
+    while(camera1->d.x<0.0f) camera1->d.x += 360.0f;
+    while(camera1->d.x>=360.0f) camera1->d.x -= 360.0f;
 }
 
 void modifyorient(float yaw, float pitch)
@@ -382,13 +382,13 @@ void modifyorient(float yaw, float pitch)
     // WatIsDeze: Dunno why nobody ever checked.
     if (!camera1 || !player) return;
 
-    camera1->yaw += yaw;
-    camera1->pitch += pitch;
+    camera1->d.x += yaw;
+    camera1->d.y += pitch;
     fixcamerarange();
-    if(camera1!=((entities::classes::BasePhysicalEntity*)player) && !detachedcamera)
+    if(camera1!=((MovableEntity*)player) && !detachedcamera)
     {
-        player->yaw = camera1->yaw;
-        player->pitch = camera1->pitch;
+        player->d.x = camera1->d.x;
+        player->d.y = camera1->d.y;
     }
 }
 
@@ -419,8 +419,8 @@ void recomputecamera()
     game::setupcamera();
     computezoom();
 
-    auto prepCamera1 = dynamic_cast<entities::classes::BasePhysicalEntity*>(camera1);
-    auto prepPlayer = dynamic_cast<entities::classes::BasePhysicalEntity*>(player);
+    auto prepCamera1 = dynamic_cast<MovableEntity*>(camera1);
+    auto prepPlayer = dynamic_cast<MovableEntity*>(player);
 
     assert(prepCamera1);
     assert(prepPlayer);
@@ -435,7 +435,7 @@ void recomputecamera()
     }
     else
     {
-        static entities::classes::BasePhysicalEntity tempcamera;
+        static MovableEntity tempcamera;
 
         if(detachedcamera && shoulddetach) {
             prepCamera1->o = prepPlayer->o;
@@ -444,14 +444,14 @@ void recomputecamera()
 
             detachedcamera = shoulddetach;
         }
-        prepCamera1->ent_type = ENT_CAMERA;
+//        prepCamera1->ent_type = ENT_CAMERA;
         prepCamera1->move = -1;
         prepCamera1->eyeheight = prepCamera1->aboveeye = prepCamera1->radius = prepCamera1->xradius = prepCamera1->yradius = 2;
         matrix3 orient;
         orient.identity();
-        orient.rotate_around_z(prepCamera1->yaw*RAD);
-        orient.rotate_around_x(prepCamera1->pitch*RAD);
-        orient.rotate_around_y(prepCamera1->roll*-RAD);
+        orient.rotate_around_z(prepCamera1->d.x*RAD);
+        orient.rotate_around_x(prepCamera1->d.y*RAD);
+        orient.rotate_around_y(prepCamera1->d.z*-RAD);
         vec dir = vec(orient.b).neg(), side = vec(orient.a).neg(), up = orient.c;
 
         if(game::collidecamera())
@@ -1089,14 +1089,14 @@ void drawminimap()
     minimapradius.x = minimapradius.y = max(minimapradius.x, minimapradius.y);
     minimapscale = vec((0.5f - 1.0f/size)/minimapradius.x, (0.5f - 1.0f/size)/minimapradius.y, 1.0f);
 
-    entities::classes::BasePhysicalEntity *oldcamera = camera1;
-    static entities::classes::BaseDynamicEntity cmcamera;
+    MovableEntity *oldcamera = camera1;
+    static MovableEntity cmcamera;
     cmcamera = *player;
-    cmcamera.ent_type = ENT_CAMERA;
+//    cmcamera.ent_type = ENT_CAMERA;
     cmcamera.o = vec(minimapcenter.x, minimapcenter.y, minimapheight > 0 ? minimapheight : minimapcenter.z + minimapradius.z + 1);
-    cmcamera.yaw = 0;
-    cmcamera.pitch = -90;
-    cmcamera.roll = 0;
+    cmcamera.d.x = 0;
+    cmcamera.d.y = -90;
+    cmcamera.d.z = 0;
     camera1 = &cmcamera;
     setviewcell(vec(-1, -1, -1));
 
@@ -1170,14 +1170,14 @@ void drawcubemap(int size, const vec &o, float yaw, float pitch, const cubemapsi
 {
     drawtex = DRAWTEX_ENVMAP;
 
-    entities::classes::BasePhysicalEntity *oldcamera = camera1;
-    static entities::classes::BaseDynamicEntity cmcamera;
+    MovableEntity *oldcamera = camera1;
+    static MovableEntity cmcamera;
     cmcamera = *player;
-    cmcamera.ent_type = ENT_CAMERA;
+//    cmcamera.ent_type = ENT_CAMERA;
     cmcamera.o = o;
-    cmcamera.yaw = yaw;
-    cmcamera.pitch = pitch;
-    cmcamera.roll = 0;
+    cmcamera.d.x = yaw;
+    cmcamera.d.y = pitch;
+    cmcamera.d.z = 0;
     camera1 = &cmcamera;
     setviewcell(camera1->o);
 
@@ -1272,8 +1272,8 @@ VAR(modelpreviewpitch, -90, -15, 90);
 
 namespace modelpreview
 {
-    entities::classes::BasePhysicalEntity *oldcamera;
-    entities::classes::BasePhysicalEntity camera;
+    MovableEntity *oldcamera;
+    MovableEntity camera;
 
     float oldaspect, oldfovy, oldfov, oldldrscale, oldldrscaleb;
     int oldfarplane, oldvieww, oldviewh;
@@ -1298,13 +1298,13 @@ namespace modelpreview
 
         oldcamera = camera1;
         camera = *camera1;
-        camera.et_type = ET_GAMESPECIFIC;
-        camera.ent_type = ENT_CAMERA;
-        camera.game_type = GAMEENTITY;
+//        camera.et_type = ET_GAMESPECIFIC;
+//        camera.ent_type = ENT_CAMERA;
+//        camera.game_type = GAMEENTITY;
         camera.o = vec(0, 0, 0);
-        camera.yaw = 0;
-        camera.pitch = modelpreviewpitch;
-        camera.roll = 0;
+        camera.d.x = 0;
+        camera.d.y = modelpreviewpitch;
+        camera.d.z = 0;
         camera1 = &camera;
 
         oldaspect = aspect;
@@ -1361,7 +1361,7 @@ vec calcmodelpreviewpos(const vec &radius, float &yaw)
 {
     yaw = fmod(lastmillis/10000.0f*360.0f, 360.0f);
     float dist = max(radius.magnitude2()/aspect, radius.magnitude())/sinf(fovy/2*RAD);
-    return vec(0, dist, 0).rotate_around_x(camera1->pitch*RAD);
+    return vec(0, dist, 0).rotate_around_x(camera1->d.y*RAD);
 }
 
 int xtraverts, xtravertsva;
@@ -1509,7 +1509,7 @@ void damagecompass(int n, const vec &loc)
     if(delta.magnitude() > 4)
     {
         vectoyawpitch(delta, yaw, pitch);
-        yaw -= camera1->yaw;
+        yaw -= camera1->d.x;
     }
     if(yaw >= 360) yaw = fmod(yaw, 360);
     else if(yaw < 0) yaw = 360 - fmod(-yaw, 360);

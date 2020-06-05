@@ -1,7 +1,8 @@
 // renderparticles.cpp
 
 #include "shared/cube.h"
-#include "shared/entities/basephysicalentity.h"
+#include "shared/entities/DynamicEntity.h"
+#include "shared/entities/MovableEntity.h"
 #include "engine/texture.h"
 #include "engine/pvs.h"
 #include "engine/font.h"
@@ -44,14 +45,14 @@ VAR(dbgpseed, 0, 0, 1);
 
 struct particleemitter
 {
-    entities::classes::CoreEntity *ent;
+    Entity *ent;
     vec bbmin, bbmax;
     vec center;
     float radius;
     ivec cullmin, cullmax;
     int maxfade, lastemit, lastcull;
 
-    particleemitter(entities::classes::CoreEntity *ent)
+    particleemitter(Entity *ent)
         : ent(ent), bbmin(ent->o), bbmax(ent->o), maxfade(-1), lastemit(0), lastcull(0)
     {}
 
@@ -93,15 +94,16 @@ void clearparticleemitters()
 void addparticleemitters()
 {
     emitters.setsize(0);
-    const auto& ents = entities::getents();
+    const auto& ents = getents();
     loopv(ents)
     {
-        auto e = dynamic_cast<entities::classes::BaseEntity *>(ents[i]);
+        auto e = dynamic_cast<DynamicEntity *>(ents[i]);
         if (!e)
 			continue;
-			
-		if(e->et_type != ET_PARTICLES)
-			continue;
+
+        //FIXME: ParticleEmitter entity?
+//		if(e->et_type != ET_PARTICLES)
+//			continue;
 			
 		emitters.add(particleemitter(e));
     }
@@ -153,7 +155,7 @@ struct particle
     {
         const char *text;
         float val;
-        entities::classes::CoreEntity *owner;
+        Entity *owner;
         struct
         {
             uchar color2[3];
@@ -195,7 +197,7 @@ struct partrenderer
 
     virtual void init(int n) { }
     virtual void reset() = 0;
-    virtual void resettracked(entities::classes::CoreEntity *owner) { }
+    virtual void resettracked(Entity *owner) { }
     virtual particle *addpart(const vec &o, const vec &d, int fade, int color, float size, int gravity = 0) = 0;
     virtual void update() { }
     virtual void render() = 0;
@@ -317,7 +319,7 @@ struct listrenderer : partrenderer
         list = NULL;
     }
 
-    void resettracked(entities::classes::CoreEntity *owner)
+    void resettracked(Entity *owner)
     {
         if(!(type&PT_TRACK)) return;
         for(listparticle **prev = &list, *cur = list; cur; cur = *prev)
@@ -668,7 +670,7 @@ struct varenderer : partrenderer
         lastupdate = -1;
     }
 
-    void resettracked(entities::classes::CoreEntity *owner)
+    void resettracked(Entity *owner)
     {
         if(!(type&PT_TRACK)) return;
         loopi(numparts)
@@ -912,7 +914,7 @@ void cleanupparticles()
     loopi(sizeof(parts)/sizeof(parts[0])) parts[i]->cleanup();
 }
 
-void removetrackedparticles(entities::classes::CoreEntity *owner)
+void removetrackedparticles(Entity *owner)
 {
     loopi(sizeof(parts)/sizeof(parts[0])) parts[i]->resettracked(owner);
 }
@@ -1120,7 +1122,7 @@ void particle_meter(const vec &s, float val, int type, int fade, int color, int 
     p->progress = clamp(int(val*100), 0, 100);
 }
 
-void particle_flare(const vec &p, const vec &dest, int fade, int type, int color, float size, entities::classes::CoreEntity *owner)
+void particle_flare(const vec &p, const vec &dest, int fade, int type, int color, float size, Entity *owner)
 {
     if(!canaddparticles()) return;
     newparticle(p, dest, fade, type, color, size)->owner = owner;
@@ -1278,9 +1280,10 @@ void regular_particle_flame(int type, const vec &p, float radius, float height, 
     regularflame(type, p, radius, height, color, density, scale, speed, fade, gravity);
 }
 
-static void makeparticles(entities::classes::CoreEntity *e)
+static void makeparticles(Entity *e)
 {
-	switch(e->attr1)
+    //FIXME: make ParticleEntity
+/*	switch(e->attr1)
     {
         case 0: //fire and smoke -  <radius> <height> <rgb> - 0 values default to compat for old maps
         {
@@ -1321,8 +1324,32 @@ static void makeparticles(entities::classes::CoreEntity *e)
 			int type = typemap[e->attr1-4];
 			float size = sizemap[e->attr1-4];
 			int gravity = gravmap[e->attr1-4];
-			if(e->attr2 >= 256) regularshape(type, max(1+e->attr3, 1), colorfromattr(e->attr4), e->attr2-256, 5, e->attr5 > 0 ? min(int(e->attr5), 10000) : 200, e->o, size, gravity);
-			else newparticle(e->o, offsetvec(e->o, e->attr2, max(1+e->attr3, 0)), 1, type, colorfromattr(e->attr4), size, gravity);
+			if(e->attr2 >= 256)
+            {
+			    regularshape(
+                    type,
+                    max(1+e->attr3, 1),
+                    colorfromattr(e->attr4),
+                    e->attr2-256,
+                    5,
+                    e->attr5 > 0 ? min(int(e->attr5), 10000) : 200,
+                    e->o,
+                    size,
+                    gravity
+                );
+            }
+			else
+            {
+			    newparticle(
+                    e->o,
+                    offsetvec(e->o, e->attr2, max(1+e->attr3, 0)),
+                    1,
+                    type,
+                    colorfromattr(e->attr4),
+                    size,
+                    gravity
+                );
+            }
             break;
         }
         case 5: //meter, metervs - <percent> <rgb> <rgb2>
@@ -1355,23 +1382,25 @@ static void makeparticles(entities::classes::CoreEntity *e)
 				particle_textcopy(e->o, ds, PART_TEXT, 1, 0x6496FF, 2.0f);
             }
             break;
-    }
+    }*/
 }
 
-bool printparticles(entities::classes::CoreEntity *e, char *buf, int len)
+bool printparticles(Entity *e, char *buf, int len)
 {
+    //FIXME: ParticleEntity feature
+    /*
 	switch(e->attr1)
     {
         case 0: case 4: case 7: case 8: case 9: case 10: case 11: case 12: case 13:
-			nformatcubestr(buf, len, "%s %d %d %d 0x%.3hX %d", entities::entname(e->et_type), e->attr1, e->attr2, e->attr3, e->attr4, e->attr5);
+			nformatcubestr(buf, len, "%s %d %d %d 0x%.3hX %d", entname(e->et_type), e->attr1, e->attr2, e->attr3, e->attr4, e->attr5);
             return true;
         case 3:
-			nformatcubestr(buf, len, "%s %d %d 0x%.3hX %d %d", entities::entname(e->et_type), e->attr1, e->attr2, e->attr3, e->attr4, e->attr5);
+			nformatcubestr(buf, len, "%s %d %d 0x%.3hX %d %d", entname(e->et_type), e->attr1, e->attr2, e->attr3, e->attr4, e->attr5);
             return true;
         case 5: case 6:
-			nformatcubestr(buf, len, "%s %d %d 0x%.3hX 0x%.3hX %d", entities::entname(e->et_type), e->attr1, e->attr2, e->attr3, e->attr4, e->attr5);
+			nformatcubestr(buf, len, "%s %d %d 0x%.3hX 0x%.3hX %d", entname(e->et_type), e->attr1, e->attr2, e->attr3, e->attr4, e->attr5);
             return true;
-    }
+    } */
     return false;
 }
 
@@ -1383,7 +1412,7 @@ void seedparticles()
     loopv(emitters)
     {
         particleemitter &pe = emitters[i];
-        entities::classes::CoreEntity *e = pe.ent;
+        Entity *e = pe.ent;
         seedemitter = &pe;
         for(int millis = 0; millis < seedmillis; millis += min(emitmillis, seedmillis/10))
 			makeparticles(e);
@@ -1418,7 +1447,7 @@ void updateparticles()
         loopv(emitters)
         {
             particleemitter &pe = emitters[i];
-            entities::classes::CoreEntity *e = pe.ent;
+            Entity *e = pe.ent;
 			if(e->o.dist(camera1->o) > maxparticledistance) { pe.lastemit = lastmillis; continue; }
             if(cullparticles && pe.maxfade >= 0)
             {
@@ -1442,7 +1471,7 @@ void updateparticles()
     }
     if(editmode) // show sparkly thingies for map entities in edit mode
     {
-        const auto& ents = entities::getents();
+        const auto& ents = getents();
         // note: order matters in this case as particles of the same type are drawn in the reverse order that they are added
         loopv(entgroup)
         {
@@ -1453,8 +1482,8 @@ void updateparticles()
         loopv(ents)
         {
             auto e = ents[i];
-			if(e->et_type == ET_EMPTY)
-				continue;
+//			if(e->et_type == ET_EMPTY)
+//				continue;
 				
 			particle_textcopy(e->o, entname(e), PART_TEXT, 1, 0x1EC850, 2.0f);
 			regular_particle_splash(PART_EDIT, 2, 40, e->o, 0x3232FF, 0.32f*particlesize/100.0f);
@@ -1462,6 +1491,3 @@ void updateparticles()
     }
 }
 
-
-// >>>>>>>>>> SCRIPTBIND >>>>>>>>>>>>>> //
-// <<<<<<<<<< SCRIPTBIND <<<<<<<<<<<<<< //

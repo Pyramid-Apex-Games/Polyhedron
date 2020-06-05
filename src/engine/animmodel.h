@@ -565,8 +565,8 @@ struct animmodel : model
 
         virtual void cleanup() {}
         virtual void preload(part *p) {}
-        virtual void render(const animstate *as, float pitch, const vec &axis, const vec &forward, entities::classes::BaseDynamicEntity *d, part *p) {}
-        virtual void intersect(const animstate *as, float pitch, const vec &axis, const vec &forward, entities::classes::BaseDynamicEntity *d, part *p, const vec &o, const vec &ray) {}
+        virtual void render(const animstate *as, float pitch, const vec &axis, const vec &forward, MovableEntity *d, part *p) {}
+        virtual void intersect(const animstate *as, float pitch, const vec &axis, const vec &forward, MovableEntity *d, part *p, const vec &o, const vec &ray) {}
 
         void bindpos(GLuint ebuf, GLuint vbuf, void *v, int stride, int type, int size)
         {
@@ -779,13 +779,13 @@ struct animmodel : model
             if(meshes) meshes->preload(this);
         }
 
-        virtual void getdefaultanim(animinfo &info, int anim, uint varseed, entities::classes::BaseDynamicEntity *d)
+        virtual void getdefaultanim(animinfo &info, int anim, uint varseed, MovableEntity *d)
         {
             info.frame = 0;
             info.range = 1;
         }
 
-        bool calcanim(int animpart, int anim, int basetime, int basetime2, entities::classes::BaseDynamicEntity *d, int interp, animinfo &info, int &aitime)
+        bool calcanim(int animpart, int anim, int basetime, int basetime2, MovableEntity *d, int interp, animinfo &info, int &aitime)
         {
             uint varseed = uint((size_t)d);
             info.anim = anim;
@@ -875,13 +875,13 @@ struct animmodel : model
             return true;
         }
 
-        void intersect(int anim, int basetime, int basetime2, float pitch, const vec &axis, const vec &forward, entities::classes::BaseDynamicEntity *d, const vec &o, const vec &ray)
+        void intersect(int anim, int basetime, int basetime2, float pitch, const vec &axis, const vec &forward, MovableEntity *d, const vec &o, const vec &ray)
         {
             animstate as[MAXANIMPARTS];
             intersect(anim, basetime, basetime2, pitch, axis, forward, d, o, ray, as);
         }
 
-        void intersect(int anim, int basetime, int basetime2, float pitch, const vec &axis, const vec &forward, entities::classes::BaseDynamicEntity *d, const vec &o, const vec &ray, animstate *as)
+        void intersect(int anim, int basetime, int basetime2, float pitch, const vec &axis, const vec &forward, MovableEntity *d, const vec &o, const vec &ray, animstate *as)
         {
             if((anim&ANIM_REUSE) != ANIM_REUSE) loopi(numanimparts)
             {
@@ -961,13 +961,13 @@ struct animmodel : model
             matrixpos = oldpos;
         }
 
-        void render(int anim, int basetime, int basetime2, float pitch, const vec &axis, const vec &forward, entities::classes::BaseDynamicEntity *d)
+        void render(int anim, int basetime, int basetime2, float pitch, const vec &axis, const vec &forward, MovableEntity *d)
         {
             animstate as[MAXANIMPARTS];
             render(anim, basetime, basetime2, pitch, axis, forward, d, as);
         }
 
-        void render(int anim, int basetime, int basetime2, float pitch, const vec &axis, const vec &forward, entities::classes::BaseDynamicEntity *d, animstate *as)
+        void render(int anim, int basetime, int basetime2, float pitch, const vec &axis, const vec &forward, MovableEntity *d, animstate *as)
         {
             if((anim&ANIM_REUSE) != ANIM_REUSE) loopi(numanimparts)
             {
@@ -1106,7 +1106,7 @@ struct animmodel : model
 
     virtual int linktype(animmodel *m, part *p) const { return LINK_TAG; }
 
-    void intersect(int anim, int basetime, int basetime2, float pitch, const vec &axis, const vec &forward, entities::classes::BaseDynamicEntity *d, modelattach *a, const vec &o, const vec &ray)
+    void intersect(int anim, int basetime, int basetime2, float pitch, const vec &axis, const vec &forward, MovableEntity *d, modelattach *a, const vec &o, const vec &ray)
     {
         int numtags = 0;
         if(a)
@@ -1181,7 +1181,7 @@ struct animmodel : model
     static int intersectresult, intersectmode;
     static float intersectdist, intersectscale;
 
-    int intersect(int anim, int basetime, int basetime2, const vec &pos, float yaw, float pitch, float roll, entities::classes::BaseDynamicEntity *d, modelattach *a, float size, const vec &o, const vec &ray, float &dist, int mode)
+    int intersect(int anim, int basetime, int basetime2, const vec &pos, float yaw, float pitch, float roll, MovableEntity *d, modelattach *a, float size, const vec &o, const vec &ray, float &dist, int mode)
     {
         vec axis(1, 0, 0), forward(0, 1, 0);
 
@@ -1222,7 +1222,7 @@ struct animmodel : model
         return intersectresult;
     }
 
-    void render(int anim, int basetime, int basetime2, float pitch, const vec &axis, const vec &forward, entities::classes::BaseDynamicEntity *d, modelattach *a)
+    void render(int anim, int basetime, int basetime2, float pitch, const vec &axis, const vec &forward, MovableEntity *d, modelattach *a)
     {
         int numtags = 0;
         if(a)
@@ -1302,7 +1302,7 @@ struct animmodel : model
         }
     }
 
-    void render(int anim, int basetime, int basetime2, const vec &o, float yaw, float pitch, float roll, entities::classes::BaseDynamicEntity *d, modelattach *a, float size, const vec4 &color)
+    void render(int anim, int basetime, int basetime2, const vec &o, float yaw, float pitch, float roll, MovableEntity *d, modelattach *a, float size, const vec4 &color)
     {
         vec axis(1, 0, 0), forward(0, 1, 0);
 

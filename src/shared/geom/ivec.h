@@ -1,5 +1,6 @@
 #pragma once
 #include "shared/types.h"
+#include <nlohmann/json_fwd.hpp>
 
 struct vec;
 struct ivec4;
@@ -69,3 +70,6 @@ static inline uint hthash(const ivec &k)
 {
     return k.x^k.y^k.z;
 }
+
+void to_json(nlohmann::json& document, const ivec& v);
+void from_json(const nlohmann::json& document, ivec& v);

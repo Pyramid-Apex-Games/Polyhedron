@@ -115,11 +115,11 @@ def GenerateAttributeDefinition(cxxClass):
     if len(output) > 0:
         output = [f"{{\"header\"s, \"{cxxClass}\"s}}"] + output
     body = ",\n\t\t".join(output)
-    return f"""const entities::attributeList_T {templateValues['className']}::attributes()
+    return f"""const attributeList_T {templateValues['className']}::attributes()
 {{
     using namespace std::string_literals;
 
-    return entities::attributeList_T {{
+    return attributeList_T {{
         {body}
     }};
 }}
@@ -170,10 +170,10 @@ def GenerateAttributeGetter(cxxClass):
             hasElse = "else "
 
     if len(output) == 0:
-        body = "return entities::attribute_T();";
+        body = "return attribute_T();";
     else:
         body = "\n\t".join(output)
-    return f"""entities::attribute_T {templateValues['className']}::getAttributeImpl(const std::string &key) const
+    return f"""attribute_T {templateValues['className']}::getAttributeImpl(const std::string &key) const
 {{
 \tusing namespace std::string_literals;
 
@@ -207,7 +207,7 @@ def GenerateAttributeSetter(cxxClass):
             hasElse = "else "
 
     body = "\n\t".join(output)
-    return f"""void {templateValues['className']}::setAttributeImpl(const std::string &key, const entities::attribute_T &value)
+    return f"""void {templateValues['className']}::setAttributeImpl(const std::string &key, const attribute_T &value)
 {{
 \tusing namespace std::string_literals;
 

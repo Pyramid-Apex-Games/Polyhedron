@@ -4,7 +4,7 @@
 #include <shared/types.h>
 #include <shared/geom/ivec.h>
 #include <shared/geom/vec.h>
-#include <shared/entities/coreentity.h>
+#include <shared/entities/Entity.h>
 
 struct vtxarray;
 struct occludequery;
@@ -50,5 +50,5 @@ struct shadowmesh;
 
 void clearshadowmeshes();
 void genshadowmeshes();
-shadowmesh *findshadowmesh(int idx, entities::classes::CoreEntity *e);
+shadowmesh *findshadowmesh(int idx, Entity *e);
 void rendershadowmesh(shadowmesh *m);

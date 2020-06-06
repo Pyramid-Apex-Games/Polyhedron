@@ -3,6 +3,7 @@
 #include "engine/main/Application.h"
 #include "engine/main/Window.h"
 #include "engine/main/GLContext.h"
+#include "engine/main/Input.h"
 #include "engine/nui/nui.h"
 #include "shared/Easing.h"
 #include <variant>
@@ -81,7 +82,7 @@ void EntityEditorMenu::Render()
             }
             else
             {
-                nk_label(engine::nui::GetNKContext(), "--", NK_TEXT_CENTERED);
+                nk_label(engine::nui::GetNKContext(), ("-(" + std::get<std::string>(attrRow[0]) + ")-").c_str(), NK_TEXT_CENTERED);
             }
         }
     }
@@ -89,7 +90,7 @@ void EntityEditorMenu::Render()
     nk_end(engine::nui::GetNKContext());
 }
 
-void EntityEditorMenu::RenderHeader(const attrubuteRow_T& attrs)
+void EntityEditorMenu::RenderHeader(const attributeRow_T& attrs)
 {
     nk_layout_row_dynamic(engine::nui::GetNKContext(), 30, 1);
     auto headerString = std::get<std::string>(attrs[1]);
@@ -97,7 +98,7 @@ void EntityEditorMenu::RenderHeader(const attrubuteRow_T& attrs)
     nk_label(engine::nui::GetNKContext(), headerString.c_str(), NK_TEXT_CENTERED);
 }
 
-void EntityEditorMenu::RenderInput(const attrubuteRow_T& attrs)
+void EntityEditorMenu::RenderInput(const attributeRow_T& attrs)
 {
     auto variableKey = std::get<std::string>(attrs[1]);
     auto storageKey = __lastHeader + "_" + variableKey;
@@ -110,20 +111,31 @@ void EntityEditorMenu::RenderInput(const attrubuteRow_T& attrs)
         __inputStorage[storageKey] = valueStorage;
     }
 
-    if (nk_edit_string_zero_terminated(
-            engine::nui::GetNKContext(),
-            NK_EDIT_SELECTABLE | NK_EDIT_CLIPBOARD | NK_EDIT_GOTO_END_ON_ACTIVATE,
-            __inputStorage[storageKey].data(),
-            255,
-            nullptr
-        ) == NK_EDIT_COMMITED)
+    nk_flags event = nk_edit_string_zero_terminated(
+        engine::nui::GetNKContext(),
+        NK_EDIT_FIELD,
+        __inputStorage[storageKey].data(),
+        255,
+        nk_filter_ascii
+    );
+    if (event & NK_EDIT_ACTIVATED)
+    {
+        Application::Instance().GetInput().Text(true);
+        conoutf("Input field %s activated", variableKey.c_str());
+    }
+    if (event & NK_EDIT_DEACTIVATED)
+    {
+        Application::Instance().GetInput().Text(false);
+        conoutf("Input field %s deactivated", variableKey.c_str());
+    }
+    if (event & NK_EDIT_COMMITED)
     {
         m_Entity->setAttribute(variableKey, __inputStorage[storageKey]);
     }
 }
 
 //TODO: replace with template to switch between int/float
-void EntityEditorMenu::RenderSlider(const attrubuteRow_T& attrs)
+void EntityEditorMenu::RenderSlider(const attributeRow_T& attrs)
 {
     auto variableKey = std::get<std::string>(attrs[1]);
     auto storageKey = __lastHeader + "_" + variableKey;
@@ -151,7 +163,7 @@ void EntityEditorMenu::RenderSlider(const attrubuteRow_T& attrs)
 }
 
 //TODO: replace with template to switch between int/float
-void EntityEditorMenu::RenderSliderInt(const attrubuteRow_T& attrs)
+void EntityEditorMenu::RenderSliderInt(const attributeRow_T& attrs)
 {
     auto variableKey = std::get<std::string>(attrs[1]);
     auto storageKey = __lastHeader + "_" + variableKey;
@@ -177,7 +189,7 @@ void EntityEditorMenu::RenderSliderInt(const attrubuteRow_T& attrs)
     }
 }
 
-void EntityEditorMenu::RenderCheckbox(const attrubuteRow_T& attrs)
+void EntityEditorMenu::RenderCheckbox(const attributeRow_T& attrs)
 {
     auto variableKey = std::get<std::string>(attrs[1]);
     auto storageKey = __lastHeader + "_" + variableKey;

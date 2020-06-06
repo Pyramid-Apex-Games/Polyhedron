@@ -498,10 +498,7 @@ NkPolyhedron::InputEventProcessState NkPolyhedron::InputEvent(const SDL_Event &e
                 nk_input_key(&m_Context, NK_KEY_TEXT_WORD_RIGHT, down);
             else nk_input_key(&m_Context, NK_KEY_RIGHT, down);
         }
-        else
-        {
-            return InputEventProcessState::NotHandled;
-        }
+
         return nk_item_is_any_active(&m_Context) ? InputEventProcessState::Handled : InputEventProcessState::NotHandled;
     }
     else if (evt.type == SDL_MOUSEBUTTONDOWN || evt.type == SDL_MOUSEBUTTONUP)
@@ -541,16 +538,20 @@ NkPolyhedron::InputEventProcessState NkPolyhedron::InputEvent(const SDL_Event &e
     else if (evt.type == SDL_TEXTINPUT)
     {
         /* text input */
-        nk_glyph glyph;
-        memcpy(glyph, evt.text.text, NK_UTF_SIZE);
-        nk_input_glyph(&m_Context, glyph);
-        return nk_item_is_any_active(&m_Context) ? InputEventProcessState::Handled : InputEventProcessState::NotHandled;;
+        if (nk_item_is_any_active(&m_Context))
+        {
+            nk_glyph glyph;
+            memcpy(glyph, evt.text.text, NK_UTF_SIZE);
+            nk_input_glyph(&m_Context, glyph);
+            return InputEventProcessState::Handled;
+        }
+        return InputEventProcessState::NotHandled;
     }
     else if (evt.type == SDL_MOUSEWHEEL)
     {
         /* mouse wheel */
         nk_input_scroll(&m_Context, nk_vec2((float)evt.wheel.x,(float)evt.wheel.y));
-        return nk_item_is_any_active(&m_Context) ? InputEventProcessState::Handled : InputEventProcessState::NotHandled;;
+        return nk_item_is_any_active(&m_Context) ? InputEventProcessState::Handled : InputEventProcessState::NotHandled;
     }
 
     return InputEventProcessState::NotHandled;

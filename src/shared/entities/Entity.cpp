@@ -165,7 +165,7 @@ void Entity::renderImpl(game::RenderPass pass)
 void Entity::on(const Event& event)
 {
 	if (
-        event.type != EntityEventType::HoverStart ||
+        event.type != EntityEventType::HoverStart &&
         event.type != EntityEventType::Tick
     )
 	{

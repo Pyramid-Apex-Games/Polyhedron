@@ -11,11 +11,11 @@ public:
     EntityEditorMenu(Entity* entity);
 
     void Render();
-    void RenderHeader(const attrubuteRow_T& attrs);
-    void RenderInput(const attrubuteRow_T& attrs);
-    void RenderSlider(const attrubuteRow_T& attrs);
-    void RenderSliderInt(const attrubuteRow_T& attrs);
-    void RenderCheckbox(const attrubuteRow_T& attrs);
+    void RenderHeader(const attributeRow_T& attrs);
+    void RenderInput(const attributeRow_T& attrs);
+    void RenderSlider(const attributeRow_T& attrs);
+    void RenderSliderInt(const attributeRow_T& attrs);
+    void RenderCheckbox(const attributeRow_T& attrs);
 
     bool HasEntity(Entity* entity);
     void Hide();

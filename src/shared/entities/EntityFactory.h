@@ -17,8 +17,8 @@ namespace CommandTypes
 }
 
 using attribute_T = std::variant<std::string, float, int, bool, vec4, vec, ivec4, ivec>;
-using attrubuteRow_T = std::vector<attribute_T>;
-using attributeList_T = std::vector<attrubuteRow_T>;
+using attributeRow_T = std::vector<attribute_T>;
+using attributeList_T = std::vector<attributeRow_T>;
 
 template <typename TargetType>
 struct AttributeVisitCoercer

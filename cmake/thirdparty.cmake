@@ -313,6 +313,22 @@ if (NOT python_POPULATED)
     FetchContent_MakeAvailable(PYTHON)
 endif()
 
+if(WIN32)
+    message("downloading libclang prebuilt")
+    FetchContent_Declare(
+        LIBCLANG
+        SOURCE_DIR          ${CMAKE_CURRENT_BINARY_DIR}/thirdparty_sources/libclang
+        URL                 https://ziglang.org/deps/llvm%2bclang%2blld-10.0.0-x86_64-windows-msvc-release-mt.tar.xz
+        DOWNLOAD_DIR        ${DEPENDENCY_DOWNLOAD_DIR}
+        INSTALL_COMMAND     ""
+    )
+    FetchContent_GetProperties(LIBCLANG)
+    if (NOT libclang_POPULATED)
+        set(LIBCLANG_PATH "${CMAKE_CURRENT_BINARY_DIR}/thirdparty_sources/libclang/bin/libclang.dll")
+        FetchContent_MakeAvailable(LIBCLANG)
+    endif()
+endif()
+
 list(APPEND THIRDPARTY_INCLUDE_DIRS
 )
 

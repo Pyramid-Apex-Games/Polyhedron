@@ -359,6 +359,14 @@ list(APPEND fileList
 )
 
 function(GenerateBindingFor input_file ide_folder)
+    if (${LIBCLANG_PATH})
+        set(ENV{LIBCLANG_PATH} "${LIBCLANG_PATH}")
+    else()
+        if (WIN32)
+            set(LIBCLANG_PATH "${CMAKE_CURRENT_BINARY_DIR}/thirdparty_sources/libclang/bin/libclang.dll")
+            set(ENV{LIBCLANG_PATH} "${CMAKE_CURRENT_BINARY_DIR}/thirdparty_sources/libclang/bin/libclang.dll")
+        endif()
+    endif()
     if(${input_file} MATCHES "\.cpp$")
         execute_process(
             COMMAND ${PYTHON} ${CMAKE_CURRENT_LIST_DIR}/binding/index.py cmake_output ${input_file}
@@ -374,7 +382,7 @@ function(GenerateBindingFor input_file ide_folder)
         add_custom_command(
             OUTPUT ${input_file_target}
             WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}
-            COMMAND ${PYTHON} ${CMAKE_CURRENT_LIST_DIR}/binding/index.py gen ${CMAKE_CURRENT_BINARY_DIR} ${input_file} ${output_file_target}
+            COMMAND ${CMAKE_COMMAND} -E env "LIBCLANG_PATH=${LIBCLANG_PATH}" ${PYTHON} ${CMAKE_CURRENT_LIST_DIR}/binding/index.py gen ${CMAKE_CURRENT_BINARY_DIR} ${input_file} ${output_file_target}
             COMMENT "Preprocessing ${input_file}"
 #            DEPENDS ${input_file_full}
         )

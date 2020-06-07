@@ -28,6 +28,12 @@ libclang_paths = [
     "/usr/lib/x86_64-linux-gnu/libclang-11.so.1"
 ]
 
+if 'LIBCLANG_PATH' in os.environ:
+    libclang_paths = [os.environ['LIBCLANG_PATH']] + libclang_paths
+
+
+    
+
 EXPORT_ANNOTATION = "scriptexport"
 DONTSERIALIZE_ANNOTATION = "dontserialize"
 DONTUNSERIALIZE_ANNOTATION = "dontunserialize"

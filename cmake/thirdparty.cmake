@@ -155,6 +155,30 @@ if (NOT sdl2_mixer_POPULATED)
 
 endif()
 
+
+if (WIN32)
+    message("Fetching zlib")
+    FetchContent_Declare(
+        ZLIB
+        SOURCE_DIR          ${CMAKE_CURRENT_BINARY_DIR}/thirdparty_sources/zlib
+        URL                 https://www.zlib.net/fossils/zlib-1.2.11.tar.gz
+        DOWNLOAD_DIR        ${DEPENDENCY_DOWNLOAD_DIR}
+        INSTALL_COMMAND     ""
+    )
+    FetchContent_GetProperties(ZLIB)
+    if (NOT zlib_POPULATED)
+        source_group(TREE ZLIB)
+        FetchContent_Populate(ZLIB)
+
+        set(ZLIB_LIBRARY zlibstatic)
+        set(ZLIB_INCLUDE_DIR ${zlib_SOURCE_DIR})
+
+        list(APPEND THIRDPARTY_LIBRARIES
+            zlibstatic
+        )
+    endif()
+endif()
+
 message("Fetching dependency SDL2_image")
 FetchContent_Declare(
     SDL2_image
@@ -184,7 +208,28 @@ if (NOT sdl2_image_POPULATED)
         ${SDL2_IMAGE_BINARY_DIR}/include
     )
 
+    set(SKIP_INSTALL_ALL ON)
+
     add_subdirectory(${sdl2_image_SOURCE_DIR} ${sdl2_image_BINARY_DIR})
+endif()
+
+if (WIN32)
+    message("Fetching iconv")
+    FetchContent_Declare(
+        ICONV
+        SOURCE_DIR          ${CMAKE_CURRENT_BINARY_DIR}/thirdparty_sources/iconv
+        GIT_REPOSITORY      https://github.com/vovythevov/libiconv-cmake
+        DOWNLOAD_DIR        ${DEPENDENCY_DOWNLOAD_DIR}
+        INSTALL_COMMAND     ""
+    )
+    FetchContent_GetProperties(ICONV)
+    if (NOT iconv_POPULATED)
+        source_group(TREE iconv)
+
+        FetchContent_MakeAvailable(ICONV)
+        set(Iconv_LIBRARY libiconv)
+        set(Iconv_INCLUDE_DIR ${iconv_SOURCE_DIR})
+    endif()
 endif()
 
 message("Fetching python")
@@ -201,6 +246,14 @@ if (NOT python_POPULATED)
 
     set(INSTALL_MANUAL OFF)
     set(USE_SYSTEM_LIBRARIES OFF)
+    set(INSTALL_WINDOWS_TRADITIONAL OFF)
+    set(BUILD_WININST OFF)
+    set(BUILD_WININST_ALWAYS OFF)
+    set(INSTALL_DEVELOPMENT OFF)
+    set(INSTALL_MANUAL OFF)
+    set(INSTALL_TEST OFF)
+    set(_use_builtin_zlib_default OFF)
+    set(_use_system_zlib_default OFF)
     set(CMAKE_OSX_DEPLOYMENT_TARGET 10.14)
     list(APPEND THIRDPARTY_INCLUDE_DIRS
         ${CMAKE_CURRENT_BINARY_DIR}/_deps/Python-3.6.7/include
@@ -259,7 +312,6 @@ if (NOT python_POPULATED)
 
     FetchContent_MakeAvailable(PYTHON)
 endif()
-
 
 list(APPEND THIRDPARTY_INCLUDE_DIRS
 )

@@ -7,3 +7,4 @@ bentity_new/
 .idea
 cmake-build-*/
 config/site-py/
+.vs/

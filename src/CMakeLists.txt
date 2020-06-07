@@ -8,6 +8,9 @@ set(PYTHON python3)
 if (APPLE)
     set(PYTHON /usr/local/bin/python3)
 endif()
+if (WIN32)
+    set(PYTHON py)
+endif()
 
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)

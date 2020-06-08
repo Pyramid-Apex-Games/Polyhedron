@@ -97,7 +97,10 @@ namespace gle
 
     static inline void bindebo(GLuint ebo) { disable(); glCheckError(glBindBuffer_(GL_ELEMENT_ARRAY_BUFFER, ebo)); }
     static inline void clearebo() { glCheckError(glBindBuffer_(GL_ELEMENT_ARRAY_BUFFER, 0)); }
-    static inline void bindvbo(GLuint vbo) { disable(); glCheckError(glBindBuffer_(GL_ARRAY_BUFFER, vbo)); }
+    static inline void bindvbo(GLuint vbo) {
+        disable();
+        glCheckError(glBindBuffer_(GL_ARRAY_BUFFER, vbo));
+    }
     static inline void clearvbo() { glCheckError(glBindBuffer_(GL_ARRAY_BUFFER, 0)); }
 
     template<class T>

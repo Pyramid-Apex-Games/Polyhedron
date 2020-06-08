@@ -8,6 +8,10 @@ namespace {
 	const std::string fallbackEntityType = "entity";
 }
 
+template <> std::string AttributeVisitCoercer<std::string>::operator()(const std::monostate& value) const
+{
+	return "";
+}
 
 template <> std::string AttributeVisitCoercer<std::string>::operator()(std::string const& value) const
 {
@@ -47,6 +51,12 @@ template <> std::string AttributeVisitCoercer<std::string>::operator()(ivec4 val
 template <> std::string AttributeVisitCoercer<std::string>::operator()(ivec value) const
 {
 	return std::to_string(value.x) + ", " + std::to_string(value.y) + ", " + std::to_string(value.z);
+}
+
+
+template <> float AttributeVisitCoercer<float>::operator()(const std::monostate& value) const
+{
+	return 0.0f;
 }
 
 template <> float AttributeVisitCoercer<float>::operator()(const std::string& value) const
@@ -90,6 +100,11 @@ template <> float AttributeVisitCoercer<float>::operator()(const ivec value) con
 }
 
 
+template <> int AttributeVisitCoercer<int>::operator()(const std::monostate& value) const
+{
+	return 0;
+}
+
 template <> int AttributeVisitCoercer<int>::operator()(std::string const& value) const
 {
 	return std::stoi(value);
@@ -130,6 +145,12 @@ template <> int AttributeVisitCoercer<int>::operator()(ivec value) const
 	return value.x;
 }
 
+
+template <> bool AttributeVisitCoercer<bool>::operator()(const std::monostate& value) const
+{
+	return false;
+}
+
 template <> bool AttributeVisitCoercer<bool>::operator()(const std::string& value) const
 {
 	return value == "true" || value == "1" || value == "True" || value == "TRUE" || std::stoi(value) != 0 || std::stof(value) != 0.0f ? true : false;
@@ -168,6 +189,12 @@ template <> bool AttributeVisitCoercer<bool>::operator()(const ivec4 value) cons
 template <> bool AttributeVisitCoercer<bool>::operator()(const ivec value) const
 {
 	return value.x != 0 ? true : false;
+}
+
+
+template <> vec4 AttributeVisitCoercer<vec4>::operator()(const std::monostate& value) const
+{
+	return vec4(0.0f, 0.0f, 0.0f, 0.0f);
 }
 
 template <> vec4 AttributeVisitCoercer<vec4>::operator()(const std::string& value) const
@@ -211,7 +238,11 @@ template <> vec4 AttributeVisitCoercer<vec4>::operator()(const ivec value) const
 	return vec4(value.x, value.y, value.z, 0.0f);
 }
 
-//---
+
+template <> vec AttributeVisitCoercer<vec>::operator()(const std::monostate& value) const
+{
+	return vec(0.0f, 0.0f, 0.0f);
+}
 
 template <> vec AttributeVisitCoercer<vec>::operator()(const std::string& value) const
 {
@@ -254,8 +285,11 @@ template <> vec AttributeVisitCoercer<vec>::operator()(const ivec value) const
 	return vec(value.x, value.y, value.z);
 }
 
-//======
 
+template <> ivec4 AttributeVisitCoercer<ivec4>::operator()(const std::monostate& value) const
+{
+	return ivec4(0, 0, 0, 0);
+}
 
 template <> ivec4 AttributeVisitCoercer<ivec4>::operator()(const std::string& value) const
 {
@@ -298,7 +332,10 @@ template <> ivec4 AttributeVisitCoercer<ivec4>::operator()(const ivec value) con
 	return ivec4(value.x, value.y, value.z, 0.0f);
 }
 
-//---
+template <> ivec AttributeVisitCoercer<ivec>::operator()(const std::monostate& value) const
+{
+	return ivec(0, 0, 0);
+}
 
 template <> ivec AttributeVisitCoercer<ivec>::operator()(const std::string& value) const
 {

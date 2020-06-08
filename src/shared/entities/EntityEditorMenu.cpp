@@ -10,8 +10,15 @@
 
 EntityEditorMenu::EntityEditorMenu(Entity* entity)
     : m_Entity(entity)
+    , m_AttributeTree(m_Entity->attributeTree())
     , m_AnimSlideInStart(totalmillis)
 {
+    for (const auto& attribSection : m_AttributeTree)
+    {
+        m_Widgets.push_back(
+            std::make_unique<EditorWidgetGroup>(m_Entity, attribSection)
+        );
+    }
 }
 
 void EntityEditorMenu::Render()
@@ -20,8 +27,6 @@ void EntityEditorMenu::Render()
 
     if (m_Closed)
         return;
-
-    auto& attrs = m_Entity->attributes();
 
     int screenw = 0, screenh = 0;
     Application::Instance().GetWindow().GetContext().GetFramebufferSize(screenw, screenh);
@@ -48,183 +53,12 @@ void EntityEditorMenu::Render()
         nk_begin(engine::nui::GetNKContext(), "Properties", nk_rect(screenw - m_Width, 0, m_Width, screenh), 0);
     }
 
-    for (auto& attrRow : attrs)
+    for (auto& widgetGroup : m_Widgets)
     {
-        if (std::get<std::string>(attrRow[0]) == "header"s)
-        {
-            RenderHeader(attrRow);
-        }
-        else
-        {
-            nk_layout_row_dynamic(engine::nui::GetNKContext(), 30, 2);
-            nk_label(engine::nui::GetNKContext(), std::get<std::string>(attrRow[2]).c_str(), NK_TEXT_LEFT);
-
-            if (std::get<std::string>(attrRow[0]) == "slider"s)
-            {
-                auto variableKey = std::get<std::string>(attrRow[1]);
-                auto variable = m_Entity->getAttribute(variableKey);
-                if (std::holds_alternative<float>(variable))
-                {
-                    RenderSlider(attrRow);
-                }
-                else if (std::holds_alternative<int>(variable))
-                {
-                    RenderSliderInt(attrRow);
-                }
-            }
-            else if (std::get<std::string>(attrRow[0]) == "checkbox"s)
-            {
-                RenderCheckbox(attrRow);
-            }
-            else if (std::get<std::string>(attrRow[0]) == "input"s)
-            {
-                RenderInput(attrRow);
-            }
-            else
-            {
-                nk_label(engine::nui::GetNKContext(), ("-(" + std::get<std::string>(attrRow[0]) + ")-").c_str(), NK_TEXT_CENTERED);
-            }
-        }
+        widgetGroup->Render();
     }
 
     nk_end(engine::nui::GetNKContext());
-}
-
-void EntityEditorMenu::RenderHeader(const attributeRow_T& attrs)
-{
-    nk_layout_row_dynamic(engine::nui::GetNKContext(), 30, 1);
-    auto headerString = std::get<std::string>(attrs[1]);
-    __lastHeader = headerString;
-    nk_label(engine::nui::GetNKContext(), headerString.c_str(), NK_TEXT_CENTERED);
-}
-
-void EntityEditorMenu::RenderInput(const attributeRow_T& attrs)
-{
-    auto variableKey = std::get<std::string>(attrs[1]);
-    auto storageKey = __lastHeader + "_" + variableKey;
-    auto variableValue = std::get<std::string>(m_Entity->getAttribute(variableKey));
-
-    if (__inputStorage.find(storageKey) == __inputStorage.end())
-    {
-        std::string valueStorage = variableValue;
-        valueStorage.reserve(255);
-        __inputStorage[storageKey] = valueStorage;
-    }
-
-    nk_flags event = nk_edit_string_zero_terminated(
-        engine::nui::GetNKContext(),
-        NK_EDIT_FIELD,
-        __inputStorage[storageKey].data(),
-        255,
-        nk_filter_ascii
-    );
-    if (event & NK_EDIT_ACTIVATED)
-    {
-        Application::Instance().GetInput().Text(true);
-        conoutf("Input field %s activated", variableKey.c_str());
-    }
-    if (event & NK_EDIT_DEACTIVATED)
-    {
-        Application::Instance().GetInput().Text(false);
-        conoutf("Input field %s deactivated", variableKey.c_str());
-    }
-    if (event & NK_EDIT_COMMITED)
-    {
-        m_Entity->setAttribute(variableKey, __inputStorage[storageKey]);
-    }
-}
-
-//TODO: replace with template to switch between int/float
-void EntityEditorMenu::RenderSlider(const attributeRow_T& attrs)
-{
-    auto variableKey = std::get<std::string>(attrs[1]);
-    auto storageKey = __lastHeader + "_" + variableKey;
-    auto variableValue = std::get<float>(m_Entity->getAttribute(variableKey));
-
-    if (__sliderStorage.find(storageKey) == __sliderStorage.end())
-    {
-        float valueStorage = variableValue;
-        __sliderStorage[storageKey] = valueStorage;
-    }
-
-    //FIXME: why are these attribs string to begin with? Issue with the PHUI macro? Issue with the python/libclang?
-    auto minValue = std::stof(std::get<std::string>(attrs[3]));
-    auto maxValue = std::stof(std::get<std::string>(attrs[4]));
-    auto stepValue = std::stof(std::get<std::string>(attrs[5]));
-
-    auto workValue = __sliderStorage[storageKey];
-    nk_slider_float(engine::nui::GetNKContext(), minValue, &workValue, maxValue, stepValue);
-
-    if (workValue != __sliderStorage[storageKey])
-    {
-        m_Entity->setAttribute(variableKey, workValue);
-        __sliderStorage[storageKey] = workValue;
-    }
-}
-
-//TODO: replace with template to switch between int/float
-void EntityEditorMenu::RenderSliderInt(const attributeRow_T& attrs)
-{
-    auto variableKey = std::get<std::string>(attrs[1]);
-    auto storageKey = __lastHeader + "_" + variableKey;
-    auto variableValue = std::get<int>(m_Entity->getAttribute(variableKey));
-
-    if (__sliderStorage.find(storageKey) == __sliderStorage.end())
-    {
-        float valueStorage = variableValue;
-        __sliderStorage[storageKey] = valueStorage;
-    }
-
-    auto minValue = std::get<int>(attrs[3]);
-    auto maxValue = std::get<int>(attrs[4]);
-    auto stepValue = std::get<int>(attrs[5]);
-
-    auto workValue = __sliderStorage[storageKey];
-    nk_slider_float(engine::nui::GetNKContext(), minValue, &workValue, maxValue, stepValue);
-
-    if (workValue != __sliderStorage[storageKey])
-    {
-        m_Entity->setAttribute(variableKey, workValue);
-        __sliderStorage[storageKey] = workValue;
-    }
-}
-
-void EntityEditorMenu::RenderCheckbox(const attributeRow_T& attrs)
-{
-    auto variableKey = std::get<std::string>(attrs[1]);
-    auto storageKey = __lastHeader + "_" + variableKey;
-    auto variable = m_Entity->getAttribute(variableKey);
-    int variableValue = 0;
-    if (std::holds_alternative<bool>(variable))
-    {
-        variableValue = std::get<bool>(variable) ? 1 : 0;
-    }
-    else if (std::holds_alternative<int>(variable))
-    {
-        variableValue = std::get<int>(variable) ? 1 : 0;
-    }
-
-    if (__checkboxStorage.find(storageKey) == __checkboxStorage.end())
-    {
-        __checkboxStorage[storageKey] = variableValue;
-    }
-
-    int workValue = __checkboxStorage[storageKey];
-    nk_checkbox_label(engine::nui::GetNKContext(), "", &workValue);
-
-    if (workValue != __checkboxStorage[storageKey])
-    {
-        if (std::holds_alternative<bool>(variable))
-        {
-            m_Entity->setAttribute(variableKey, workValue == 1 ? true : false);
-        }
-        else if (std::holds_alternative<int>(variable))
-        {
-            m_Entity->setAttribute(variableKey, workValue);
-        }
-
-        __checkboxStorage[storageKey] = workValue;
-    }
 }
 
 bool EntityEditorMenu::HasEntity(Entity* entity)
@@ -245,4 +79,220 @@ void EntityEditorMenu::Show()
         m_AnimSlideInStart = totalmillis;
         m_Closed = false;
     }
+}
+
+const Entity *EntityEditorWidget::GetEntity() const
+{
+    return m_Entity;
+}
+
+Entity *EntityEditorWidget::GetEntity()
+{
+    return m_Entity;
+}
+
+const attributeRow_T &EntityEditorWidget::GetAttributes() const
+{
+    return m_Attributes;
+}
+
+void InputEntityEditorWidget::Render()
+{
+    auto variableKey = std::get<std::string>(GetAttributes()[1]);
+    auto variableValue = std::get<std::string>(GetEntity()->getAttribute(variableKey));
+
+    if (m_Storage.bufferSize == 0)
+    {
+        m_Storage = InputStorageSpace(variableValue, 255);
+    }
+
+    nk_flags event = nk_edit_string_zero_terminated(
+        engine::nui::GetNKContext(),
+        NK_EDIT_FIELD,
+        m_Storage.pointer(),
+        m_Storage.bufferSize,
+        nk_filter_ascii
+    );
+    if (event & NK_EDIT_ACTIVATED)
+    {
+        Application::Instance().GetInput().Text(true);
+    }
+    if (event & NK_EDIT_DEACTIVATED)
+    {
+        Application::Instance().GetInput().Text(false);
+    }
+    if (event & NK_EDIT_COMMITED)
+    {
+        GetEntity()->setAttribute(variableKey, m_Storage);
+    }
+    if (event & NK_EDIT_ACTIVE)
+    {
+        std::string currentValue = m_Storage;
+        if (m_Storage.pointer() && variableValue != currentValue)
+        {
+            GetEntity()->setAttribute(variableKey, currentValue);
+        }
+    }
+}
+
+InputEntityEditorWidget::InputEntityEditorWidget(Entity *entity, const attributeRow_T &attributes)
+    : EntityEditorWidget(entity, attributes)
+{
+}
+
+template <>
+SliderEntityEditorWidget<int>::SliderEntityEditorWidget(Entity *entity, const attributeRow_T &attributes)
+    : EntityEditorWidget(entity, attributes)
+    , nk_slider_any(&nk_slider_int)
+{}
+
+template <>
+SliderEntityEditorWidget<float>::SliderEntityEditorWidget(Entity *entity, const attributeRow_T &attributes)
+    : EntityEditorWidget(entity, attributes)
+    , nk_slider_any(&nk_slider_float)
+{}
+
+CheckboxEntityEditorWidget::CheckboxEntityEditorWidget(Entity *entity, const attributeRow_T &attributes)
+    : EntityEditorWidget(entity, attributes)
+{
+}
+
+void CheckboxEntityEditorWidget::Render()
+{
+    auto variableKey = std::get<std::string>(GetAttributes()[1]);
+    auto variable = GetEntity()->getAttribute(variableKey);
+    m_Storage = 0;
+    if (std::holds_alternative<bool>(variable))
+    {
+        m_Storage = std::get<bool>(variable) ? 1 : 0;
+    }
+    else if (std::holds_alternative<int>(variable))
+    {
+        m_Storage = std::get<int>(variable) ? 1 : 0;
+    }
+
+    int workValue = m_Storage;
+    nk_checkbox_label(engine::nui::GetNKContext(), "", &workValue);
+
+    if (workValue != m_Storage)
+    {
+        if (std::holds_alternative<bool>(variable))
+        {
+            GetEntity()->setAttribute(variableKey, workValue == 1 ? true : false);
+        }
+        else if (std::holds_alternative<int>(variable))
+        {
+            GetEntity()->setAttribute(variableKey, workValue);
+        }
+
+        m_Storage = workValue;
+    }
+}
+
+nk_context *EditorRenderable::Context()
+{
+    return engine::nui::GetNKContext();
+}
+
+void WidgetLabelPair::Render()
+{
+    nk_layout_row_dynamic(Context(), 30, 2);
+    nk_label(Context(), m_Label.c_str(), NK_TEXT_LEFT);
+
+    m_Widget->Render();
+}
+
+EditorWidgetGroup::EditorWidgetGroup(Entity* entity, const attributeList_T& attributeList)
+{
+    using namespace std::string_literals;
+
+    for (auto& attrRow : attributeList)
+    {
+        if (std::get<std::string>(attrRow[0]) == "header"s)
+        {
+            m_Label = std::get<std::string>(attrRow[1]);
+        }
+        else
+        {
+            AppendWidget(entity, attrRow);
+        }
+    }
+}
+
+void EditorWidgetGroup::AppendWidget(Entity* entity, const attributeRow_T& attributes)
+{
+    using namespace std::string_literals;
+    auto variableKey = std::get<std::string>(attributes[1]);
+
+    if (std::get<std::string>(attributes[0]) == "slider"s)
+    {
+        auto variable = entity->getAttribute(variableKey);
+        if (std::holds_alternative<float>(variable))
+        {
+            m_Widgets.push_back(
+                std::make_unique<WidgetLabelPair>(
+                    std::get<std::string>(attributes[2]),
+                    std::make_unique<SliderEntityEditorWidget<float> >(entity, attributes)
+                )
+            );
+        }
+        else if (std::holds_alternative<int>(variable))
+        {
+            m_Widgets.push_back(
+                std::make_unique<WidgetLabelPair>(
+                    std::get<std::string>(attributes[2]),
+                    std::make_unique<SliderEntityEditorWidget<int> >(entity, attributes)
+                )
+            );
+        }
+    }
+    else if (std::get<std::string>(attributes[0]) == "checkbox"s)
+    {
+        m_Widgets.push_back(
+            std::make_unique<WidgetLabelPair>(
+                std::get<std::string>(attributes[2]),
+                std::make_unique<CheckboxEntityEditorWidget>(entity, attributes)
+            )
+        );
+    }
+    else if (std::get<std::string>(attributes[0]) == "input"s)
+    {
+        m_Widgets.push_back(
+            std::make_unique<WidgetLabelPair>(
+                std::get<std::string>(attributes[2]),
+                std::make_unique<InputEntityEditorWidget>(entity, attributes)
+            )
+        );
+    }
+    else
+    {
+        m_Widgets.push_back(
+            std::make_unique<WidgetLabelPair>(
+                std::get<std::string>(attributes[2]),
+                std::make_unique<DummyEntityEditorWidget>(entity, attributes)
+            )
+        );
+    }
+}
+
+void EditorWidgetGroup::Render()
+{
+    nk_layout_row_dynamic(Context(), 30, 1);
+    nk_label(Context(), m_Label.c_str(), NK_TEXT_CENTERED);
+
+    for (auto& widget : m_Widgets)
+    {
+        widget->Render();
+    }
+}
+
+DummyEntityEditorWidget::DummyEntityEditorWidget(Entity *entity, const attributeRow_T &attributes)
+    : EntityEditorWidget(entity, attributes)
+    , m_Storage(std::get<std::string>(attributes[0]))
+{
+}
+
+void DummyEntityEditorWidget::Render()
+{
+    nk_label(Context(), ("-(" + m_Storage + ")-").c_str(), NK_TEXT_CENTERED);
 }

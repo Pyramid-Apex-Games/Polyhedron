@@ -53,9 +53,9 @@ namespace engine { namespace nui {
                 }
                 iter = iter->next;
             }
-
-            return InputEventProcessState::NotHandled;
         }
+
+        return InputEventProcessState::NotHandled;
     }
     void InputProcessEnd()
     {

@@ -62,6 +62,18 @@ attribute_T Entity::getAttribute(const std::string &key) const
 	return getAttributeImpl(key);
 }
 
+const void Entity::attributeTreeImpl(attributeTree_T& tree)
+{
+	tree.push_back(attributes());
+}
+
+const attributeTree_T Entity::attributeTree()
+{
+	attributeTree_T tree;
+	attributeTreeImpl(tree);
+	return tree;
+}
+
 bool Entity::getBoundingBox(int entselradius, vec &minbb, vec &maxbb) const
 {
 	minbb = vec(o).sub(entselradius);

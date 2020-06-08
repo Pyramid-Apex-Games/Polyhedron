@@ -146,13 +146,15 @@ def GenerateAttributeDefinitionVariable(cxxVar):
     return output
 
 def GenerateAttributeDefinitionVariableSanitized(element):
+    if re.match('^-?[0-9.]+f?$', element):
+        if re.match('[^.]', element):
+            if element.endswith("f"):
+                element = element[0:-1]
+            return str(float(element)) + "f"
+        else:
+            return str(int(element))
     if re.match('^[a-zA-Z][a-zA-Z0-9]*', element):
         return f"\"{element}\"s"
-    if re.match('^-?[0-9.]+$', element):
-        if re.match('[^.]', element):
-            return str(int(element))
-        else:
-            return str(float(element)) + "f"
     if element.startswith("\"") and element.endswith("\""):
         return f"{element}s"
     else:
@@ -178,6 +180,8 @@ def GenerateAttributeGetter(cxxClass):
 \tusing namespace std::string_literals;
 
 \t{body}
+
+\treturn attribute_T();
 }}
 """
 

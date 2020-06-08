@@ -16,13 +16,15 @@ namespace CommandTypes
     typedef uint* Expression;
 }
 
-using attribute_T = std::variant<std::string, float, int, bool, vec4, vec, ivec4, ivec>;
+using attribute_T = std::variant<std::monostate, std::string, float, int, bool, vec4, vec, ivec4, ivec>;
 using attributeRow_T = std::vector<attribute_T>;
 using attributeList_T = std::vector<attributeRow_T>;
+using attributeTree_T = std::vector<attributeList_T>;
 
 template <typename TargetType>
 struct AttributeVisitCoercer
 {
+    TargetType operator()(const std::monostate& value) const;
     TargetType operator()(const std::string& value) const;
     TargetType operator()(float value) const;
     TargetType operator()(int value) const;
@@ -94,7 +96,7 @@ public:
 	}\
 	attribute_T LOCALNAME::getAttribute(const std::string &key) const {\
 		attribute_T attributeValue = DERIVED::getAttribute(key);\
-		if (std::holds_alternative<std::string>(attributeValue) && std::get<std::string>(attributeValue).empty()) {\
+		if (std::holds_alternative<std::monostate>(attributeValue)) {\
 			attributeValue = getAttributeImpl(key);\
 		}\
 		return attributeValue;\
@@ -106,7 +108,17 @@ public:
 	void LOCALNAME::renderImpl(game::RenderPass pass) {\
 		DERIVED::renderImpl(pass);\
 		render(pass);\
-	}
+	}\
+	const void LOCALNAME::attributeTreeImpl(attributeTree_T& tree) {\
+	    DERIVED::attributeTreeImpl(tree);\
+	    tree.push_back(attributes());\
+    }\
+	const attributeTree_T LOCALNAME::attributeTree() {\
+	    attributeTree_T tree;\
+	    attributeTreeImpl(tree);\
+	    return tree;\
+	}\
+
 
 #define ENTITY_FACTORY_IMPL(LOCALNAME) \
 	public:\
@@ -123,6 +135,8 @@ public:
 	void setAttributeImpl(const std::string &key, const attribute_T &value);\
 	attribute_T getAttributeImpl(const std::string &key) const;\
 	static const attributeList_T attributes();\
+	static const void attributeTreeImpl(attributeTree_T& tree);\
+	static const attributeTree_T attributeTree();\
 	virtual void onImpl(const Event& event);\
 	void on(const Event& event);\
 	virtual void renderImpl(game::RenderPass pass);\

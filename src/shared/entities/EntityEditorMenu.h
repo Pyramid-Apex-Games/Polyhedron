@@ -1,6 +1,7 @@
 #pragma once
 #include "EntityFactory.h"
 #include <string>
+#include <nuklear.h>
 
 class Entity;
 struct nk_context;
@@ -71,7 +72,26 @@ private:
         }
     };
 
-    InputStorageSpace m_Storage;
+    struct InputTypeConfig
+    {
+        using nk_filter_func_t = int (*)(const struct nk_text_edit*, nk_rune);
+        attribute_T m_SourceVariable;
+
+        std::string ToString(int fromStorageIndex = 0);
+        void ToSource(const std::string& stringValue, int fromStorageIndex = 0);
+        int StorageCount();
+        explicit InputTypeConfig(const attribute_T variable);
+        nk_filter_func_t GetInputFilterer() const;
+
+
+        AttributeVisitCoercer<std::string> stringConverter;
+        AttributeVisitCoercer<float> floatConverter;
+        AttributeVisitCoercer<int> intConverter;
+        AttributeVisitCoercer<bool> boolConverter;
+    };
+
+    std::array<InputStorageSpace, 4> m_Storages;
+    std::unique_ptr<InputTypeConfig> m_InputTypeConfig;
 };
 
 template< class T >

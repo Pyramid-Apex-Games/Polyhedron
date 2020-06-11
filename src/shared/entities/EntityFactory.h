@@ -135,8 +135,8 @@ public:
 	void setAttributeImpl(const std::string &key, const attribute_T &value);\
 	attribute_T getAttributeImpl(const std::string &key) const;\
 	static const attributeList_T attributes();\
-	static const void attributeTreeImpl(attributeTree_T& tree);\
-	static const attributeTree_T attributeTree();\
+	virtual const void attributeTreeImpl(attributeTree_T& tree);\
+	virtual const attributeTree_T attributeTree();\
 	virtual void onImpl(const Event& event);\
 	void on(const Event& event);\
 	virtual void renderImpl(game::RenderPass pass);\

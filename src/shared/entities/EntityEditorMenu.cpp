@@ -99,38 +99,48 @@ const attributeRow_T &EntityEditorWidget::GetAttributes() const
 void InputEntityEditorWidget::Render()
 {
     auto variableKey = std::get<std::string>(GetAttributes()[1]);
-    auto variableValue = std::get<std::string>(GetEntity()->getAttribute(variableKey));
+    auto attribValue = GetEntity()->getAttribute(variableKey);
 
-    if (m_Storage.bufferSize == 0)
+    if (!m_InputTypeConfig)
     {
-        m_Storage = InputStorageSpace(variableValue, 255);
+        m_InputTypeConfig = std::make_unique<InputTypeConfig>(attribValue);
     }
 
-    nk_flags event = nk_edit_string_zero_terminated(
-        engine::nui::GetNKContext(),
-        NK_EDIT_FIELD,
-        m_Storage.pointer(),
-        m_Storage.bufferSize,
-        nk_filter_ascii
-    );
-    if (event & NK_EDIT_ACTIVATED)
+    auto inputFieldCount = m_InputTypeConfig->StorageCount();
+    for (int i = 0; i < inputFieldCount; ++i)
     {
-        Application::Instance().GetInput().Text(true);
-    }
-    if (event & NK_EDIT_DEACTIVATED)
-    {
-        Application::Instance().GetInput().Text(false);
-    }
-    if (event & NK_EDIT_COMMITED)
-    {
-        GetEntity()->setAttribute(variableKey, m_Storage);
-    }
-    if (event & NK_EDIT_ACTIVE)
-    {
-        std::string currentValue = m_Storage;
-        if (m_Storage.pointer() && variableValue != currentValue)
+        if (m_Storages[i].bufferSize == 0)
         {
-            GetEntity()->setAttribute(variableKey, currentValue);
+            m_Storages[i] = InputStorageSpace(m_InputTypeConfig->ToString(), 255);
+        }
+
+        nk_flags event = nk_edit_string_zero_terminated(
+            engine::nui::GetNKContext(),
+            NK_EDIT_FIELD,
+            m_Storages[i].pointer(),
+            m_Storages[i].bufferSize,
+            m_InputTypeConfig->GetInputFilterer()
+        );
+        if (event & NK_EDIT_ACTIVATED)
+        {
+            Application::Instance().GetInput().Text(true);
+        }
+        if (event & NK_EDIT_DEACTIVATED)
+        {
+            Application::Instance().GetInput().Text(false);
+        }
+        if (event & NK_EDIT_COMMITED)
+        {
+            GetEntity()->setAttribute(variableKey, m_Storages[i]);
+        }
+        if (event & NK_EDIT_ACTIVE)
+        {
+            std::string currentValue = m_Storages[i];
+            if (m_Storages[i].pointer() && m_InputTypeConfig->ToString() != currentValue)
+            {
+                m_InputTypeConfig->ToSource(currentValue, i);
+                GetEntity()->setAttribute(variableKey, m_InputTypeConfig->m_SourceVariable);
+            }
         }
     }
 }
@@ -222,9 +232,10 @@ EditorWidgetGroup::EditorWidgetGroup(Entity* entity, const attributeList_T& attr
 void EditorWidgetGroup::AppendWidget(Entity* entity, const attributeRow_T& attributes)
 {
     using namespace std::string_literals;
+    auto widgetType = std::get<std::string>(attributes[0]);
     auto variableKey = std::get<std::string>(attributes[1]);
 
-    if (std::get<std::string>(attributes[0]) == "slider"s)
+    if (widgetType == "slider"s)
     {
         auto variable = entity->getAttribute(variableKey);
         if (std::holds_alternative<float>(variable))
@@ -246,7 +257,7 @@ void EditorWidgetGroup::AppendWidget(Entity* entity, const attributeRow_T& attri
             );
         }
     }
-    else if (std::get<std::string>(attributes[0]) == "checkbox"s)
+    else if (widgetType == "checkbox"s)
     {
         m_Widgets.push_back(
             std::make_unique<WidgetLabelPair>(
@@ -255,7 +266,14 @@ void EditorWidgetGroup::AppendWidget(Entity* entity, const attributeRow_T& attri
             )
         );
     }
-    else if (std::get<std::string>(attributes[0]) == "input"s)
+    else if (
+        widgetType == "input"s ||
+        widgetType == "generic_prop"s ||
+        widgetType == "vec"s ||
+        widgetType == "vec4"s ||
+        widgetType == "ivec"s ||
+        widgetType == "ivec4"s
+    )
     {
         m_Widgets.push_back(
             std::make_unique<WidgetLabelPair>(
@@ -295,4 +313,156 @@ DummyEntityEditorWidget::DummyEntityEditorWidget(Entity *entity, const attribute
 void DummyEntityEditorWidget::Render()
 {
     nk_label(Context(), ("-(" + m_Storage + ")-").c_str(), NK_TEXT_CENTERED);
+}
+
+std::string InputEntityEditorWidget::InputTypeConfig::ToString(int fromStorageIndex)
+{
+    if (std::holds_alternative<vec4>(m_SourceVariable))
+    {
+        assert(fromStorageIndex >= 0 && fromStorageIndex < 4 && "StorageIndex out of bounds!");
+
+        auto unwrappedVariable = std::get<vec4>(m_SourceVariable);
+        return stringConverter(unwrappedVariable[fromStorageIndex]);
+    }
+    else if (std::holds_alternative<vec>(m_SourceVariable))
+    {
+        assert(fromStorageIndex >= 0 && fromStorageIndex < 3 && "StorageIndex out of bounds!");
+
+        auto unwrappedVariable = std::get<vec>(m_SourceVariable);
+        return stringConverter(unwrappedVariable[fromStorageIndex]);
+    }
+    else if (std::holds_alternative<ivec4>(m_SourceVariable))
+    {
+        assert(fromStorageIndex >= 0 && fromStorageIndex < 4 && "StorageIndex out of bounds!");
+
+        auto unwrappedVariable = std::get<ivec4>(m_SourceVariable);
+        return stringConverter(unwrappedVariable[fromStorageIndex]);
+    }
+    else if (std::holds_alternative<ivec>(m_SourceVariable))
+    {
+        assert(fromStorageIndex >= 0 && fromStorageIndex < 3 && "StorageIndex out of bounds!");
+
+        auto unwrappedVariable = std::get<ivec>(m_SourceVariable);
+        return stringConverter(unwrappedVariable[fromStorageIndex]);
+    }
+
+    return std::visit(stringConverter, m_SourceVariable);
+}
+
+void InputEntityEditorWidget::InputTypeConfig::ToSource(const std::string& stringValue, int fromStorageIndex)
+{
+    if (std::holds_alternative<std::string>(m_SourceVariable))
+    {
+        m_SourceVariable = stringValue;
+    }
+    else if (std::holds_alternative<float>(m_SourceVariable))
+    {
+        m_SourceVariable = floatConverter(stringValue);
+    }
+    else if (std::holds_alternative<int>(m_SourceVariable))
+    {
+        m_SourceVariable = intConverter(stringValue);
+    }
+    else if (std::holds_alternative<bool>(m_SourceVariable))
+    {
+        m_SourceVariable = boolConverter(stringValue);
+    }
+    else if (std::holds_alternative<vec4>(m_SourceVariable))
+    {
+        assert(fromStorageIndex >= 0 && fromStorageIndex < 4 && "StorageIndex out of bounds!");
+
+        auto unwrappedVariable = std::get<vec4>(m_SourceVariable);
+        unwrappedVariable[fromStorageIndex] = floatConverter(stringValue);
+        m_SourceVariable = unwrappedVariable;
+    }
+    else if (std::holds_alternative<vec>(m_SourceVariable))
+    {
+        assert(fromStorageIndex >= 0 && fromStorageIndex < 3 && "StorageIndex out of bounds!");
+
+        auto unwrappedVariable = std::get<vec>(m_SourceVariable);
+        unwrappedVariable[fromStorageIndex] = floatConverter(stringValue);
+        m_SourceVariable = unwrappedVariable;
+    }
+    else if (std::holds_alternative<ivec4>(m_SourceVariable))
+    {
+        assert(fromStorageIndex >= 0 && fromStorageIndex < 4 && "StorageIndex out of bounds!");
+
+        auto unwrappedVariable = std::get<ivec4>(m_SourceVariable);
+        unwrappedVariable[fromStorageIndex] = intConverter(stringValue);
+        m_SourceVariable = unwrappedVariable;
+    }
+    else if (std::holds_alternative<ivec>(m_SourceVariable))
+    {
+        assert(fromStorageIndex >= 0 && fromStorageIndex < 3 && "StorageIndex out of bounds!");
+
+        auto unwrappedVariable = std::get<ivec>(m_SourceVariable);
+        unwrappedVariable[fromStorageIndex] = intConverter(stringValue);
+        m_SourceVariable = unwrappedVariable;
+    }
+}
+
+int InputEntityEditorWidget::InputTypeConfig::StorageCount()
+{
+    if (std::holds_alternative<vec4>(m_SourceVariable))
+    {
+        return 4;
+    }
+    else if (std::holds_alternative<vec>(m_SourceVariable))
+    {
+        return 3;
+    }
+    else if (std::holds_alternative<ivec4>(m_SourceVariable))
+    {
+        return 3;
+    }
+    else if (std::holds_alternative<ivec>(m_SourceVariable))
+    {
+        return 4;
+    }
+
+    return 1;
+}
+
+InputEntityEditorWidget::InputTypeConfig::InputTypeConfig(const attribute_T variable)
+    : m_SourceVariable(variable)
+{
+}
+
+InputEntityEditorWidget::InputTypeConfig::nk_filter_func_t
+InputEntityEditorWidget::InputTypeConfig::GetInputFilterer() const
+{
+    if (std::holds_alternative<std::string>(m_SourceVariable))
+    {
+        return &nk_filter_ascii;
+    }
+    else if (std::holds_alternative<float>(m_SourceVariable))
+    {
+        return &nk_filter_float;
+    }
+    else if (std::holds_alternative<int>(m_SourceVariable))
+    {
+        return &nk_filter_decimal;
+    }
+    else if (std::holds_alternative<bool>(m_SourceVariable))
+    {
+        return &nk_filter_default;
+    }
+    else if (std::holds_alternative<vec4>(m_SourceVariable))
+    {
+        return &nk_filter_float;
+    }
+    else if (std::holds_alternative<vec>(m_SourceVariable))
+    {
+        return &nk_filter_float;
+    }
+    else if (std::holds_alternative<ivec4>(m_SourceVariable))
+    {
+        return &nk_filter_decimal;
+    }
+    else if (std::holds_alternative<ivec>(m_SourceVariable))
+    {
+        return &nk_filter_decimal;
+    }
+
+    return &nk_filter_default;
 }

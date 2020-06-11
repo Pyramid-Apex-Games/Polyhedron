@@ -2,6 +2,7 @@ import re
 
 CUSTOM_TOJSON_VARGENERATORS = {}
 CUSTOM_FROMJSON_VARGENERATORS = {}
+attributeTypes = ["std::string", "float", "int", "bool", "vec4", "vec", "ivec4", "ivec"]
 
 def Generate(cxxRootNode):
     from ..cppmodel.CxxNode import Generator
@@ -126,6 +127,7 @@ def GenerateAttributeDefinition(cxxClass):
 """
 
 def GenerateAttributeDefinitionVariable(cxxVar):
+    from ..cppmodel.CxxVariable import CxxVariable
     templateValues = GenerateJsonVariableTemplateValues(cxxVar)
     output = []
     definition = []
@@ -138,12 +140,45 @@ def GenerateAttributeDefinitionVariable(cxxVar):
             for element in data:
                 definition.append(GenerateAttributeDefinitionVariableSanitized(element))
 
+    if len(definition) == 0:
+        if type(cxxVar) is CxxVariable:
+            if templateValues['variableType'] in attributeTypes:
+                definition.append(f"\"generic_prop\"s")
+                definition.append(f"\"{templateValues['variableName']}\"s")
+                definition.append(f"\"{MakeVariableHumanReadable(templateValues['variableName'])}\"s")
+
     if len(definition) > 0:
         output.append(
             "{" + ", ".join(definition) + "}"
         )
 
     return output
+
+def MakeVariableHumanReadable(variableName):
+    if variableName.startswith("m_"):
+        variableName = variableName[2:]
+
+    if variableName.find("_"):
+        variableName = variableName.replace("_", "")
+
+    words = []
+    regex = r"([A-Z]{2,})([A-Z][a-z]+)|([A-Z]?[a-z]+)"
+    matches = re.finditer(regex, variableName)
+    for matchNum, match in enumerate(matches, start=1):
+        for groupNum in range(0, len(match.groups())):
+            groupNum = groupNum + 1
+            if match.group(groupNum):
+                words.append(match.group(groupNum))
+
+    for w in range(0, len(words)):
+        if not words[w] in ["is", "a", "for", "of", "in", "by", "not", "the", "an"]:
+            words[w] = words[w].capitalize()
+        else:
+            words[w] = words[w].lower()
+
+    words[0] = words[0].capitalize()
+
+    return " ".join(words)
 
 def GenerateAttributeDefinitionVariableSanitized(element):
     if re.match('^-?[0-9.]+f?$', element):
@@ -161,19 +196,26 @@ def GenerateAttributeDefinitionVariableSanitized(element):
         return f"\"{element}\"s"
 
 def GenerateAttributeGetter(cxxClass):
+    from ..cppmodel.CxxVariable import CxxVariable
     templateValues = GenerateJsonTemplateValues(cxxClass)
     hasElse = ""
 
     output = []
     for child in cxxClass.forEachChild(noDepth = True):
-        output = output + GenerateAttributeGetterVariable(child, hasElse)
+        if type(child) is CxxVariable:
+            childTemplateValues = GenerateJsonVariableTemplateValues(child)
+            if childTemplateValues['variableType'] in attributeTypes:
 
-        if len(output) > 0:
-            hasElse = "else "
+                output.append(f"""{hasElse}if (key == "{childTemplateValues['variableName']}"s)
+	{{
+		return {childTemplateValues['variableName']};
+	}}""")
 
-    if len(output) == 0:
-        body = "return attribute_T();";
-    else:
+                if len(output) > 0:
+                    hasElse = "else "
+
+    body = ""
+    if len(output) != 0:
         body = "\n\t".join(output)
     return f"""attribute_T {templateValues['className']}::getAttributeImpl(const std::string &key) const
 {{
@@ -185,30 +227,31 @@ def GenerateAttributeGetter(cxxClass):
 }}
 """
 
-def GenerateAttributeGetterVariable(cxxVar, hasElse):
-    templateValues = GenerateJsonVariableTemplateValues(cxxVar)
-    output = []
-
-    for child in cxxVar.forEachChild(noDepth = True):
-        phui, uiType, *data = child.data
-
-        output.append(f"""{hasElse}if (key == "{templateValues['variableName']}"s)
-	{{
-		return {templateValues['variableName']};
-	}}""")
-
-    return output
-
 def GenerateAttributeSetter(cxxClass):
+    from ..cppmodel.CxxVariable import CxxVariable
     templateValues = GenerateJsonTemplateValues(cxxClass)
     hasElse = ""
 
     output = []
     for child in cxxClass.forEachChild(noDepth = True):
-        output = output + GenerateAttributeSetterVariable(child, hasElse)
+        if type(child) is CxxVariable:
+            childTemplateValues = GenerateJsonVariableTemplateValues(child)
+            if childTemplateValues['variableType'] in attributeTypes:
+                output.append(f"""{hasElse}if (key == "{childTemplateValues['variableName']}"s)
+	{{
+        if (std::holds_alternative<{childTemplateValues['variableType']}>(value))
+        {{
+		    {childTemplateValues['variableName']} = std::get<{childTemplateValues['variableType']}>(value);
+        }}
+        else
+        {{
+			{childTemplateValues['variableName']} = std::visit(AttributeVisitCoercer<{childTemplateValues['variableType']}>(), value);
+        }}
+        onImpl(changedEvent);
+	}}""")
 
-        if len(output) > 0:
-            hasElse = "else "
+                if len(output) > 0:
+                    hasElse = "else "
 
     body = "\n\t".join(output)
     return f"""void {templateValues['className']}::setAttributeImpl(const std::string &key, const attribute_T &value)
@@ -219,31 +262,6 @@ def GenerateAttributeSetter(cxxClass):
 \t{body}
 }}
 """
-
-def GenerateAttributeSetterVariable(cxxVar, hasElse):
-    templateValues = GenerateJsonVariableTemplateValues(cxxVar)
-    output = []
-
-    cxxClass = cxxVar.parent
-
-    for child in cxxVar.forEachChild(noDepth = True):
-        phui, uiType, *data = child.data
-
-        output.append(f"""{hasElse}if (key == "{templateValues['variableName']}"s)
-	{{
-        if (std::holds_alternative<{templateValues['variableType']}>(value))
-        {{
-		    {templateValues['variableName']} = std::get<{templateValues['variableType']}>(value);
-        }}
-        else
-        {{
-			{templateValues['variableName']} = std::visit(AttributeVisitCoercer<{templateValues['variableType']}>(), value);
-        }}
-        onImpl(changedEvent);
-	}}""")
-
-    return output
-
 
 def GenerateJsonDebug(cxxClass):
     debug_output = []

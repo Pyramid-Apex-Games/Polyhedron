@@ -17,6 +17,9 @@ struct ivec4
     ivec4(int x, int y, int z, int w) : x(x), y(y), z(z), w(w) {}
     explicit ivec4(const vec4 &v);
 
+    int &operator[](int i)       { return v[i]; }
+    int  operator[](int i) const { return v[i]; }
+
     bool operator==(const ivec4 &o) const { return x == o.x && y == o.y && z == o.z && w == o.w; }
     bool operator!=(const ivec4 &o) const { return x != o.x || y != o.y || z != o.z || w != o.w; }
 };

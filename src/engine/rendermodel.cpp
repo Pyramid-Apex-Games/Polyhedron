@@ -287,22 +287,20 @@ SCRIPTEXPORT void rdanimjoints(int *on)
 }
 
 // mapmodels
-vector<mapmodelinfo> mapmodels;                     // Vector containing all the mapmodels (by index.)
-static const char * const mmprefix = "world/";      // The base subdirectory in the media/model/ folder to append the name to.
-static const int mmprefixlen = strlen(mmprefix);    // Strlen... C++-ify this.
+vector<mapmodelinfo> mapmodels;
 
 SCRIPTEXPORT void mapmodel(char *name)
 {
 	// Returns a reference to the added mapmodel info in the list.
-	auto path = "model/" + std::string(mmprefix) + name;
-	if (true || fileexists(path.c_str(), "a"))
+	auto path = std::string("model/") + name;
+	if (fileexists(path.c_str(), "a"))
 	{
 		mapmodelinfo &mmi = loadmodelinfo(path.c_str());
 		
 		// Setup the name.
 		if(name[0])
 		{
-			formatcubestr(mmi.name, "%s%s", mmprefix, name);
+			formatcubestr(mmi.name, "%s", name);
 		}
 		else
 		{
@@ -339,7 +337,7 @@ SCRIPTEXPORT_AS(mapmodelname) void mapmodelname_scriptimpl(int *index, int *pref
 {
     if(mapmodels.inrange(*index))
     {
-        result(mapmodels[*index].name[0] ? mapmodels[*index].name + (*prefix ? 0 : mmprefixlen) : "");
+        result(mapmodels[*index].name[0] ? mapmodels[*index].name : "");
     }
 }
 

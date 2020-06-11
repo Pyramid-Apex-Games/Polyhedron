@@ -15,6 +15,6 @@ public:
     void onAnimate(int &anim, int &basetime);
 
 private:
-    vec pivot;
-    vec axis;
+    vec pivot = vec(0.0f, 0.0f, 0.0f);
+    vec axis = vec(0.0f, 1.0f, 0.0f);
 };

@@ -110,6 +110,7 @@ void ModelEntity::preloadMapModel(const std::string &modelname)
 			}
 			else
 			{
+			    mapmodels.pop();
 				conoutf("BaseMapModel::preloadMapModel: couldn't load model: %s\n", modelname.c_str());
 			}
 		}

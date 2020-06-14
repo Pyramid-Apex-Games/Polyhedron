@@ -181,6 +181,7 @@ public:
     int flags = 0;
     DONTSERIALIZE int hover_orientation = 1;
     DONTSERIALIZE float hover_thickness = 3.f;
+    DONTSERIALIZE int entityId = -1;
 
 //            Entity *attached = nullptr;
 

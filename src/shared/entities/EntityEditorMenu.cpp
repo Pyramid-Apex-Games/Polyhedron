@@ -4,7 +4,6 @@
 #include "engine/main/Window.h"
 #include "engine/main/GLContext.h"
 #include "engine/main/Input.h"
-#include "engine/nui/nui.h"
 #include "shared/Easing.h"
 #include <variant>
 
@@ -15,9 +14,12 @@ EntityEditorMenu::EntityEditorMenu(Entity* entity)
 {
     for (const auto& attribSection : m_AttributeTree)
     {
-        m_Widgets.push_back(
-            std::make_unique<EditorWidgetGroup>(m_Entity, attribSection)
-        );
+        if (attribSection.size() > 1)
+        {
+            m_Widgets.push_back(
+                std::make_unique<EditorWidgetGroup>(m_Entity, attribSection)
+            );
+        }
     }
 }
 
@@ -105,22 +107,35 @@ void InputEntityEditorWidget::Render()
     {
         m_InputTypeConfig = std::make_unique<InputTypeConfig>(attribValue);
     }
+    else
+    {
+        m_InputTypeConfig->Update(attribValue);
+    }
 
-    auto inputFieldCount = m_InputTypeConfig->StorageCount();
+    const auto inputFieldCount = m_InputTypeConfig->StorageCount();
+    auto placerBox = nk_rect(0.5, 0, (1.0/float(inputFieldCount)) * 0.5f, 1.0f);
+
+    bool needsUpdate = false;
     for (int i = 0; i < inputFieldCount; ++i)
     {
-        if (m_Storages[i].bufferSize == 0)
+        if (m_Storages.size() <= i)
         {
-            m_Storages[i] = InputStorageSpace(m_InputTypeConfig->ToString(), 255);
+            m_Storages.push_back(InputStorageSpace(*(m_InputTypeConfig.get()), 255));
         }
 
-        nk_flags event = nk_edit_string_zero_terminated(
-            engine::nui::GetNKContext(),
-            NK_EDIT_FIELD,
-            m_Storages[i].pointer(),
-            m_Storages[i].bufferSize,
-            m_InputTypeConfig->GetInputFilterer()
+        m_Storages[i].Update(i);
+
+        auto padding = nk_rect(2.0f/400.0f, 2.0f/30.0f, -4.0f/400.0f, -4.0f/30.0f);
+        auto result = nk_rect(
+            placerBox.x + padding.x, placerBox.y + padding.y,
+            placerBox.w + padding.w, placerBox.h + padding.h
         );
+
+        nk_layout_space_push(Context(), result);
+        placerBox.x += placerBox.w;
+
+        nk_flags event = m_Storages[i].Render(engine::nui::GetNKContext(), i, variableKey);
+
         if (event & NK_EDIT_ACTIVATED)
         {
             Application::Instance().GetInput().Text(true);
@@ -133,16 +148,117 @@ void InputEntityEditorWidget::Render()
         {
             GetEntity()->setAttribute(variableKey, m_Storages[i]);
         }
+
         if (event & NK_EDIT_ACTIVE)
         {
             std::string currentValue = m_Storages[i];
-            if (m_Storages[i].pointer() && m_InputTypeConfig->ToString() != currentValue)
+            if (m_Storages[i].pointer() && m_Storages[i].inputConfig.ToString() != currentValue)
             {
-                m_InputTypeConfig->ToSource(currentValue, i);
-                GetEntity()->setAttribute(variableKey, m_InputTypeConfig->m_SourceVariable);
+                m_Storages[i].inputConfig.ToSource(currentValue, i);
+                needsUpdate = true;
             }
         }
     }
+
+    if (needsUpdate)
+    {
+        GetEntity()->setAttribute(variableKey, m_InputTypeConfig->m_SourceVariable);
+    }
+
+    if (inputFieldCount > 1)
+    {
+        nk_layout_space_end(engine::nui::GetNKContext());
+    }
+}
+
+nk_flags InputEntityEditorWidget::InputStorageSpace::Render(nk_context* context, int fromStorageIndex, const std::string& variable)
+{
+    nk_flags event;
+
+/*    if (std::holds_alternative<vec4>(inputConfig.m_SourceVariable))
+    {
+        assert(fromStorageIndex >= 0 && fromStorageIndex < 4 && "StorageIndex out of bounds!");
+
+        auto unwrappedVariable = std::get<vec4>(inputConfig.m_SourceVariable);
+        auto changedValue = nk_propertyf(context, ("#" + variable).c_str(), FLT_MIN, unwrappedVariable[fromStorageIndex], FLT_MAX, 0.1f, 0.2f);
+        if (changedValue != unwrappedVariable[fromStorageIndex])
+        {
+            inputConfig.m_SourceVariable = unwrappedVariable;
+            event |= NK_EDIT_COMMITED;
+        }
+    }
+    else if (std::holds_alternative<vec>(inputConfig.m_SourceVariable))
+    {
+        assert(fromStorageIndex >= 0 && fromStorageIndex < 3 && "StorageIndex out of bounds!");
+
+        auto unwrappedVariable = std::get<vec>(inputConfig.m_SourceVariable);
+        auto changedValue = nk_propertyf(context, ("#" + variable).c_str(), FLT_MIN, unwrappedVariable[fromStorageIndex], FLT_MAX, 0.1f, 0.2f);
+        if (changedValue != unwrappedVariable[fromStorageIndex])
+        {
+            inputConfig.m_SourceVariable = unwrappedVariable;
+            event |= NK_EDIT_COMMITED;
+        }
+    }
+    else if (std::holds_alternative<ivec4>(inputConfig.m_SourceVariable))
+    {
+        assert(fromStorageIndex >= 0 && fromStorageIndex < 4 && "StorageIndex out of bounds!");
+
+        auto unwrappedVariable = std::get<ivec4>(inputConfig.m_SourceVariable);
+        auto changedValue = nk_propertyi(context, ("#" + variable).c_str(), INT_MIN, unwrappedVariable[fromStorageIndex], INT_MAX, 1, 0.2f);
+        if (changedValue != unwrappedVariable[fromStorageIndex])
+        {
+            inputConfig.m_SourceVariable = unwrappedVariable;
+            event |= NK_EDIT_COMMITED;
+        }
+    }
+    else if (std::holds_alternative<ivec>(inputConfig.m_SourceVariable))
+    {
+        assert(fromStorageIndex >= 0 && fromStorageIndex < 3 && "StorageIndex out of bounds!");
+
+        auto unwrappedVariable = std::get<ivec>(inputConfig.m_SourceVariable);
+        auto changedValue = nk_propertyi(context, ("#" + variable).c_str(), INT_MIN, unwrappedVariable[fromStorageIndex], INT_MAX, 1, 0.2f);
+        if (changedValue != unwrappedVariable[fromStorageIndex])
+        {
+            inputConfig.m_SourceVariable = unwrappedVariable;
+            event |= NK_EDIT_COMMITED;
+        }
+    }
+    else if (std::holds_alternative<int>(inputConfig.m_SourceVariable))
+    {
+        assert(fromStorageIndex >= 0 && fromStorageIndex < 3 && "StorageIndex out of bounds!");
+
+        auto unwrappedVariable = std::get<int>(inputConfig.m_SourceVariable);
+        auto changedValue = nk_propertyi(context, ("#" + variable).c_str(), INT_MIN, unwrappedVariable, INT_MAX, 1, 0.2f);
+        if (changedValue != unwrappedVariable)
+        {
+            inputConfig.m_SourceVariable = unwrappedVariable;
+            event |= NK_EDIT_COMMITED;
+        }
+    }
+    else if (std::holds_alternative<float>(inputConfig.m_SourceVariable))
+    {
+        assert(fromStorageIndex >= 0 && fromStorageIndex < 3 && "StorageIndex out of bounds!");
+
+        auto unwrappedVariable = std::get<float>(inputConfig.m_SourceVariable);
+        auto changedValue = nk_propertyf(context, ("#" + variable).c_str(), FLT_MIN, unwrappedVariable, FLT_MAX, 0.1f, 0.2f);
+        if (changedValue != unwrappedVariable)
+        {
+            inputConfig.m_SourceVariable = unwrappedVariable;
+            event |= NK_EDIT_COMMITED;
+        }
+    }
+    else*/
+    {
+        event = nk_edit_string_zero_terminated(
+            context,
+            NK_EDIT_FIELD,
+            pointer(),
+            bufferSize,
+            inputConfig.GetInputFilterer()
+        );
+    }
+
+    return event;
 }
 
 InputEntityEditorWidget::InputEntityEditorWidget(Entity *entity, const attributeRow_T &attributes)
@@ -182,6 +298,15 @@ void CheckboxEntityEditorWidget::Render()
     }
 
     int workValue = m_Storage;
+
+    auto bounds = nk_rect(0.5f, 0.0f, 0.5f, 1.0f);
+    auto padding = nk_rect(2.0f/400.0f, 2.0f/30.0f, -4.0f/400.0f, -4.0f/30.0f);
+    auto result = nk_rect(
+        bounds.x + padding.x, bounds.y + padding.y,
+        bounds.w + padding.w, bounds.h + padding.h
+    );
+    nk_layout_space_push(Context(), result);
+
     nk_checkbox_label(engine::nui::GetNKContext(), "", &workValue);
 
     if (workValue != m_Storage)
@@ -206,10 +331,15 @@ nk_context *EditorRenderable::Context()
 
 void WidgetLabelPair::Render()
 {
-    nk_layout_row_dynamic(Context(), 30, 2);
+//    nk_layout_row_dynamic(Context(), 30, 2);
+    nk_layout_space_begin(Context(), NK_DYNAMIC, 30, 5);
+    auto bounds = nk_rect(0.0f, 0.0f, 0.5f, 1.0f);
+    nk_layout_space_push(Context(), bounds);
     nk_label(Context(), m_Label.c_str(), NK_TEXT_LEFT);
 
     m_Widget->Render();
+
+    nk_layout_space_end(Context());
 }
 
 EditorWidgetGroup::EditorWidgetGroup(Entity* entity, const attributeList_T& attributeList)
@@ -295,12 +425,32 @@ void EditorWidgetGroup::AppendWidget(Entity* entity, const attributeRow_T& attri
 
 void EditorWidgetGroup::Render()
 {
-    nk_layout_row_dynamic(Context(), 30, 1);
-    nk_label(Context(), m_Label.c_str(), NK_TEXT_CENTERED);
+//    nk_layout_row_dynamic(Context(), 30, 1);
+//    nk_layout_row_template_begin(Context(), 30);
+//    auto bounds = nk_layout_widget_bounds(Context());
+//    nk_layout_row_template_push_static(Context(), bounds.w);
 
-    for (auto& widget : m_Widgets)
+    m_OpenState = nk_tree_push_hashed(
+        Context(),
+        NK_TREE_TAB,
+        m_Label.c_str(),
+        NK_MAXIMIZED,
+        m_Label.c_str(),
+        m_Label.size(),
+        int((*(int*)this) & 0xFFFFFFFF)
+    );
+    if (m_OpenState)
     {
-        widget->Render();
+
+//    nk_label(Context(), m_Label.c_str(), NK_TEXT_CENTERED);
+
+//        nk_layout_row_template_end(Context());
+
+        for (auto &widget : m_Widgets) {
+            widget->Render();
+        }
+
+        nk_tree_pop(Context());
     }
 }
 
@@ -312,6 +462,11 @@ DummyEntityEditorWidget::DummyEntityEditorWidget(Entity *entity, const attribute
 
 void DummyEntityEditorWidget::Render()
 {
+    auto bounds = nk_layout_widget_bounds(Context());
+    bounds.w *= 0.5f;
+    bounds.x += bounds.w;
+    nk_layout_space_push(Context(), bounds);
+
     nk_label(Context(), ("-(" + m_Storage + ")-").c_str(), NK_TEXT_CENTERED);
 }
 
@@ -413,11 +568,11 @@ int InputEntityEditorWidget::InputTypeConfig::StorageCount()
     }
     else if (std::holds_alternative<ivec4>(m_SourceVariable))
     {
-        return 3;
+        return 4;
     }
     else if (std::holds_alternative<ivec>(m_SourceVariable))
     {
-        return 4;
+        return 3;
     }
 
     return 1;
@@ -427,6 +582,17 @@ InputEntityEditorWidget::InputTypeConfig::InputTypeConfig(const attribute_T vari
     : m_SourceVariable(variable)
 {
 }
+
+void InputEntityEditorWidget::InputTypeConfig::Update(const attribute_T variable)
+{
+    m_SourceVariable = variable;
+}
+
+AttributeVisitCoercer<std::string> InputEntityEditorWidget::InputTypeConfig::stringConverter;
+AttributeVisitCoercer<float> InputEntityEditorWidget::InputTypeConfig::floatConverter;
+AttributeVisitCoercer<int> InputEntityEditorWidget::InputTypeConfig::intConverter;
+AttributeVisitCoercer<bool> InputEntityEditorWidget::InputTypeConfig::boolConverter;
+
 
 InputEntityEditorWidget::InputTypeConfig::nk_filter_func_t
 InputEntityEditorWidget::InputTypeConfig::GetInputFilterer() const
@@ -466,3 +632,20 @@ InputEntityEditorWidget::InputTypeConfig::GetInputFilterer() const
 
     return &nk_filter_default;
 }
+
+
+InputEntityEditorWidget::InputStorageSpace &
+InputEntityEditorWidget::InputStorageSpace::operator=(InputEntityEditorWidget::InputStorageSpace other)
+{
+    std::swap(buffer, other.buffer);
+    std::swap(bufferSize, other.bufferSize);
+    std::swap(inputConfig, other.inputConfig);
+    return *this;
+}
+
+//InputEntityEditorWidget::InputStorageSpace::InputStorageSpace()
+//    : buffer()
+//    , bufferSize(0)
+//    , inputConfig()
+//{
+//}

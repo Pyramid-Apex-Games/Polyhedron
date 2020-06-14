@@ -1,7 +1,7 @@
 #pragma once
 #include "EntityFactory.h"
+#include "engine/nui/nui.h"
 #include <string>
-#include <nuklear.h>
 
 class Entity;
 struct nk_context;
@@ -41,10 +41,30 @@ public:
     void Render() override;
 
 private:
+    struct InputTypeConfig
+    {
+        using nk_filter_func_t = int (*)(const struct nk_text_edit*, nk_rune);
+        attribute_T m_SourceVariable;
+
+        std::string ToString(int fromStorageIndex = 0);
+        void ToSource(const std::string& stringValue, int fromStorageIndex = 0);
+        int StorageCount();
+        explicit InputTypeConfig(const attribute_T variable);
+        void Update(const attribute_T variable);
+        nk_filter_func_t GetInputFilterer() const;
+
+
+        static AttributeVisitCoercer<std::string> stringConverter;
+        static AttributeVisitCoercer<float> floatConverter;
+        static AttributeVisitCoercer<int> intConverter;
+        static AttributeVisitCoercer<bool> boolConverter;
+    };
+
     struct InputStorageSpace
     {
         std::vector<char> buffer;
         size_t bufferSize = 0;
+        InputTypeConfig& inputConfig;
         operator std::string() const
         {
             auto len = std::strlen(pointer());
@@ -58,39 +78,32 @@ private:
         {
             return buffer.data();
         }
-        InputStorageSpace() = default;
-        InputStorageSpace(const std::string& initialValue, size_t bufferSize)
-            : buffer(initialValue.begin(), initialValue.end())
+        InputStorageSpace() = delete;
+        InputStorageSpace(InputTypeConfig& inputConfig, size_t bufferSize)
+            : inputConfig(inputConfig)
             , bufferSize(bufferSize)
         {
-            buffer.resize(bufferSize);
         }
+        InputStorageSpace& operator=(InputStorageSpace other);
+
         ~InputStorageSpace()
         {
             buffer.clear();
             bufferSize = 0;
         }
+
+        void Update(int sourceIndex)
+        {
+            auto current = inputConfig.ToString(sourceIndex);
+            buffer.clear();
+            std::copy(current.begin(), current.end(), std::back_inserter(buffer));
+            buffer.resize(bufferSize);
+        }
+
+        nk_flags Render(nk_context* context, int fromStorageIndex, const std::string& variable);
     };
 
-    struct InputTypeConfig
-    {
-        using nk_filter_func_t = int (*)(const struct nk_text_edit*, nk_rune);
-        attribute_T m_SourceVariable;
-
-        std::string ToString(int fromStorageIndex = 0);
-        void ToSource(const std::string& stringValue, int fromStorageIndex = 0);
-        int StorageCount();
-        explicit InputTypeConfig(const attribute_T variable);
-        nk_filter_func_t GetInputFilterer() const;
-
-
-        AttributeVisitCoercer<std::string> stringConverter;
-        AttributeVisitCoercer<float> floatConverter;
-        AttributeVisitCoercer<int> intConverter;
-        AttributeVisitCoercer<bool> boolConverter;
-    };
-
-    std::array<InputStorageSpace, 4> m_Storages;
+    std::vector<InputStorageSpace> m_Storages;
     std::unique_ptr<InputTypeConfig> m_InputTypeConfig;
 };
 
@@ -120,6 +133,10 @@ public:
         auto stepValue = std::get<IntFloat>(GetAttributes()[5]);
 
         auto workValue = m_Storage;
+
+        auto bounds = nk_rect(0.5f, 0.0f, 0.5f, 1.0f);
+        nk_layout_space_push(Context(), bounds);
+
         nk_slider_any(Context(), minValue, &workValue, maxValue, stepValue);
 
         if (workValue != m_Storage)

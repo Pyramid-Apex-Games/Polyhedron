@@ -2672,7 +2672,7 @@ NK_API int nk_group_begin(struct nk_context*, const char *title, nk_flags);
 /// __ctx__     | Must point to an previously initialized `nk_context` struct
 /// __id__      | Must be an unique identifier for this group
 /// __title__   | Group header title
-/// __flags__   | Window flags defined in the nk_panel_flags section with a number of different group behaviors
+/// __flags__   | Window flags defined in the   section with a number of different group behaviors
 ///
 /// Returns `true(1)` if visible and fillable with widgets or `false(0)` otherwise
 */

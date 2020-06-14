@@ -14,7 +14,6 @@
 #include "engine/ui.h"
 #include "console.h"
 #include <list>
-#include <nuklear.h>
 
 //#define MAXCONLINES 1000
 

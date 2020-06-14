@@ -61,6 +61,8 @@ template <> float AttributeVisitCoercer<float>::operator()(const std::monostate&
 
 template <> float AttributeVisitCoercer<float>::operator()(const std::string& value) const
 {
+    if (value.empty())
+        return 0.0f;
 	return std::stof(value);
 }
 
@@ -107,6 +109,8 @@ template <> int AttributeVisitCoercer<int>::operator()(const std::monostate& val
 
 template <> int AttributeVisitCoercer<int>::operator()(std::string const& value) const
 {
+    if (value.empty())
+        return 0;
 	return std::stoi(value);
 }
 
@@ -153,6 +157,8 @@ template <> bool AttributeVisitCoercer<bool>::operator()(const std::monostate& v
 
 template <> bool AttributeVisitCoercer<bool>::operator()(const std::string& value) const
 {
+    if (value.empty())
+        return false;
 	return value == "true" || value == "1" || value == "True" || value == "TRUE" || std::stoi(value) != 0 || std::stof(value) != 0.0f ? true : false;
 }
 

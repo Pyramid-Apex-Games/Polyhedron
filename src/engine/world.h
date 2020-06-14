@@ -91,6 +91,7 @@ bool haveselent();
 undoblock *copyundoents(undoblock *u);
 void pasteundoent(int idx, Entity *ue);
 void pasteundoents(undoblock *u);
+void addentityedit(int id);
 
 extern int worldscale, worldsize;
 extern int mapversion;

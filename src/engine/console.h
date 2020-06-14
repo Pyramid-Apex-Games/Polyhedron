@@ -64,7 +64,8 @@ private:
     std::vector<ConsoleLine> m_ConsoleLines;
     ConsoleConfig m_Config;
 
-    int m_BufferedWidth, m_BufferedHeight;
+    int m_BufferedWidth = 0;
+    int m_BufferedHeight = 0;
 //    float m_LineHeight = 32.0f;
 };
 

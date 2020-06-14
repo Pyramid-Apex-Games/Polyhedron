@@ -8,6 +8,7 @@
 #include "engine/engine.h"
 #include "engine/texture.h"
 #include "engine/rendergl.h"
+#include "engine/world.h"
 #include "engine/nui/nui.h"
 #include <vector>
 #include <string>
@@ -186,8 +187,36 @@ void Entity::on(const Event& event)
 	
 	switch(event.type)
 	{
-		case EntityEventType::AttributeChanged:
-		break;
+		case EntityEventType::AttributeChanged: {
+		    const auto changedEvent = static_cast<const EntityEventAttributeChanged*>(&event);
+		    if (changedEvent)
+            {
+		        if (changedEvent->payload == "o")
+                {
+		            if (entityId == -1)
+                    {
+		                int idx = 0;
+		                for(idx = 0; idx < getents().length(); ++idx)
+                        {
+		                    if (getents()[idx] == this)
+                            {
+		                        break;
+                            }
+		                    ++idx;
+                        }
+		                if (idx < getents().length())
+                        {
+		                    entityId = idx;
+                        }
+                    }
+		            if (entityId >= 0)
+                    {
+		                addentityedit(entityId);
+                    }
+
+                }
+            }
+		} break;
 		case EntityEventType::SelectStart:
 			selected = true;
 			engine::nui::StartEntityEditor(this);

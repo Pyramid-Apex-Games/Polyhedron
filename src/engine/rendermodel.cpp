@@ -347,6 +347,11 @@ SCRIPTEXPORT void nummapmodels()
 }
 
 //static inlines from rendermodel.h
+model *loadmapmodel(ModelEntity* entity)
+{
+    return entity->getModel();
+}
+
 model *loadmapmodel(int n)
 {
     if(mapmodels.inrange(n))
@@ -356,7 +361,6 @@ model *loadmapmodel(int n)
     }
     return NULL;
 }
-
 
 model *loadmapmodel(const char *filename)
 {

@@ -505,9 +505,9 @@ void findvisiblemms(const vector<Entity *> &ents, bool doquery)
         else
         {
             int visible = 0;
-            loopv(oe->mapmodels)
+            for(auto& modelIdx : oe->mapmodels)
             {
-                auto e = dynamic_cast<ModelEntity *>(ents[oe->mapmodels[i]]);
+                auto e = dynamic_cast<ModelEntity *>(ents[modelIdx]);
                 if (!e)
 					continue;
 				if(e->flags&EntityFlags::EF_NOVIS)
@@ -556,9 +556,9 @@ void rendermapmodels()
     for(octaentities *oe = visiblemms; oe; oe = oe->next) if(oe->distance>=0)
     {
         bool rendered = false;
-        loopv(oe->mapmodels)
+        for(auto& modelIdx : oe->mapmodels)
         {
-            auto e = dynamic_cast<ModelEntity *>(ents[oe->mapmodels[i]]);
+            auto e = dynamic_cast<ModelEntity *>(ents[modelIdx]);
             if (!e)
 				continue;
 				
@@ -1131,16 +1131,16 @@ void batchshadowmapmodels(bool skipmesh)
     int nflags = EntityFlags::EF_NOVIS|EntityFlags::EF_NOSHADOW;
     if(skipmesh) nflags |= EntityFlags::EF_SHADOWMESH;
     const auto &ents = getents();
-    for(octaentities *oe = shadowmms; oe; oe = oe->rnext) loopvk(oe->mapmodels)
+    for(octaentities *oe = shadowmms; oe; oe = oe->rnext) for(auto& modelIdx :oe->mapmodels)
     {
-        auto e = dynamic_cast<ModelEntity *>(ents[oe->mapmodels[k]]);
+        auto e = dynamic_cast<ModelEntity *>(ents[modelIdx]);
         if (!e) continue;
 		if(e->flags&nflags) continue;
 		e->flags |= EntityFlags::EF_RENDER;
     }
-    for(octaentities *oe = shadowmms; oe; oe = oe->rnext) loopvj(oe->mapmodels)
+    for(octaentities *oe = shadowmms; oe; oe = oe->rnext) for(auto& modelIdx :oe->mapmodels)
     {
-        auto e = dynamic_cast<ModelEntity *>(ents[oe->mapmodels[j]]);
+        auto e = dynamic_cast<ModelEntity *>(ents[modelIdx]);
         if (!e) continue;
 		if(!(e->flags&EntityFlags::EF_RENDER)) continue;
 		rendermapmodel(e);
@@ -2644,17 +2644,17 @@ static void genshadowmeshtris(shadowmesh &m, int sides, shadowdrawinfo draws[6],
 static void genshadowmeshmapmodels(shadowmesh &m, int sides, shadowdrawinfo draws[6])
 {
     const auto &ents = getents();
-    for(octaentities *oe = shadowmms; oe; oe = oe->rnext) loopvk(oe->mapmodels)
+    for(octaentities *oe = shadowmms; oe; oe = oe->rnext) for(auto& modelIdx : oe->mapmodels)
     {
-        auto e = dynamic_cast<ModelEntity *>(ents[oe->mapmodels[k]]);
+        auto e = dynamic_cast<ModelEntity *>(ents[modelIdx]);
         if (!e) continue;
 		if(e->flags&(EntityFlags::EF_NOVIS|EntityFlags::EF_NOSHADOW)) continue;
 		e->flags |= EntityFlags::EF_RENDER;
     }
     vector<triangle> tris;
-    for(octaentities *oe = shadowmms; oe; oe = oe->rnext) loopvj(oe->mapmodels)
+    for(octaentities *oe = shadowmms; oe; oe = oe->rnext) for(auto& modelIdx : oe->mapmodels)
     {
-        auto e = dynamic_cast<ModelEntity *>(ents[oe->mapmodels[j]]);
+        auto e = dynamic_cast<ModelEntity *>(ents[modelIdx]);
         if (!e) continue;
 		if(!(e->flags&EntityFlags::EF_RENDER)) continue;
 		e->flags &= ~EntityFlags::EF_RENDER;
@@ -2790,7 +2790,3 @@ void rendershadowmesh(shadowmesh *m)
     gle::clearebo();
     gle::clearvbo();
 }
-
-
-// >>>>>>>>>> SCRIPTBIND >>>>>>>>>>>>>> //
-// <<<<<<<<<< SCRIPTBIND <<<<<<<<<<<<<< //

@@ -19,6 +19,7 @@ public:
 public:
     void preloadMapModel(const std::string &filename);
     const std::string& getModelName() const;
+    model* getModel() const;
 
 private:
     void loadModelAttributes();

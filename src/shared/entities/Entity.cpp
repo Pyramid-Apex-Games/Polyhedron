@@ -233,7 +233,7 @@ void Entity::on(const Event& event)
 			hovered = true;
 			auto hoverEventData = static_cast<const EntityEventData<EntityEventType::HoverStart, int>&>(event);
 			hover_orientation = hoverEventData.payload;
-			conoutf("EntityEvent: %s %d", EntityEventTypeToStringMap.at(event.type).c_str(), hover_orientation);
+			conoutf("EntityEvent for #%d: %s %d", entityId, EntityEventTypeToStringMap.at(event.type).c_str(), hover_orientation);
 		} break;
 		case EntityEventType::HoverStop:
 			hovered = false;

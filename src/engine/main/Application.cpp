@@ -149,7 +149,7 @@ void Application::RunFrame()
     m_Console->Update();
 
     UI::update();
-    engine::nui::DemoUI();
+    engine::nui::Update();
     menuprocess();
     tryedit();
 

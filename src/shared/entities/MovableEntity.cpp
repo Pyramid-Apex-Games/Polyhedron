@@ -32,4 +32,4 @@ void MovableEntity::render(game::RenderPass pass)
 }
 
 
-ADD_ENTITY_TO_FACTORY_SERIALIZED(MovableEntity, "movable_entity", DynamicEntity);
+ADD_ENTITY_TO_FACTORY_SERIALIZED(MovableEntity, "movable", DynamicEntity);

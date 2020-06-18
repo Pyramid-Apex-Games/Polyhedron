@@ -58,30 +58,22 @@ void ModelEntity::render(game::RenderPass pass)
 	}
 }
 
+extern void mmcollisionbox(const Entity *e, model *m, vec &center, vec &radius);
+
 bool ModelEntity::getBoundingBox(int entselradius, vec &minbb, vec &maxbb) const
 {
     if(mmi.m)
     {
         vec center, radius;
-        mmboundbox(this, mmi.m, center, radius);
-        center.add(o);
+        mmcollisionbox(this, mmi.m, center, radius);
         radius.max(entselradius);
+        center.add(o);
 
-        matrix4 matrix;
-        matrix.identity();
-        //Micha: Original, but wtf?? pitch/yaw reversed?
-//        matrix.rotate_around_x(pitch * RAD);
-//        matrix.rotate_around_y(roll * RAD);
-//        matrix.rotate_around_z(yaw * RAD);
-        matrix.rotate_around_x(d.x * RAD);
-        matrix.rotate_around_y(d.y * RAD);
-        matrix.rotate_around_z(d.z * RAD);
+        minbb = center;
+        maxbb = center;
+        minbb.sub(radius);
+        maxbb.add(radius);
 
-        matrix.transform(radius, radius);
-
-        minbb = vec(center).sub(radius);
-        maxbb = vec(center).add(radius).add(1);
-        
         return true;
     }
 
@@ -169,6 +161,16 @@ void ModelEntity::on(const Event& event)
 	}
 }
 
+model *ModelEntity::getModel() const
+{
+    if (mmi.m)
+    {
+        return mmi.m;
+    }
+
+    return loadmodel(getModelName().c_str(), -1, true);
+};
+
+ADD_ENTITY_TO_FACTORY_SERIALIZED(ModelEntity, "model", MovableEntity)
 
 
-ADD_ENTITY_TO_FACTORY_SERIALIZED(ModelEntity, "model_entity", MovableEntity);

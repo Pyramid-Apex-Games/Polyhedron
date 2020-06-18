@@ -1,6 +1,7 @@
 #include "engine.h"
 #include "game.h"
 #include "entities.h"
+#include "engine/nui/nui.h"
 
 // Base entities.
 #include "entities/MonsterEntity.h"
@@ -105,6 +106,7 @@ void setspawn(int i, bool on)
 
 void deletegameentity(Entity *e)
 {
+    //Send global event EventEntityRemovedFromMap
     delete e;
 }
 

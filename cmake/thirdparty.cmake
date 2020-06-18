@@ -10,7 +10,7 @@ macro(CopyFileIfDifferent FromFile ToFile)
     execute_process(COMMAND ${CMAKE_COMMAND} -E compare_files
         ${FromFile} ${ToFile} RESULT_VARIABLE compare_result
     )
-    if(compare_result EQUAL 1 OR NOT EXISTS "${ToFile}")
+    if(NOT compare_result EQUAL 1 OR NOT EXISTS "${ToFile}")
         get_filename_component(ToFileDir ${ToFile} DIRECTORY)
         execute_process(COMMAND mkdir -p ${ToFileDir})
         execute_process(COMMAND cp -r ${FromFile} ${ToFile} RESULT_VARIABLE cp_result)

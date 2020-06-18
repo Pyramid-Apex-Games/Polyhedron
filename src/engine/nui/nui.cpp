@@ -113,12 +113,17 @@ namespace engine { namespace nui {
         }
     }
 
-    void DemoUI()
+    void Update()
     {
         if (ActiveEntityEditorMenu)
         {
             ActiveEntityEditorMenu->Render();
         }
+    }
+
+    void Reset()
+    {
+        ActiveEntityEditorMenu.release();
     }
 }
 }

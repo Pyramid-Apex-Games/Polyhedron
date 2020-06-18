@@ -139,6 +139,26 @@ int hitent, hitorient;
 
 extern void entselectionbox(const Entity *e, vec &eo, vec &es);
 
+inline void entintersect_impl(vector<Entity *> &ents, Entity *t, float& f, float& dist, const vec& o, const vec& ray, int& orient, octaentities *oc, const std::function<bool(Entity *)>& func, std::vector<int>& listmember)
+{
+    do {
+        for(auto& entIdx : listmember)
+        {
+            Entity *e = ents[entIdx];
+            if(!(e->flags&EntityFlags::EF_OCTA) || e==t)
+                continue;
+            if (!func(e))
+                continue;
+            if(f<dist && f>0 && vec(ray).mul(f).add(o).insidebb(oc->o, oc->size))
+            {
+                hitentdist = dist = f;
+                hitent = entIdx;
+                hitorient = orient;
+            }
+        }
+    } while(0);
+}
+
 static float disttoent(octaentities *oc, const vec &o, const vec &ray, float radius, int mode, Entity *t)
 {
     vec eo, es;
@@ -146,37 +166,43 @@ static float disttoent(octaentities *oc, const vec &o, const vec &ray, float rad
     float dist = radius, f = 0.0f;
     const auto &ents = getents();
 
-    #define entintersect(type, func) do { \
-        loopv(oc->type) \
-        { \
-            Entity *e = ents[oc->type[i]]; \
-            if(!(e->flags&EntityFlags::EF_OCTA) || e==t) continue; \
-            func; \
-            if(f<dist && f>0 && vec(ray).mul(f).add(o).insidebb(oc->o, oc->size)) \
-            { \
-                hitentdist = dist = f; \
-                hitent = oc->type[i]; \
-                hitorient = orient; \
-            } \
-        } \
-    } while(0)
+    std::function<void(const std::function<bool(Entity *)>&, std::vector<int>&)> entintersect = std::bind(
+        &entintersect_impl,
+        ents, t, std::ref(f), std::ref(dist), std::ref(o), ray, std::ref(orient), oc,
+        std::placeholders::_1, std::placeholders::_2
+    );
 
-    if((mode&RAY_POLY) == RAY_POLY) entintersect(mapmodels,
+    if((mode&RAY_POLY) == RAY_POLY)
     {
-        // Ensure that the entity is a mapmodel type.
-        if(!BIH::mmintersect(((MovableEntity*)e), o, ray, radius, mode, f)) continue;
-    });
+        entintersect(
+            [&](Entity *e) -> bool {
+                // Ensure that the entity is a mapmodel type.
+                auto me = dynamic_cast<ModelEntity*>(e);
+                if (!me)
+                    return false;
+                if(!BIH::mmintersect(me, o, ray, radius, mode, f))
+                    return false;
 
-    #define entselintersect(type) entintersect(type, { \
-        entselectionbox(e, eo, es); \
-        if(!rayboxintersect(eo, es, o, ray, f, orient)) continue; \
-    })
+                return true;
+            },
+            oc->mapmodels
+        );
+    }
+
+    auto selintersectfunc = [&](Entity* e) -> bool {
+        entselectionbox(e, eo, es);
+        return rayboxintersect(eo, es, o, ray, f, orient);
+    };
+
+    auto entselintersect = std::bind(
+        entintersect, selintersectfunc, std::placeholders::_1
+    );
 
     if((mode&RAY_ENTS) == RAY_ENTS)
     {
-        entselintersect(other);
-        entselintersect(mapmodels);
-        entselintersect(decals);
+        entselintersect(oc->other);
+        entselintersect(oc->mapmodels);
+        entselintersect(oc->decals);
     }
 
     return dist;
@@ -194,9 +220,13 @@ static float disttooutsideent(const vec &o, const vec &ray, float radius, int mo
         if (!e)
 			continue;
 			
-        if(!(e->flags&EntityFlags::EF_OCTA) || e == t) continue;
+        if(!(e->flags&EntityFlags::EF_OCTA) || e == t)
+            continue;
+
         entselectionbox(e, eo, es);
-        if(!rayboxintersect(eo, es, o, ray, f, orient)) continue;
+
+        if(!rayboxintersect(eo, es, o, ray, f, orient))
+            continue;
         if(f<dist && f>0)
         {
             hitentdist = dist = f;
@@ -212,12 +242,15 @@ static float shadowent(octaentities *oc, const vec &o, const vec &ray, float rad
 {
     float dist = radius, f = 0.0f;
     const auto &ents = getents();
-    loopv(oc->mapmodels)
+    for(auto& modelIdx : oc->mapmodels)
     {
-        auto e = dynamic_cast<MovableEntity*>(ents[oc->mapmodels[i]]);
+        auto e = dynamic_cast<ModelEntity*>(ents[modelIdx]);
         if (!e) continue;
-        if(!(e->flags&EntityFlags::EF_OCTA) || e==t) continue;
-        if(!BIH::mmintersect((e), o, ray, radius, mode, f)) continue;
+
+        if(!(e->flags&EntityFlags::EF_OCTA) || e==t)
+            continue;
+        if(!BIH::mmintersect(e, o, ray, radius, mode, f))
+            continue;
         if(f>0 && f<dist) dist = f;
     }
     return dist;
@@ -303,16 +336,59 @@ float raycube(const vec &o, const vec &ray, float radius, int mode, int size, En
 {
     if(ray.iszero()) return 0;
 
-    INITRAYCUBE;
-    CHECKINSIDEWORLD;
+   //INITRAYCUBE;
+    float dist = 0, dent = radius > 0 ? radius : 1e16f;
+    vec v(o), invray(ray.x ? 1/ray.x : 1e16f, ray.y ? 1/ray.y : 1e16f, ray.z ? 1/ray.z : 1e16f);
+    cube *levels[20];
+    levels[worldscale] = worldroot;
+    int lshift = worldscale, elvl = mode&RAY_BB ? worldscale : 0;
+    ivec lsizemask(invray.x>0 ? 1 : 0, invray.y>0 ? 1 : 0, invray.z>0 ? 1 : 0);
+
+//    CHECKINSIDEWORLD;
+    if(!insideworld(o))
+    {
+        float disttoworld = 0, exitworld = 1e16f;
+        loopi(3)
+        {
+            float c = v[i];
+            if(c<0 || c>=worldsize)
+            {
+                float d = ((invray[i]>0?0:worldsize)-c)*invray[i];
+                if(d<0) return (radius>0?radius:-1);
+                disttoworld = max(disttoworld, 0.1f + d);
+            }
+            float e = ((invray[i]>0?worldsize:0)-c)*invray[i];
+            exitworld = min(exitworld, e);
+        }
+        if(disttoworld > exitworld) return (radius>0?radius:-1);
+        v.add(vec(ray).mul(disttoworld));
+        dist += disttoworld;
+    }
 
     int closest = -1, x = int(v.x), y = int(v.y), z = int(v.z);
     for(;;)
     {
-        DOWNOCTREE(disttoent, if(mode&RAY_SHADOW));
+//        DOWNOCTREE(disttoent, if(mode&RAY_SHADOW));
+//>> MvK: Unfolded macro for better understanding
+        cube *lc = levels[lshift];
+        for (;;) {
+            lshift--;
+            lc += (((((z) >> (lshift)) & 1) << 2) | ((((y) >> (lshift)) & 1) << 1) | (((x) >> (lshift)) & 1));
+            if (lc->ext && lc->ext->ents && lshift < elvl) {
+                float edist = disttoent(lc->ext->ents, o, ray, dent, mode, t);
+                if (edist < dent) {
+                    if (mode & RAY_SHADOW)return min(edist, dist);
+                    elvl = lshift;
+                    dent = min(dent, edist);
+                }
+            }
+            if (lc->children == __null)break;
+            lc = lc->children;
+            levels[lshift] = lc;
+        }
 
         int lsize = 1<<lshift;
-
+//<< Till here
         cube &c = *lc;
         if((dist>0 || !(mode&RAY_SKIPFIRST)) &&
            (((mode&RAY_CLIPMAT) && isclipped(c.material&MATF_VOLUME)) ||
@@ -833,9 +909,9 @@ VAR(testtricol, 0, 0, 2);
 bool mmcollide(MovableEntity *d, const vec &dir, float cutoff, octaentities &oc) // collide with a mapmodel
 {
     const auto &ents = getents();
-    loopv(oc.mapmodels)
+    for(auto& modelIdx : oc.mapmodels)
     {
-        auto e = dynamic_cast<ModelEntity *>(ents[oc.mapmodels[i]]);
+        auto e = dynamic_cast<ModelEntity *>(ents[modelIdx]);
         if (!e) continue;
         if(e->flags&EntityFlags::EF_NOCOLLIDE || !mapmodels.inrange(e->model_idx)) continue;
         mapmodelinfo &mmi = mapmodels[e->model_idx];

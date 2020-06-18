@@ -51,7 +51,7 @@ void mmboundbox(const Entity *e, model *m, vec &center, vec &radius)
     transformbb(e, center, radius);
 }
 
-inline void mmcollisionbox(const Entity *e, model *m, vec &center, vec &radius)
+void mmcollisionbox(const Entity *e, model *m, vec &center, vec &radius)
 {
     m->collisionbox(center, radius);
     transformbb(e, center, radius);
@@ -110,20 +110,21 @@ void modifyoctaentity(int flags, int id, Entity *e, cube *c, const ivec &cor, in
 					va->bbmin.x = -1;
 					if(oe.decals.empty()) va->decals.add(&oe);
 				}
-				oe.decals.add(id);
+				oe.decals.push_back(id);
 				oe.bbmin.min(bo).max(oe.o);
 				oe.bbmax.max(br).min(ivec(oe.o).add(oe.size));
 			}
 			else if (e_mapmodel)
 			{
-				if(loadmapmodel(e_mapmodel->model_idx))
+			    e_mapmodel->preload();
+				if(loadmapmodel(e_mapmodel))
 				{
 					if(va)
 					{
 						va->bbmin.x = -1;
 						if(oe.mapmodels.empty()) va->mapmodels.add(&oe);
 					}
-					oe.mapmodels.add(id);
+					oe.mapmodels.push_back(id);
 					oe.bbmin.min(bo).max(oe.o);
 					oe.bbmax.max(br).min(ivec(oe.o).add(oe.size));
 					break;
@@ -131,7 +132,7 @@ void modifyoctaentity(int flags, int id, Entity *e, cube *c, const ivec &cor, in
 			}
 			else
 			{
-				oe.other.add(id);
+				oe.other.push_back(id);
 			}
         }
         else if(c[i].ext && c[i].ext->ents)
@@ -144,7 +145,8 @@ void modifyoctaentity(int flags, int id, Entity *e, cube *c, const ivec &cor, in
 
 			if (e_decal)
 			{
-				oe.decals.removeobj(id);
+			    oe.decals.erase(std::remove(oe.decals.begin(), oe.decals.end(), id), oe.decals.end());
+
 				if(va)
 				{
 					va->bbmin.x = -1;
@@ -152,9 +154,9 @@ void modifyoctaentity(int flags, int id, Entity *e, cube *c, const ivec &cor, in
 				}
 				oe.bbmin = oe.bbmax = oe.o;
 				oe.bbmin.add(oe.size);
-				loopvj(oe.decals)
+				for(auto& decalIdx : oe.decals)
 				{
-					auto e = ents[oe.decals[j]];
+					auto e = ents[decalIdx];
 					ivec eo, er;
 					if(getentboundingbox(e, eo, er))
 					{
@@ -167,9 +169,11 @@ void modifyoctaentity(int flags, int id, Entity *e, cube *c, const ivec &cor, in
 			}
 			else if (e_mapmodel)
 			{
-				if(loadmapmodel(e_mapmodel->model_idx))
+			    e_mapmodel->preload();
+				if(loadmapmodel(e_mapmodel))
 				{
-					oe.mapmodels.removeobj(id);
+				    oe.mapmodels.erase(std::remove(oe.mapmodels.begin(), oe.mapmodels.end(), id), oe.mapmodels.end());
+
 					if(va)
 					{
 						va->bbmin.x = -1;
@@ -177,9 +181,9 @@ void modifyoctaentity(int flags, int id, Entity *e, cube *c, const ivec &cor, in
 					}
 					oe.bbmin = oe.bbmax = oe.o;
 					oe.bbmin.add(oe.size);
-					loopvj(oe.mapmodels)
+					for(auto& modelIdx : oe.mapmodels)
 					{
-						Entity *e = getents()[oe.mapmodels[j]];
+						Entity *e = getents()[modelIdx];
 						ivec eo, er;
 						if(getentboundingbox(e, eo, er))
 						{
@@ -193,7 +197,7 @@ void modifyoctaentity(int flags, int id, Entity *e, cube *c, const ivec &cor, in
 			}
 			else
 			{
-				oe.other.removeobj(id);
+                oe.other.erase(std::remove(oe.other.begin(), oe.other.end(), id), oe.other.end());
 			}
 
             if(oe.mapmodels.empty() && oe.decals.empty() && oe.other.empty())
@@ -295,9 +299,24 @@ void freeoctaentities(cube &c)
     if(!c.ext) return;
     if(getents().length())
     {
-        while(c.ext->ents && !c.ext->ents->mapmodels.empty()) removeentity(c.ext->ents->mapmodels.pop());
-        while(c.ext->ents && !c.ext->ents->decals.empty())    removeentity(c.ext->ents->decals.pop());
-        while(c.ext->ents && !c.ext->ents->other.empty())     removeentity(c.ext->ents->other.pop());
+        while(c.ext->ents && !c.ext->ents->mapmodels.empty())
+        {
+            auto& last = c.ext->ents->mapmodels.back();
+            c.ext->ents->mapmodels.pop_back();
+            removeentity(last);
+        }
+        while(c.ext->ents && !c.ext->ents->decals.empty())
+        {
+            auto& last = c.ext->ents->decals.back();
+            c.ext->ents->decals.pop_back();
+            removeentity(last);
+        }
+        while(c.ext->ents && !c.ext->ents->other.empty())
+        {
+            auto& last = c.ext->ents->other.back();
+            c.ext->ents->other.pop_back();
+            removeentity(last);
+        }
     }
     if(c.ext->ents)
     {
@@ -324,10 +343,8 @@ void entitiesinoctanodes()
 static inline void findents(octaentities &oe, int low, int high, bool notspawned, const vec &pos, const vec &invradius, vector<int> &found)
 {
     auto &ents = getents();
-    loopv(oe.other)
+    for(auto& id : oe.other)
     {
-        int id = oe.other[i];
-
         if (ents.inrange(id)) {
             auto e = ents[id];
             // TODO: Fix this, et_type? and ent_type?
@@ -673,11 +690,11 @@ VAR(entmovingshadow, 0, 1, 1);
 extern void boxs(int orient, vec o, const vec &s, float size);
 extern void boxs(int orient, vec o, const vec &s);
 extern void boxs3D(const vec &o, vec s, int g);
-extern bool editmoveplane(const vec &o, const vec &ray, int d, float off, vec &handle, vec &dest, bool first);
+extern bool editmoveplane(const vec &camPos, const vec &o, const vec &ray, int d, float off, vec &handle, vec &dest, bool first);
 
 int entmoving = 0;
 
-void entdrag(const vec &ray)
+void entdrag(const vec &rayOrigin, const vec &ray)
 {
     if(noentedit() || !haveselent()) return;
 
@@ -690,7 +707,7 @@ void entdrag(const vec &ray)
     entfocus(entgroup.last(),
         entselectionbox(e, eo, es);
 
-        if(!editmoveplane(e->o, ray, d, eo[d] + (dc ? es[d] : 0), handle, dest, entmoving==1))
+        if(!editmoveplane(rayOrigin, e->o, ray, d, eo[d] + (dc ? es[d] : 0), handle, dest, entmoving==1))
             return;
 
         ivec g(dest);
@@ -1379,6 +1396,8 @@ Entity *new_game_entity(bool local, const vec &o, int &idx, const char *strclass
 		idx = ents.length();
         ents.add(ent);
 	}
+
+    ent->entityId = idx;
 
 	enttoggle(idx);
 	makeundoent();

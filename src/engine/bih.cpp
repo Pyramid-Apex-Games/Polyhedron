@@ -6,6 +6,7 @@
 #include "engine/stain.h"
 #include "shared/ents.h"
 #include "shared/entities/MovableEntity.h"
+#include "game/entities/ModelEntity.h"
 #include "shared/entities/DynamicEntity.h"
 #include "game/entities/SkeletalEntity.h"
 
@@ -317,9 +318,9 @@ BIH::~BIH()
     delete[] tribbs;
 }
 
-bool BIH::mmintersect(Entity *e, const vec &o, const vec &ray, float maxdist, int mode, float &dist)
+bool BIH::mmintersect(ModelEntity *e, const vec &o, const vec &ray, float maxdist, int mode, float &dist)
 {
-	const std::string mdlname = std::get<std::string>(e->getAttribute("model"));
+	const std::string mdlname = e->getModelName();
     model *m = loadmapmodel(mdlname.c_str());
     if(!m) return false;
     if(mode&RAY_SHADOW)

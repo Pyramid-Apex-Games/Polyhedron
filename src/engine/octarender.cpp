@@ -434,9 +434,9 @@ struct vacollect : verthash
         loopv(extdecals)
         {
             octaentities *oe = extdecals[i];
-            loopvj(oe->decals)
+            for(auto& decal : oe->decals)
             {
-                auto e = dynamic_cast<DecalEntity *>(ents[oe->decals[j]]);
+                auto e = dynamic_cast<DecalEntity *>(ents[decal]);
                 if (!e)
 					continue;
 					
@@ -452,9 +452,9 @@ struct vacollect : verthash
         loopv(extdecals)
         {
             octaentities *oe = extdecals[i];
-            loopvj(oe->decals)
+            for(auto& decal : oe->decals)
             {
-                auto e = dynamic_cast<DecalEntity *>(ents[oe->decals[j]]);
+                auto e = dynamic_cast<DecalEntity *>(ents[decal]);
                 if (!e)
 					continue;
 
@@ -1450,8 +1450,8 @@ void rendercube(cube &c, const ivec &co, int size, int csi, int &maxlevel) // cr
 
         if(c.ext && c.ext->ents)
         {
-            if(c.ext->ents->mapmodels.length()) vc.mapmodels.add(c.ext->ents);
-            if(c.ext->ents->decals.length()) vc.decals.add(c.ext->ents);
+            if(c.ext->ents->mapmodels.size()) vc.mapmodels.add(c.ext->ents);
+            if(c.ext->ents->decals.size()) vc.decals.add(c.ext->ents);
         }
         return;
     }
@@ -1473,8 +1473,8 @@ void rendercube(cube &c, const ivec &co, int size, int csi, int &maxlevel) // cr
 
     if(c.ext && c.ext->ents)
     {
-        if(c.ext->ents->mapmodels.length()) vc.mapmodels.add(c.ext->ents);
-        if(c.ext->ents->decals.length()) vc.decals.add(c.ext->ents);
+        if(c.ext->ents->mapmodels.size()) vc.mapmodels.add(c.ext->ents);
+        if(c.ext->ents->decals.size()) vc.decals.add(c.ext->ents);
     }
 
     if(csi <= MAXMERGELEVEL && vamerges[csi].length()) addmergedverts(csi, co);
@@ -1512,7 +1512,7 @@ void setva(cube &c, const ivec &co, int size, int csi)
     loopi(entdepth+1)
     {
         octaentities *oe = entstack[i];
-        if(oe->decals.length()) vc.extdecals.add(oe);
+        if(oe->decals.size()) vc.extdecals.add(oe);
     }
 
     int maxlevel = -1;

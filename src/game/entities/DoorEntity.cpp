@@ -7,7 +7,7 @@
 
 
 DoorEntity::DoorEntity()
-    : ModelEntity("world/door")
+    : ModelEntity("world/door_2")
 {
     // Reset.
     setAttribute("name", "DoorEntity");
@@ -38,8 +38,6 @@ void DoorEntity::think()
 }
 
 void DoorEntity::render(game::RenderPass pass) {
-    // Ensure it renders.
-    ModelEntity::render(pass);
 }
 
 void DoorEntity::onAnimate(int &anim, int &basetime)

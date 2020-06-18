@@ -386,21 +386,21 @@ void updateselection()
     sel.s.z = abs(lastcur.z-cur.z)/sel.grid+1;
 }
 
-bool editmoveplane(const vec &o, const vec &ray, int d, float off, vec &handle, vec &dest, bool first)
+bool editmoveplane(const vec &camPos, const vec &o, const vec &ray, int d, float off, vec &handle, vec &dest, bool first)
 {
     plane pl(d, off);
     float dist = 0.0f;
-    if(!pl.rayintersect(player->o, ray, dist))
+    if(!pl.rayintersect(camPos, ray, dist))
         return false;
 
-    dest = vec(ray).mul(dist).add(player->o);
+    dest = vec(ray).mul(dist).add(camPos);
     if(first) handle = vec(dest).sub(o);
     dest.sub(handle);
     return true;
 }
 
 namespace hmap { inline bool isheightmap(int orient, int d, bool empty, cube *c); }
-extern void entdrag(const vec &ray);
+extern void entdrag(const vec &rayOrigin, const vec &ray);
 extern bool hoveringonent(int ent, int orient);
 extern void renderentselection(const vec &o, const vec &ray, bool entmoving);
 extern float rayent(const vec &o, const vec &ray, float radius, int mode, int size, int &orient, int &ent);
@@ -430,14 +430,14 @@ void rendereditcursor()
         mouseClipSpace.x = 0;
         mouseClipSpace.y = 0;
     }
-    vec worldNear = invcamprojmatrix.perspectivetransform(vec4(mouseClipSpace, -1.0f, 1.0f));
-    vec worldFar = invcamprojmatrix.perspectivetransform(vec4(mouseClipSpace, 0.0f, 1.0f));
+    vec worldNear = invcamprojmatrix.perspectivetransform(vec4(mouseClipSpace, 0.0f, 1.0f));
+    vec worldFar = invcamprojmatrix.perspectivetransform(vec4(mouseClipSpace, 1.0f, 1.0f));
     vec rayWorld = vec(worldFar).sub(worldNear).normalize();
 
     if(moving)
     {
         static vec dest, handle;
-        if(editmoveplane(vec(sel.o), rayWorld, od, sel.o[D[od]]+odc*sel.grid*sel.s[D[od]], handle, dest, moving==1))
+        if(editmoveplane(worldNear, vec(sel.o), rayWorld, od, sel.o[D[od]]+odc*sel.grid*sel.s[D[od]], handle, dest, moving==1))
         {
             if(moving==1)
             {
@@ -453,7 +453,7 @@ void rendereditcursor()
     }
     else if(entmoving)
     {
-        entdrag(rayWorld);
+        entdrag(worldNear, rayWorld);
     }
     else
     {

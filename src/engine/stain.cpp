@@ -696,9 +696,9 @@ struct stainrenderer
     void genmmtris(octaentities &oe)
     {
         const auto &ents = getents();
-        loopv(oe.mapmodels)
+        for(auto& modelIdx : oe.mapmodels)
         {
-            auto e = dynamic_cast<ModelEntity*>(ents[oe.mapmodels[i]]);
+            auto e = dynamic_cast<ModelEntity*>(ents[modelIdx]);
             if (!e)
                 continue;
             
@@ -730,7 +730,7 @@ struct stainrenderer
                 if(cu.ext)
                 {
                     if(cu.ext->va && cu.ext->va->matsurfs) findmaterials(cu.ext->va);
-                    if(cu.ext->ents && cu.ext->ents->mapmodels.length()) genmmtris(*cu.ext->ents);            
+                    if(cu.ext->ents && cu.ext->ents->mapmodels.size()) genmmtris(*cu.ext->ents);
                 }
                 if(cu.children) gentris(cu.children, co, size>>1, cu.escaped);
                 else

@@ -25,6 +25,7 @@ namespace engine {
         void StopEntityEditor(Entity* entity);
 
 
-		void DemoUI();
+		void Update();
+		void Reset();
 	}
 }

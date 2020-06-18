@@ -64,17 +64,17 @@ bool raysphereintersect(const vec &center, float radius, const vec &o, const vec
 
 bool rayboxintersect(const vec &b, const vec &s, const vec &o, const vec &ray, float &dist, int &orient)
 {
-    loop(d, 3) if(ray[d])
+    loop(dim, 3) if(ray[dim])
     {
-        int dc = ray[d]<0 ? 1 : 0;
-        float pdist = (b[d]+s[d]*dc - o[d]) / ray[d];
+        int dimcoef = ray[dim]<0 ? 1 : 0;
+        float pdist = (b[dim]+s[dim]*dimcoef - o[dim]) / ray[dim];
         vec v(ray);
         v.mul(pdist).add(o);
-        if(v[R[d]] >= b[R[d]] && v[R[d]] <= b[R[d]]+s[R[d]]
-        && v[C[d]] >= b[C[d]] && v[C[d]] <= b[C[d]]+s[C[d]])
+        if(v[R[dim]] >= b[R[dim]] && v[R[dim]] <= b[R[dim]]+s[R[dim]]
+        && v[C[dim]] >= b[C[dim]] && v[C[dim]] <= b[C[dim]]+s[C[dim]])
         {
             dist = pdist;
-            orient = 2*d+dc;
+            orient = 2*dim+dimcoef;
             return true;
         }
     }

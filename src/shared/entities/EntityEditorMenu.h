@@ -218,6 +218,7 @@ public:
     void Show();
 
 private:
+    //Listen to global event EventEntityRemovedFromMap, if == m_Entity -> destroy
     Entity* m_Entity;
     bool m_Closed = false;
     float m_Width = 400;

@@ -25,9 +25,8 @@ int batcheddynamicmodels();
 int batcheddynamicmodelbounds(int mask, vec &bbmin, vec &bbmax);
 void cleanupmodels();
 
+model *loadmapmodel(ModelEntity* entity);
 model *loadmapmodel(int n);
-
-
 model *loadmapmodel(const char *filename);
 
 

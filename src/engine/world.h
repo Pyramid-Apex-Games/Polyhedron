@@ -73,7 +73,7 @@ Entity *new_game_entity(bool local, const vec &o, int &idx, const char *strclass
 
 inline void transformbb(const Entity *e, vec &center, vec &radius);
 void mmboundbox(const Entity *e, model *m, vec &center, vec &radius);
-inline void mmcollisionbox(const Entity *e, model *m, vec &center, vec &radius);
+void mmcollisionbox(const Entity *e, model *m, vec &center, vec &radius);
 
 extern vector<int> outsideents;
 

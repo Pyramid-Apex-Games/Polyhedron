@@ -1062,7 +1062,7 @@ SCRIPTEXPORT void writecollideobj(char *name)
     if(!m)
     {
         mapmodelinfo *mmi = getmminfo(mm->model_idx);
-        if(mmi) conoutf(CON_ERROR, "could not load map model: %s", mmi->name);
+        if(mmi) conoutf(CON_ERROR, "could not load map model: %s", mmi->name.c_str());
         else conoutf(CON_ERROR, "could not find map model: %d", mm->model_idx);
         return;
     }

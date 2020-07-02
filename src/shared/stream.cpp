@@ -726,7 +726,10 @@ struct filestream : stream
 		while (outPtr < len - 1 && read(c,1))
 		{
 			if (c[0] == '\r' || c[0] == '\n')
+            {
+			    outPtr++;
 				break;
+            }
 			str[outPtr++] = c[0];
 		}
 		if (outPtr > 0)

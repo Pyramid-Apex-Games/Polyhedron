@@ -5,6 +5,7 @@
 #include "cubestr.h"
 #include "macros.h"
 #include <cstring>
+#include <string>
 
 typedef uint GLuint;
 #define enumeratekt(ht,k,e,t,f,b) loopi((ht).size) for(void *ec = (ht).chains[i]; ec;) { k &e = (ht).enumkey(ec); t &f = (ht).enumdata(ec); ec = (ht).enumnext(ec); b; }
@@ -249,8 +250,10 @@ template<class T> struct hashnameset : hashbase<hashnameset<T>, T, const char *,
 
     hashnameset(int size = basetype::DEFAULTSIZE) : basetype(size) {}
 
-    template<class U> static inline const char *getkey(const U &elem) { return elem.name; }
-    template<class U> static inline const char *getkey(U *elem) { return elem->name; }
+    static inline const char* normalize(const char* input) { return input; }
+    static inline const char* normalize(const std::string& input) { return input.c_str(); }
+    template<class U> static inline const char *getkey(const U &elem) { return normalize(elem.name); }
+    template<class U> static inline const char *getkey(U *elem) { return normalize(elem->name); }
     static inline T &getdata(T &elem) { return elem; }
     template<class K> static inline void setkey(T &elem, const K &key) {}
 

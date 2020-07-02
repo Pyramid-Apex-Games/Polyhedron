@@ -10,26 +10,25 @@ struct vertmodel : animmodel
 
     struct vbocacheentry
     {
-        GLuint vbuf;
+        GLuint vbuf = 0;
         animstate as;
-        int millis;
+        int millis = 0.0f;
 
-        vbocacheentry() : vbuf(0) { as.cur.fr1 = as.prev.fr1 = -1; }
+        vbocacheentry()
+        {
+            as.cur.fr1 = as.prev.fr1 = -1;
+        }
     };
 
     struct vertmesh : mesh
     {
-        vert *verts;
-        tcvert *tcverts;
-        tri *tris;
-        int numverts, numtris;
+        vert *verts = nullptr;
+        tcvert *tcverts = nullptr;
+        tri *tris = nullptr;
+        int numverts = 0, numtris = 0;
 
-        int voffset, eoffset, elen;
-        ushort minvert, maxvert;
-
-        vertmesh() : verts(0), tcverts(0), tris(0)
-        {
-        }
+        int voffset = 0, eoffset = 0, elen = 0;
+        ushort minvert = 0, maxvert = 0;
 
         virtual ~vertmesh()
         {
@@ -178,30 +177,23 @@ struct vertmodel : animmodel
 
     struct tag
     {
-        char *name;
+        std::string name;
         matrix4x3 matrix;
-
-        tag() : name(NULL) {}
-        ~tag() { DELETEA(name); }
     };
 
     struct vertmeshgroup : meshgroup
     {
-        int numframes;
-        tag *tags;
-        int numtags;
+        int numframes = 0;
+        tag *tags = nullptr;
+        int numtags = 0;
 
         static const int MAXVBOCACHE = 16;
         vbocacheentry vbocache[MAXVBOCACHE];
 
-        ushort *edata;
-        GLuint ebuf;
-        int vlen, vertsize;
-        uchar *vdata;
-
-        vertmeshgroup() : numframes(0), tags(NULL), numtags(0), edata(NULL), ebuf(0), vlen(0), vertsize(0), vdata(NULL)
-        {
-        }
+        ushort *edata = nullptr;
+        GLuint ebuf = 0;
+        int vlen = 0, vertsize = 0;
+        uchar *vdata = nullptr;
 
         virtual ~vertmeshgroup()
         {
@@ -216,12 +208,21 @@ struct vertmodel : animmodel
 
         int findtag(const char *name)
         {
-            loopi(numtags) if(!strcmp(tags[i].name, name)) return i;
+            loopi(numtags)
+            {
+                if(tags[i].name == name)
+                {
+                    return i;
+                }
+            }
+
             return -1;
         }
 
         bool addtag(const char *name, const matrix4x3 &matrix)
         {
+            extern int testtags;
+
             int idx = findtag(name);
             if(idx >= 0)
             {
@@ -289,11 +290,12 @@ struct vertmodel : animmodel
             if(numframes>1)
             {
                 vertsize = sizeof(vvert);
-                looprendermeshes(vertmesh, m, vlen += m.genvbo(idxs, vlen));
+                forEachRenderMesh<vertmesh>([&](vertmesh& m){
+                    vlen += m.genvbo(idxs, vlen);
+                });
                 DELETEA(vdata);
                 vdata = new uchar[vlen*vertsize];
-                looprendermeshes(vertmesh, m,
-                {
+                forEachRenderMesh<vertmesh>([&](vertmesh& m){
                     m.fillverts((vvert *)vdata);
                 });
             }
@@ -305,11 +307,15 @@ struct vertmodel : animmodel
                     do \
                     { \
                         vector<type> vverts; \
-                        looprendermeshes(vertmesh, m, vlen += m.genvbo(idxs, vlen, vverts, htdata, htlen)); \
+                        forEachRenderMesh<vertmesh>([&](vertmesh& m){ \
+                            vlen += m.genvbo(idxs, vlen, vverts, htdata, htlen); \
+                        }); \
                         glBufferData_(GL_ARRAY_BUFFER, vverts.length()*sizeof(type), vverts.getbuf(), GL_STATIC_DRAW); \
                     } while(0)
                 int numverts = 0, htlen = 128;
-                looprendermeshes(vertmesh, m, numverts += m.numverts);
+                forEachRenderMesh<vertmesh>([&](vertmesh& m){
+                    numverts += m.numverts;
+                });
                 while(htlen < numverts) htlen *= 2;
                 if(numverts*4 > htlen*3) htlen *= 2;
                 int *htdata = new int[htlen];
@@ -397,9 +403,8 @@ struct vertmodel : animmodel
                 {
                     vc->as = *as;
                     vc->millis = lastmillis;
-                    looprendermeshes(vertmesh, m,
-                    {
-                        m.interpverts(*as, (vvert *)vdata, p->skins[i]);
+                    forEachRenderMesh<vertmesh>([&](vertmesh& m, int index){
+                        m.interpverts(*as, (vvert *)vdata, p->skins[index]);
                     });
                     gle::bindvbo(vc->vbuf);
                     glBufferData_(GL_ARRAY_BUFFER, vlen*vertsize, vdata, GL_STREAM_DRAW);
@@ -409,12 +414,10 @@ struct vertmodel : animmodel
 
             bindvbo(as, p, *vc);
 
-            looprendermeshes(vertmesh, m,
-            {
-                p->skins[i].bind(m, as);
-                m.render(as, p->skins[i], *vc);
+            forEachRenderMesh<vertmesh>([&](vertmesh& m, int index){
+                p->skins[index].bind(m, as);
+                m.render(as, p->skins[index], *vc);
             });
-
             loopv(p->links) calctagmatrix(p, p->links[i].tag, *as, p->links[i].matrix);
         }
 
@@ -459,8 +462,12 @@ template<class MDL> struct vertcommands : modelcommands<MDL, struct MDL::vertmes
 
     static void loadpart(char *model, float *smooth)
     {
-        if(!MDL::loading) { conoutf("not loading an %s", MDL::formatname()); return; }
-        defformatcubestr(filename, "%s/%s", MDL::dir, model);
+        if(!MDL::loading)
+        {
+            conoutf("not loading an %s", MDL::formatname());
+            return;
+        }
+        defformatcubestr(filename, "%s/%s", MDL::dir.c_str(), model);
         part &mdl = MDL::loading->addpart();
         if(mdl.index) mdl.disablepitch();
         mdl.meshes = MDL::loading->sharemeshes(path(filename), *smooth > 0 ? cosf(clamp(*smooth, 0.0f, 180.0f)*RAD) : 2);

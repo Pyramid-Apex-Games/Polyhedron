@@ -1,10 +1,17 @@
 #pragma once
+#include <string>
+#include <vector>
 
 struct Texture;
 struct occludequery;
-struct mapmodelinfo { cubestr name; model *m = nullptr, *collide = nullptr; };
+struct mapmodelinfo
+{
+    std::string name;
+    model *m = nullptr,
+    *collide = nullptr;
+};
 
-extern vector<mapmodelinfo> mapmodels;
+extern std::vector<mapmodelinfo> mapmodels;
 
 extern float transmdlsx1, transmdlsy1, transmdlsx2, transmdlsy2;
 extern uint transmdltiles[LIGHTTILE_MAXH];

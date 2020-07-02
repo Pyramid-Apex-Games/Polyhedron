@@ -1,6 +1,5 @@
 #pragma once
-
-class vec;
+#include "vec.h"
 
 struct triangle
 {

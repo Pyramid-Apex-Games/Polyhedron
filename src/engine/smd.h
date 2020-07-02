@@ -155,7 +155,7 @@ struct smd : skelloader<smd>
                 if(!strncmp(curbuf, "end", 3)) break;
                 cubestr material;
                 readmaterial(curbuf, material, sizeof(material));
-                if(!curmesh || strcmp(curmesh->mesh->name, material))
+                if(!curmesh || curmesh->mesh->name != material)
                 {
                     curmesh = materials.access(material);
                     if(!curmesh)
@@ -164,7 +164,7 @@ struct smd : skelloader<smd>
                         m->group = this;
                         m->name = newcubestr(material);
                         meshes.add(m);
-                        curmesh = &materials[m->name];
+                        curmesh = &materials[m->name.c_str()];
                         curmesh->mesh = m;
                     }
                 }
@@ -348,13 +348,19 @@ struct smd : skelloader<smd>
             return numframes;
         }
 
-        skelanimspec *loadanim(const char *filename)
+        skelanimspec *loadanim(const std::string& filename)
         {
             skelanimspec *sa = skel->findskelanim(filename);
-            if(sa || skel->numbones <= 0) return sa;
+            if(sa || skel->numbones <= 0)
+            {
+                return sa;
+            }
 
-            stream *f = openfile(filename, "r");
-            if(!f) return NULL;
+            stream *f = openfile(filename.c_str(), "r");
+            if(!f)
+            {
+                return NULL;
+            }
 
             char buf[512];
             int version = -1;
@@ -366,12 +372,20 @@ struct smd : skelloader<smd>
                 if(skipcomment(curbuf)) continue;
                 if(sscanf(curbuf, " version %d", &version) == 1)
                 {
-                    if(version != 1) { delete f; return NULL; }
+                    if(version != 1)
+                    {
+                        delete f;
+                        return NULL;
+                    }
                 }
                 else if(!strncmp(curbuf, "nodes", 5))
                 {
                     readnodes(f, buf, sizeof(buf), bones);
-                    if(bones.length() != skel->numbones) { delete f; return NULL; }
+                    if(bones.length() != skel->numbones)
+                    {
+                        delete f;
+                        return NULL;
+                    }
                 }
                 else if(!strncmp(curbuf, "triangles", 9))
                     skipsection(f, buf, sizeof(buf));
@@ -412,11 +426,11 @@ struct smd : skelloader<smd>
     bool loaddefaultparts()
     {
         skelpart &mdl = addpart();
-        const char *fname = name + strlen(name);
+        const char *fname = name.data() + name.length();
         do --fname; while(fname >= name && *fname!='/' && *fname!='\\');
         fname++;
-        defformatcubestr(meshname, "media/model/%s/%s.smd", name, fname);
-        mdl.meshes = sharemeshes(path(meshname));
+        auto meshname = fmt::format("media/model/{}/{}.smd", name, fname);
+        mdl.meshes = sharemeshes(path(meshname.c_str(), true));
         if(!mdl.meshes) return false;
         mdl.initanimparts();
         mdl.initskins();

@@ -1,3 +1,4 @@
+#include <fmt/format.h>
 #include "shared/cube.h"
 #include "shared/ents.h"
 #include "shared/entities/MovableEntity.h"
@@ -82,10 +83,9 @@ SCRIPTEXPORT void mdlellipsecollide(int *collide)
 SCRIPTEXPORT void mdltricollide(char *collide)
 {
 	checkmdl;
-	DELETEA(loadingmodel->collidemodel);
 	char *end = NULL;
 	int val = strtol(collide, &end, 0);
-	if(*end) { val = 1; loadingmodel->collidemodel = newcubestr(collide); }
+	if(*end) { val = 1; loadingmodel->collidemodel = collide; }
 	loadingmodel->collide = val ? COLLIDE_TRI : COLLIDE_NONE;
 }
 
@@ -208,7 +208,7 @@ SCRIPTEXPORT void mdlextendbb(float *x, float *y, float *z)
 SCRIPTEXPORT void mdlname()
 {
 	checkmdl;
-	result(loadingmodel->name);
+	result(loadingmodel->name.c_str());
 }
 
 #define checkragdoll \
@@ -287,7 +287,7 @@ SCRIPTEXPORT void rdanimjoints(int *on)
 }
 
 // mapmodels
-vector<mapmodelinfo> mapmodels;
+std::vector<mapmodelinfo> mapmodels;
 
 SCRIPTEXPORT void mapmodel(char *name)
 {
@@ -300,15 +300,15 @@ SCRIPTEXPORT void mapmodel(char *name)
 		// Setup the name.
 		if(name[0])
 		{
-			formatcubestr(mmi.name, "%s", name);
+			mmi.name = name;
 		}
 		else
 		{
-			mmi.name[0] = '\0';
+			mmi.name = "";
 		}
 
 		// Set all to NULL.
-		mmi.m = mmi.collide = NULL;
+		mmi.m = mmi.collide = nullptr;
 		conoutf(CON_INFO, "mapmodel prepared: %s", name);
 	}
 	else
@@ -324,26 +324,30 @@ SCRIPTEXPORT void mmodel(char *name)
 
 SCRIPTEXPORT void mapmodelreset(int *n)
 {
-	if(!(identflags&IDF_OVERRIDDEN) && !game::allowedittoggle()) return;
-	mapmodels.shrink(clamp(*n, 0, mapmodels.length()));
+	if(!(identflags&IDF_OVERRIDDEN) && !game::allowedittoggle())
+	    return;
+	for(int i = clamp(*n, 0, (int)mapmodels.size()); i >= 0 && !mapmodels.empty(); --i)
+    {
+        mapmodels.pop_back();
+    }
 }
 
-const char * mapmodelname(int i)
+std::string mapmodelname(int i)
 {
-    return mapmodels.inrange(i) ? mapmodels[i].name : NULL;
+    return (mapmodels.size() > i && i >= 0) ? mapmodels[i].name : "";
 }
 
 SCRIPTEXPORT_AS(mapmodelname) void mapmodelname_scriptimpl(int *index, int *prefix)
 {
-    if(mapmodels.inrange(*index))
+    if(mapmodels.size() > *index && *index >= 0)
     {
-        result(mapmodels[*index].name[0] ? mapmodels[*index].name : "");
+        result(!mapmodels[*index].name.empty() ? mapmodels[*index].name.c_str() : "");
     }
 }
 
 SCRIPTEXPORT void nummapmodels()
 {
-    intret(mapmodels.length());
+    intret(mapmodels.size());
 }
 
 //static inlines from rendermodel.h
@@ -354,34 +358,41 @@ model *loadmapmodel(ModelEntity* entity)
 
 model *loadmapmodel(int n)
 {
-    if(mapmodels.inrange(n))
+    if(mapmodels.size() > n && n >= 0)
     {
         model *m = mapmodels[n].m;
-        return m ? m : loadmodel(NULL, n);
+        return m ? m : getmodel(n);
     }
     return NULL;
 }
 
 model *loadmapmodel(const char *filename)
 {
-    loopv(mapmodels)
+    for(auto& mm : mapmodels)
     {
         // Compare if the mapmodel's values equal each other.
-        model *m = mapmodels[i].m;
+        model *m = mm.m;
 
-        if (strcmp(m->name, filename) == 0)
+        if (m->name == filename)
+        {
             // If they equal each other, it means we don't have to load it in again. Just return the pointer.
-            return m ? m : loadmodel(filename);
+            if (!m)
+            {
+                auto [model, name] = loadmodel(filename);
+                return model;
+            }
+            return m;
+        }
         else
-            return NULL;
+            return nullptr;
     }
-    return NULL;
+    return nullptr;
 }
 
 
 mapmodelinfo *getmminfo(int n)
 {
-    return mapmodels.inrange(n) ? &mapmodels[n] : NULL;
+    return (mapmodels.size() > n && n >= 0) ? &mapmodels[n] : NULL;
 }
 // model registry
 
@@ -401,8 +412,14 @@ void flushpreloadedmodels(bool msg)
 	loopv(preloadmodels)
 	{
 		loadprogress = float(i+1)/preloadmodels.length();
-		model *m = loadmodel(preloadmodels[i], -1, msg);
-		if(!m) { if(msg) conoutf(CON_WARN, "could not load model: %s", preloadmodels[i]); }
+		auto [m, name] = loadmodel(preloadmodels[i], -1, msg);
+		if(!m)
+		{
+		    if(msg)
+            {
+		        conoutf(CON_WARN, "could not load model: %s", preloadmodels[i]);
+            }
+		}
 		else
 		{
 			m->preloadmeshes();
@@ -428,25 +445,25 @@ void preloadusedmapmodels(bool msg, bool bih)
 	{
 		loadprogress = float(i+1)/used.length();
 		int mmindex = used[i];
-		if(!mapmodels.inrange(mmindex)) { if(msg) conoutf(CON_WARN, "could not find map model: %d", mmindex); continue; }
+		if(mapmodels.size() >= mmindex || mmindex <= 0) { if(msg) conoutf(CON_WARN, "could not find map model: %d", mmindex); continue; }
 		mapmodelinfo &mmi = mapmodels[mmindex];
 		if(!mmi.name[0]) continue;
-		model *m = loadmodel(NULL, mmindex, msg);
-		if(!m) { if(msg) conoutf(CON_WARN, "could not load map model: %s", mmi.name); }
+		model *m = getmodel(mmindex, msg);
+		if(!m) { if(msg) conoutf(CON_WARN, "could not load map model: %s", mmi.name.c_str()); }
 		else
 		{
 			if(bih) m->preloadBIH();
-			else if(m->collide == COLLIDE_TRI && !m->collidemodel && m->bih) m->setBIH();
+			else if(m->collide == COLLIDE_TRI && m->collidemodel.empty() && m->bih) m->setBIH();
 			m->preloadmeshes();
 			m->preloadshaders();
-			if(m->collidemodel && col.htfind(m->collidemodel) < 0) col.add(m->collidemodel);
+			if(!m->collidemodel.empty() && col.htfind(m->collidemodel.c_str()) < 0) col.add(m->collidemodel.c_str());
 		}
 	}
 
 	loopv(col)
 	{
 		loadprogress = float(i+1)/col.length();
-		model *m = loadmodel(col[i], -1, msg);
+		auto [m, n] = loadmodel(col[i], -1, msg);
 		if(!m) { if(msg) conoutf(CON_WARN, "could not load collide model: %s", col[i]); }
 		else if(!m->bih) m->setBIH();
 	}
@@ -454,49 +471,62 @@ void preloadusedmapmodels(bool msg, bool bih)
 	loadprogress = 0;
 }
 
-model *loadmodel(const char *name, int i, bool msg)
+model* getmodel(int i, bool msg)
 {
-	if(!name)
+    auto [model, name] = loadmodel("", i, msg);
+    return model;
+}
+
+std::tuple<model *, std::string> loadmodel(const std::string& _name, int i, bool msg)
+{
+    std::string name = _name;
+	model *m = nullptr;
+	if(name.empty())
 	{
-		if(!mapmodels.inrange(i)) return NULL;
+		if(mapmodels.size() <= i || i < 0) return std::tie(m, name);
 		mapmodelinfo &mmi = mapmodels[i];
-		if(mmi.m) return mmi.m;
+		if(mmi.m) return std::tie(mmi.m, name);
 		name = mmi.name;
 	}
-	model **mm = models.access(name);
-	model *m;
+	model **mm = models.access(name.c_str());
 	if(mm) m = *mm;
 	else
 	{
 		if(
-			!name[0] ||	
+			name.empty() ||
 			loadingmodel ||
-			failedmodels.find(name, NULL)
+			failedmodels.find(name.c_str(), NULL)
 		)
-			return NULL;
+			return std::tie(m, name);
 		if(msg)
 		{
-			defformatcubestr(filename, "media/model/%s", name);
-			renderprogress(loadprogress, filename);
+		    auto filename = fmt::format("media/model/{}", name);
+			renderprogress(loadprogress, filename.c_str());
 		}
 		loopi(NUMMODELTYPES)
 		{
-			m = modeltypes[i](name);
-			if(!m) continue;
+			m = modeltypes[i](name.c_str());
+			if(!m)
+            {
+			    continue;
+            }
 			loadingmodel = m;
-			if(m->load()) break;
+			if(m->load())
+            {
+			    break;
+            }
 			DELETEP(m);
 		}
 		loadingmodel = NULL;
 		if(!m)
 		{
-			failedmodels.add(newcubestr(name));
-			return NULL;
+			failedmodels.add(newcubestr(name.c_str()));
+			return std::tie(m, name);
 		}
-		models.access(m->name, m);
+		models.access(m->name.c_str(), m);
 	}
-	if(mapmodels.inrange(i) && !mapmodels[i].m) mapmodels[i].m = m;
-	return m;
+	if(mapmodels.size() > i && i >= 0 && !mapmodels[i].m) mapmodels[i].m = m;
+	return std::tie(m, name);
 }
 
 mapmodelinfo& loadmodelinfo(const char *name)
@@ -504,10 +534,11 @@ mapmodelinfo& loadmodelinfo(const char *name)
 	// Preload first.
 	preloadmodel(name);
 
-	mapmodelinfo &mmi = mapmodels.add();
+	mapmodelinfo &mmi = mapmodels.emplace_back();
 
 	// Load in the model.
-	mmi.m = loadmodel(name, -1, true);
+	std::string tmp;
+	std::tie(mmi.m, tmp) = loadmodel(name, -1, true);
 
 	return mmi;
 }
@@ -526,9 +557,8 @@ SCRIPTEXPORT void clearmodel(char *name)
 {
 	model *m = models.find(name, NULL);
 	if(!m) { conoutf("model %s is not loaded", name); return; }
-	loopv(mapmodels)
+	for(mapmodelinfo &mmi : mapmodels)
 	{
-		mapmodelinfo &mmi = mapmodels[i];
 		if(mmi.m == m) mmi.m = NULL;
 		if(mmi.collide == m) mmi.collide = NULL;
 	}
@@ -964,9 +994,14 @@ void rendermapmodel(int idx, int anim, const vec &o, float yaw, float pitch, flo
 	// WatIsDeze: TODO: Remove.
 //	conoutf("rendermapmodel: %d (%.2f/%.2f/%.2f) %s", idx, o.x, o.y, o.z, mapmodels.inrange(idx) ? "found" : "not found");
 
-	if(!mapmodels.inrange(idx)) return;
+	if(mapmodels.size() <= idx && idx < 0) return;
 	mapmodelinfo &mmi = mapmodels[idx];
-	model *m = mmi.m ? mmi.m : loadmodel(mmi.name);
+	model *m = mmi.m ? mmi.m : nullptr;
+	if (!m)
+    {
+    	std::string tmp;
+	    std::tie(m, tmp) = loadmodel(mmi.name);
+    }
 	if(!m) return;
 
 	vec center, bbradius;
@@ -1010,7 +1045,7 @@ void rendermapmodel(int idx, int anim, const vec &o, float yaw, float pitch, flo
 
 void rendermodel(const char *mdl, int anim, const vec &o, float yaw, float pitch, float roll, int flags, ModelEntity *d, modelattach *a, int basetime, int basetime2, float size, const vec4 &color)
 {
-	model *m = loadmodel(mdl);
+	auto [m, name] = loadmodel(mdl);
 	if(!m) return;
 
 	vec center, bbradius;
@@ -1043,7 +1078,11 @@ hasboundbox:
 
 	if(a) for(int i = 0; a[i].tag; i++)
 	{
-		if(a[i].name) a[i].m = loadmodel(a[i].name);
+		if(a[i].name)
+        {
+		    std::string tmp;
+		    std::tie(a[i].m, tmp) = loadmodel(a[i].name);
+        }
 	}
 
 	if(flags&MDL_CULL_QUERY)
@@ -1102,19 +1141,23 @@ hasboundbox:
 
 int intersectmodel(const std::string &mdl, int anim, const vec &pos, float yaw, float pitch, float roll, const vec &o, const vec &ray, float &dist, int mode, MovableEntity *d, modelattach *a, int basetime, int basetime2, float size)
 {
-	model *m = loadmodel(mdl.c_str());
+	auto [m, name] = loadmodel(mdl.c_str());
 	if(!m) return -1;
 	if(d && d->ragdoll && (!(anim&ANIM_RAGDOLL) || d->ragdoll->millis < basetime)) DELETEP(d->ragdoll);
 	if(a) for(int i = 0; a[i].tag; i++)
 	{
-		if(a[i].name) a[i].m = loadmodel(a[i].name);
+		if(a[i].name)
+        {
+		    std::string tmp;
+		    std::tie(a[i].m, tmp) = loadmodel(a[i].name);
+        }
 	}
 	return m->intersect(anim, basetime, basetime2, pos, yaw, pitch, roll, d, a, size, o, ray, dist, mode);
 }
 
 void abovemodel(vec &o, const std::string &mdl)
 {
-	model *m = loadmodel(mdl.c_str());
+	auto [m, tmp] = loadmodel(mdl.c_str());
 	if(!m) return;
 	o.z += m->above();
 }
@@ -1184,7 +1227,7 @@ void loadskin(const char *dir, const char *altdir, Texture *&skin, Texture *&mas
 
 void setbbfrommodel(MovableEntity *d, const std::string &mdl)
 {
-	model *m = loadmodel(mdl.c_str());
+	auto [m, name] = loadmodel(mdl.c_str());
 	if(!m) return;
 	vec center, radius;
 	m->collisionbox(center, radius);

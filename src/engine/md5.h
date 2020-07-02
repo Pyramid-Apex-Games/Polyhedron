@@ -110,7 +110,7 @@ struct md5 : skelloader<md5>
                         part *p = loading->parts.last();
                         p->initskins(notexture, notexture, group->meshes.length());
                         skin &s = p->skins.last();
-                        s.tex = textureload(makerelpath(dir, texname), 0, true, false);
+                        s.tex = textureload(makerelpath(dir.c_str(), texname), 0, true, false);
                         delete[] texname;
                     }
                 }
@@ -209,7 +209,7 @@ struct md5 : skelloader<md5>
                             j.orient.z = -j.orient.z;
                             if(basejoints.length()<skel->numbones)
                             {
-                                if(!skel->bones[basejoints.length()].name)
+                                if(skel->bones[basejoints.length()].name.empty())
                                     skel->bones[basejoints.length()].name = newcubestr(name);
                                 skel->bones[basejoints.length()].parent = parent;
                             }
@@ -217,7 +217,11 @@ struct md5 : skelloader<md5>
                             basejoints.add(j);
                         }
                     }
-                    if(basejoints.length()!=skel->numbones) { delete f; return false; }
+                    if(basejoints.length()!=skel->numbones)
+                    {
+                        delete f;
+                        return false;
+                    }
                 }
                 else if(strstr(buf, "mesh {"))
                 {
@@ -261,13 +265,19 @@ struct md5 : skelloader<md5>
             return true;
         }
 
-        skelanimspec *loadanim(const char *filename)
+        skelanimspec *loadanim(const std::string& filename)
         {
             skelanimspec *sa = skel->findskelanim(filename);
-            if(sa) return sa;
+            if(sa)
+            {
+                return sa;
+            }
 
-            stream *f = openfile(filename, "r");
-            if(!f) return NULL;
+            stream *f = openfile(filename.c_str(), "r");
+            if(!f)
+            {
+                return nullptr;
+            }
 
             vector<md5hierarchy> hierarchy;
             vector<md5joint> basejoints;
@@ -280,15 +290,27 @@ struct md5 : skelloader<md5>
                 int tmp;
                 if(sscanf(buf, " MD5Version %d", &tmp)==1)
                 {
-                    if(tmp!=10) { delete f; return NULL; }
+                    if(tmp!=10)
+                    {
+                        delete f;
+                        return nullptr;
+                    }
                 }
                 else if(sscanf(buf, " numJoints %d", &tmp)==1)
                 {
-                    if(tmp!=skel->numbones) { delete f; return NULL; }
+                    if(tmp!=skel->numbones)
+                    {
+                        delete f;
+                        return nullptr;
+                    }
                 }
                 else if(sscanf(buf, " numFrames %d", &animframes)==1)
                 {
-                    if(animframes<1) { delete f; return NULL; }
+                    if(animframes<1)
+                    {
+                        delete f;
+                        return nullptr;
+                    }
                 }
                 else if(sscanf(buf, " frameRate %d", &tmp)==1);
                 else if(sscanf(buf, " numAnimatedComponents %d", &animdatalen)==1)
@@ -322,7 +344,13 @@ struct md5 : skelloader<md5>
                             basejoints.add(j);
                         }
                     }
-                    if(basejoints.length()!=skel->numbones) { delete f; if(animdata) delete[] animdata; return NULL; }
+                    if(basejoints.length()!=skel->numbones)
+                    {
+                        delete f;
+                        if(animdata)
+                            delete[] animdata;
+                        return nullptr;
+                    }
                     animbones = new dualquat[(skel->numframes+animframes)*skel->numbones];
                     if(skel->framebones)
                     {
@@ -376,7 +404,8 @@ struct md5 : skelloader<md5>
                 }
             }
 
-            if(animdata) delete[] animdata;
+            if(animdata)
+                delete[] animdata;
             delete f;
 
             return sa;
@@ -384,29 +413,39 @@ struct md5 : skelloader<md5>
 
         bool load(const char *meshfile, float smooth)
         {
-            name = newcubestr(meshfile);
+            name = meshfile;
 
-            if(!loadmesh(meshfile, smooth)) return false;
+            if(!loadmesh(meshfile, smooth))
+            {
+                return false;
+            }
 
             return true;
         }
     };
 
-    skelmeshgroup *newmeshes() { return new md5meshgroup; }
+    skelmeshgroup *newmeshes()
+    {
+        return new md5meshgroup;
+    }
 
     bool loaddefaultparts()
     {
         skelpart &mdl = addpart();
-        const char *fname = name + strlen(name);
-        do --fname; while(fname >= name && *fname!='/' && *fname!='\\');
+        const char *fname = name.data() + name.length();
+        do --fname; while(fname >= name.data() && *fname!='/' && *fname!='\\');
         fname++;
-        defformatcubestr(meshname, "media/model/%s/%s.md5mesh", name, fname);
-        mdl.meshes = sharemeshes(path(meshname));
-        if(!mdl.meshes) return false;
+        auto meshname = fmt::format("media/model/{}/{}.md5mesh", name, fname);
+        mdl.meshes = sharemeshes(path(meshname.c_str(), true));
+        if(!mdl.meshes)
+        {
+            return false;
+        }
         mdl.initanimparts();
         mdl.initskins();
-        defformatcubestr(animname, "media/model/%s/%s.md5anim", name, fname);
-        ((md5meshgroup *)mdl.meshes)->loadanim(path(animname));
+        auto animname = fmt::format("media/model/{}/{}.md5anim", name, fname);
+        ((md5meshgroup *)mdl.meshes)->loadanim(path(animname.c_str(), true));
+
         return true;
     }
 };

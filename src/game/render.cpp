@@ -56,7 +56,7 @@ namespace game
 
     __attribute__((used)) void findanims(const char *pattern, vector<int> &anims)
     {
-        //loopi(sizeof(animnames)/sizeof(animnames[0])) if(matchanim(animnames[i], pattern)) anims.add(i);
+//        loopi(sizeof(animnames)/sizeof(animnames[0])) if(matchanim(animnames[i], pattern)) anims.add(i);
     }
 
     void preloadweapons() {

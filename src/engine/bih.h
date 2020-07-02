@@ -1,8 +1,19 @@
 #ifndef BIH_H
 #define BIH_H
+#include "shared/types.h"
+#include "shared/geom/svec.h"
+#include "shared/geom/ivec.h"
+#include "shared/geom/matrix4x3.h"
+#include "shared/geom/matrix3.h"
+#include "shared/geom/vec.h"
+#include "shared/geom/vec2.h"
+#include "shared/tools/vector.h"
 
 struct stainrenderer;
 struct Texture;
+class MovableEntity;
+class ModelEntity;
+
 struct BIH
 {
     struct node

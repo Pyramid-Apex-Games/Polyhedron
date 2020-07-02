@@ -147,7 +147,10 @@ struct iqm : skelloader<iqm>
                     {
                         iqmjoint &j = joints[i];
                         boneinfo &b = skel->bones[i];
-                        if(!b.name) b.name = newcubestr(&str[j.name]);
+                        if(b.name.empty())
+                        {
+                            b.name = str[j.name];
+                        }
                         b.parent = j.parent;
                         if(skel->shared <= 1)
                         {
@@ -156,7 +159,10 @@ struct iqm : skelloader<iqm>
                             j.orient.z = -j.orient.z;
                             j.orient.normalize();
                             b.base = dualquat(j.orient, j.pos);
-                            if(b.parent >= 0) b.base.mul(skel->bones[b.parent].base, dualquat(b.base));
+                            if(b.parent >= 0)
+                            {
+                                b.base.mul(skel->bones[b.parent].base, dualquat(b.base));
+                            }
                             (b.invbase = b.base).invert();
                         }
                     }
@@ -172,7 +178,7 @@ struct iqm : skelloader<iqm>
                 skelmesh *m = new skelmesh;
                 m->group = this;
                 meshes.add(m);
-                m->name = newcubestr(&str[im.name]);
+                m->name = str[im.name];
                 m->numverts = im.num_vertexes;
                 int noblend = -1;
                 if(m->numverts)
@@ -264,12 +270,11 @@ struct iqm : skelloader<iqm>
             loopi(hdr.num_anims)
             {
                 iqmanim &a = anims[i];
-                cubestr name;
-                copycubestr(name, filename);
-                concatcubestr(name, ":");
-                concatcubestr(name, &str[a.name]);
+                std::string name = filename + std::string(":") + (str + a.name);
                 skelanimspec *sa = skel->findskelanim(name);
                 if(sa) continue;
+                conoutf("new anim: %s", name.c_str());
+//                registerAnim(name);
                 sa = &skel->addskelanim(name);
                 sa->frame = skel->numframes;
                 sa->range = a.num_frames;
@@ -349,23 +354,29 @@ struct iqm : skelloader<iqm>
 
         bool load(const char *filename, float smooth)
         {
-            name = newcubestr(filename);
+            name = filename;
 
             return loadiqm(filename, true, false);
         }
 
-        skelanimspec *loadanim(const char *animname)
+        skelanimspec *loadanim(const std::string& animname)
         {
-            const char *sep = strchr(animname, ':');
-            skelanimspec *sa = skel->findskelanim(animname, sep ? '\0' : ':');
+            const auto sep = animname.rfind(':');
+            skelanimspec *sa = skel->findskelanim(animname, sep != std::string::npos ? '\0' : ':');
             if(!sa)
             {
-                cubestr filename;
-                copycubestr(filename, animname);
-                if(sep) filename[sep - animname] = '\0';
-                if(loadiqm(filename, false, true))
+                std::string filename = animname;
+                if(sep != std::string::npos)
+                {
+                    filename = animname.substr(0, sep);
+                }
+
+                if(loadiqm(filename.c_str(), false, true))
+                {
                     sa = skel->findskelanim(animname, sep ? '\0' : ':');
+                }
             }
+
             return sa;
         }
     };
@@ -375,11 +386,11 @@ struct iqm : skelloader<iqm>
     bool loaddefaultparts()
     {
         skelpart &mdl = addpart();
-        const char *fname = name + strlen(name);
+        const char *fname = name.data() + name.length();
         do --fname; while(fname >= name && *fname!='/' && *fname!='\\');
         fname++;
-        defformatcubestr(meshname, "media/model/%s/%s.iqm", name, fname);
-        mdl.meshes = sharemeshes(path(meshname));
+        auto meshname = fmt::format("media/model/{}/{}.iqm", name, fname);
+        mdl.meshes = sharemeshes(path(meshname.c_str(), true));
         if(!mdl.meshes) return false;
         mdl.initanimparts();
         mdl.initskins();

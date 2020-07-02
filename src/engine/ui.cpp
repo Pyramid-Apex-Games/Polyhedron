@@ -2881,16 +2881,12 @@ namespace UI
 
     struct ModelPreview : Preview
     {
-        char *name;
-        int anim;
-
-        ModelPreview() : name(NULL) {}
-        ~ModelPreview() { delete[] name; }
+        std::string name;
+        int anim = -1;
 
         void setup(const char *name_, const char *animspec, float minw_, float minh_)
         {
             Preview::setup(minw_, minh_);
-            SETSTR(name, name_);
 
             anim = ANIM_ALL;
             if(animspec[0])
@@ -2923,14 +2919,14 @@ namespace UI
             int sx1, sy1, sx2, sy2;
             window->calcscissor(sx, sy, sx+w, sy+h, sx1, sy1, sx2, sy2, false);
             modelpreview::start(sx1, sy1, sx2-sx1, sy2-sy1, false, clipstack.length() > 0);
-            model *m = loadmodel(name);
+            auto [m, loadedName] = loadmodel(name);
             if(m)
             {
                 vec center, radius;
                 m->boundbox(center, radius);
                 float yaw;
                 vec o = calcmodelpreviewpos(radius, yaw).sub(center);
-                rendermodel(name, anim, o, yaw, 0, 0, 0, NULL, NULL, 0);
+                rendermodel(name.c_str(), anim, o, yaw, 0, 0, 0, NULL, NULL, 0);
             }
             if(clipstack.length()) clipstack.last().scissor();
             modelpreview::end();
@@ -2970,16 +2966,12 @@ namespace UI
 
     struct PrefabPreview : Preview
     {
-        char *name;
+        std::string name;
         vec color;
-
-        PrefabPreview() : name(NULL) {}
-        ~PrefabPreview() { delete[] name; }
 
         void setup(const char *name_, int color_, float minw_, float minh_)
         {
             Preview::setup(minw_, minh_);
-            SETSTR(name, name_);
             color = vec::hexcolor(color_);
         }
 
@@ -2995,7 +2987,7 @@ namespace UI
             int sx1, sy1, sx2, sy2;
             window->calcscissor(sx, sy, sx+w, sy+h, sx1, sy1, sx2, sy2, false);
             modelpreview::start(sx1, sy1, sx2-sx1, sy2-sy1, false, clipstack.length() > 0);
-            previewprefab(name, color);
+            previewprefab(name.c_str(), color);
             if(clipstack.length()) clipstack.last().scissor();
             modelpreview::end();
         }

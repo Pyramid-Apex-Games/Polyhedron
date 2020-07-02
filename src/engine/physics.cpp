@@ -912,14 +912,26 @@ bool mmcollide(MovableEntity *d, const vec &dir, float cutoff, octaentities &oc)
     for(auto& modelIdx : oc.mapmodels)
     {
         auto e = dynamic_cast<ModelEntity *>(ents[modelIdx]);
-        if (!e) continue;
-        if(e->flags&EntityFlags::EF_NOCOLLIDE || !mapmodels.inrange(e->model_idx)) continue;
+        if (!e)
+            continue;
+
+        if(
+            e->flags&EntityFlags::EF_NOCOLLIDE ||
+            e->model_idx < 0 ||
+            e->model_idx >= mapmodels.size()
+        )
+            continue;
+
         mapmodelinfo &mmi = mapmodels[e->model_idx];
         model *m = mmi.collide;
         if(!m)
         {
-            if(!mmi.m && !loadmodel(NULL, e->model_idx)) continue;
-            if(mmi.m->collidemodel) m = loadmodel(mmi.m->collidemodel);
+            if(!mmi.m && !getmodel(e->model_idx) ) continue;
+            if(!mmi.m->collidemodel.empty())
+            {
+                std::string name;
+                std::tie(m, name) = loadmodel(mmi.m->collidemodel);
+            }
             if(!m) m = mmi.m;
             mmi.collide = m;
         }

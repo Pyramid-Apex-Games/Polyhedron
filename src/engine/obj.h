@@ -166,19 +166,19 @@ struct obj : vertloader<obj>
     bool loaddefaultparts()
     {
         part &mdl = addpart();
-        const char *pname = parentdir(name);
-        defformatcubestr(name1, "media/model/%s/tris.obj", name);
-        mdl.meshes = sharemeshes(path(name1));
+        const char *pname = parentdir(name.c_str());
+        auto name1 = fmt::format("media/model/{}/tris.obj", name);
+        mdl.meshes = sharemeshes(path(name1.c_str(), true));
         if(!mdl.meshes)
         {
-            defformatcubestr(name2, "media/model/%s/tris.obj", pname);    // try obj in parent folder (vert sharing)
-            mdl.meshes = sharemeshes(path(name2));
+            auto name2 = fmt::format("media/model/{}/tris.obj", pname);    // try obj in parent folder (vert sharing)
+            mdl.meshes = sharemeshes(path(name2.c_str(), true));
             if(!mdl.meshes) return false;
         }
         Texture *tex, *masks;
-        loadskin(name, pname, tex, masks);
+        loadskin(name.c_str(), pname, tex, masks);
         mdl.initskins(tex, masks);
-        if(tex==notexture) conoutf("could not load model skin for %s", name1);
+        if(tex==notexture) conoutf("could not load model skin for %s", name1.c_str());
         return true;
     }
 };

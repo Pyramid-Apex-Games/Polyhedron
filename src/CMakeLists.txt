@@ -54,6 +54,7 @@ add_subdirectory(enet)
 list(APPEND fileListEngine
     engine/aa.cpp
     engine/animmodel.h
+    engine/animmodel.cpp
     engine/bih.cpp
     engine/bih.h
     engine/blend.cpp
@@ -124,6 +125,7 @@ list(APPEND fileListEngine
     engine/physics.cpp
     engine/pvs.cpp
     engine/ragdoll.h
+    engine/ragdoll.cpp
     engine/rendergl.cpp
     engine/renderlights.cpp
     engine/rendermodel.cpp

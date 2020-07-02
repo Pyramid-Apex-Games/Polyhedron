@@ -329,6 +329,19 @@ if(WIN32)
     endif()
 endif()
 
+message("downloading fmt")
+FetchContent_Declare(
+    LIBFMT
+    SOURCE_DIR          ${CMAKE_CURRENT_BINARY_DIR}/thirdparty_sources/libfmt
+    GIT_REPOSITORY      https://github.com/fmtlib/fmt.git
+    DOWNLOAD_DIR        ${DEPENDENCY_DOWNLOAD_DIR}
+    INSTALL_COMMAND     ""
+)
+FetchContent_GetProperties(LIBFMT)
+if (NOT libfmt_POPULATED)
+    FetchContent_MakeAvailable(LIBFMT)
+endif()
+
 list(APPEND THIRDPARTY_INCLUDE_DIRS
 )
 
@@ -341,6 +354,7 @@ list(APPEND THIRDPARTY_LIBRARIES
     SDL2_image
     SDL2_mixer
     libpython-static
+    fmt::fmt
 #    mpg123
 )
 

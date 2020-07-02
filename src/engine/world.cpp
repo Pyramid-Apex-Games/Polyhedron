@@ -42,7 +42,7 @@ VAR(entselradius, 0, 2, 10);
 inline void transformbb(const Entity *e, vec &center, vec &radius)
 {
 	if(e->scale > 0) { float scale = e->scale/100.0f; center.mul(scale); radius.mul(scale); }
-	rotatebb(center, radius, e->d.x, e->d.y, e->d.z);
+	rotatebb(center, radius, e->d.z, e->d.y, e->d.x);
 }
 
 void mmboundbox(const Entity *e, model *m, vec &center, vec &radius)
@@ -651,37 +651,40 @@ void entselectionbox(const Entity *e, vec &eo, vec &es)
 	
 	return;
 
-    model *m = NULL;
-    const char *mname = entmodel(e);
-    if(mname && (m = loadmodel(mname)))
+    std::string mname = entmodel(e);
+    if(!mname.empty())
     {
-        m->collisionbox(eo, es);
-        if(es.x > es.y) es.y = es.x; else es.x = es.y; // square
-        es.z = (es.z + eo.z + 1 + entselradius)/2; // enclose ent radius box and model box
-        eo.x += e->o.x;
-        eo.y += e->o.y;
-        eo.z = e->o.z - entselradius + es.z;
+        auto [m, name] = loadmodel(mname);
+        if(m)
+        {
+            m->collisionbox(eo, es);
+            if(es.x > es.y) es.y = es.x; else es.x = es.y; // square
+            es.z = (es.z + eo.z + 1 + entselradius)/2; // enclose ent radius box and model box
+            eo.x += e->o.x;
+            eo.y += e->o.y;
+            eo.z = e->o.z - entselradius + es.z;
+        }
+        else if(auto em = dynamic_cast<const ModelEntity*>(e); em && (m = loadmapmodel(em->model_idx)))
+        {
+            mmcollisionbox(e, m, eo, es);
+            es.max(entselradius);
+            eo.add(e->o);
+        }
+        else if(auto ed = dynamic_cast<const DecalEntity*>(e); ed)
+        {
+            DecalSlot &s = lookupdecalslot(ed->m_DecalSlot, false);
+            decalboundbox(e, s, eo, es);
+            es.max(entselradius);
+            eo.add(e->o);
+        }
+        else
+        {
+            es = vec(entselradius);
+            eo = e->o;
+        }
+        eo.sub(es);
+        es.mul(2);
     }
-	else if(auto em = dynamic_cast<const ModelEntity*>(e); em && (m = loadmapmodel(em->model_idx)))
-    {
-        mmcollisionbox(e, m, eo, es);
-        es.max(entselradius);
-        eo.add(e->o);
-    }
-    else if(auto ed = dynamic_cast<const DecalEntity*>(e); ed)
-    {
-        DecalSlot &s = lookupdecalslot(ed->m_DecalSlot, false);
-        decalboundbox(e, s, eo, es);
-        es.max(entselradius);
-        eo.add(e->o);
-    }
-    else
-    {
-        es = vec(entselradius);
-        eo = e->o;
-    }
-    eo.sub(es);
-    es.mul(2);
 }
 
 VAR(entselsnap, 0, 0, 1);

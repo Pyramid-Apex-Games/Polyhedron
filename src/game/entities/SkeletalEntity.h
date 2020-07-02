@@ -1,40 +1,26 @@
 #pragma once
 
-#include "shared/entities/MovableEntity.h"
+#include "game/entities/ModelEntity.h"
+#include "shared/tools/vector.h"
+#include <string>
 
 struct vec;
 
-class SkeletalEntity : public MovableEntity {
+class SkeletalEntity : public ModelEntity {
     ENTITY_FACTORY_IMPL(SkeletalEntity)
 public:
-    //
-    // Constructors/Destructor.
-    //
     SkeletalEntity();
 
-    //
-    // Base/Core entity functions.
-    //
-    void preload();
     void think();
 
-    //
-    // Entity functions.
-    //
     void reset();
     void respawn();
 
-    //
-    // onEvent functions.
-    //
     bool onTrigger(const Entity *otherEnt, const vec &dir);
     bool onTouch(const Entity *otherEnt, const vec &dir);
 
-    //
-    // Entity member variables.
-    //
-//    DONTSERIALIZE MovableEntity *camera;
-
+    static int AnimationsCount();
+    static void FindAnimations(const std::string& pattern, vector<int> &anims);
 private:
 
 };

@@ -1,6 +1,8 @@
 #include "engine/engine.h"
 #include "game/game.h"
 #include "engine/world.h"
+#include "engine/model.h"
+#include "engine/animmodel.h"
 
 #include "ModelEntity.h"
 #include "shared/entities/EntityFactory.h"
@@ -54,7 +56,7 @@ void ModelEntity::render(game::RenderPass pass)
 {
 	if (pass == game::RenderPass::Main)
 	{
-		rendermodel(modelname.c_str(), animation, o, d.x, d.y, d.z, MDL_CULL_VFC | MDL_CULL_DIST | MDL_CULL_OCCLUDED, this, nullptr, curtime, curtime, size, color);
+		rendermodel(modelname.c_str(), ANIM_MAPMODEL|ANIM_LOOP|(animation & ANIM_INDEX), o, d.z, d.y, d.x, MDL_NOBATCH | MDL_CULL_VFC | MDL_CULL_DIST | MDL_CULL_OCCLUDED, this, nullptr, curtime, curtime, size, color);
 	}
 }
 
@@ -91,18 +93,29 @@ void ModelEntity::preloadMapModel(const std::string &modelname)
 		// In case this is the first time, a filename will be supplied for sure.
 		if (!modelname.empty())
 		{
-			mmi = mapmodels.add();
-			mmi.m = loadmodel(modelname.c_str(), -1, true);
-			if (mmi.m)
+			mmi = mapmodels.emplace_back();
+			auto [modelPtr, loadedModelName] = loadmodel(modelname, -1, true);
+			if (modelPtr)
 			{
-				mmi.collide = loadmodel(modelname.c_str(), -1, true);
-				copycubestr(mmi.name, modelname.c_str());
+			    mmi.m = modelPtr;
+			    auto [colPtr, loadedColName] = loadmodel(modelPtr->collidemodel, -1, true);
+				mmi.collide = colPtr;
+				mmi.name = loadedModelName;
 
-				model_idx = mapmodels.length() - 1;
+				model_idx = mapmodels.size() - 1;
+
+				if (auto animModelPtr = dynamic_cast<animmodel*>(modelPtr); animModelPtr)
+                {
+				    //find the animation names
+				    for (int i = 0; i < animModelPtr->parts.length(); ++i)
+                    {
+
+                    }
+                }
 			}
 			else
 			{
-			    mapmodels.pop();
+			    mapmodels.pop_back();
 				conoutf("BaseMapModel::preloadMapModel: couldn't load model: %s\n", modelname.c_str());
 			}
 		}
@@ -168,7 +181,8 @@ model *ModelEntity::getModel() const
         return mmi.m;
     }
 
-    return loadmodel(getModelName().c_str(), -1, true);
+    auto [model, name] = loadmodel(getModelName(), -1, true);
+    return model;
 };
 
 ADD_ENTITY_TO_FACTORY_SERIALIZED(ModelEntity, "model", MovableEntity)

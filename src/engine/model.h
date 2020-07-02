@@ -1,24 +1,55 @@
+#pragma once
 #include "shared/ents.h"
+#include "shared/entities/animinfo.h"
+#include "shared/geom/triangle.h"
+#include "shared/geom/vec4.h"
 #include "engine/bih.h"
+#include <string>
 enum { MDL_MD2 = 0, MDL_MD3, MDL_MD5, MDL_OBJ, MDL_SMD, MDL_IQM, NUMMODELTYPES };
 
 struct Shader;
+struct modelattach;
 
 struct model
 {
-    char *name;
-    float spinyaw, spinpitch, spinroll, offsetyaw, offsetpitch, offsetroll;
-    bool shadow, alphashadow, depthoffset;
-    float scale;
-    vec translate;
-    BIH *bih;
-    vec bbcenter, bbradius, bbextend, collidecenter, collideradius;
-    float rejectradius, eyeheight, collidexyradius, collideheight;
-    char *collidemodel;
-    int collide, batch;
+    std::string name;
+    float spinyaw = 0.0f;
+    float spinpitch = 0.0f;
+    float spinroll = 0.0f;
+    float offsetyaw = 0.0f;
+    float offsetpitch = 0.0f;
+    float offsetroll = 0.0f;
 
-    model(const char *name) : name(name ? newcubestr(name) : NULL), spinyaw(0), spinpitch(0), spinroll(0), offsetyaw(0), offsetpitch(0), offsetroll(0), shadow(true), alphashadow(true), depthoffset(false), scale(1.0f), translate(0, 0, 0), bih(0), bbcenter(0, 0, 0), bbradius(-1, -1, -1), bbextend(0, 0, 0), collidecenter(0, 0, 0), collideradius(-1, -1, -1), rejectradius(-1), eyeheight(0.9f), collidexyradius(0), collideheight(0), collidemodel(NULL), collide(COLLIDE_OBB), batch(-1) {}
-    virtual ~model() { DELETEA(name); DELETEP(bih); }
+    bool shadow = true;
+    bool alphashadow = true;
+    bool depthoffset = false;
+
+    float scale = 1.0f;
+    vec translate = {0.0f, 0.0f, 0.0f};
+    BIH *bih = nullptr;
+
+    vec bbcenter = {0.0f, 0.0f, 0.0f};
+    vec bbradius = {-1.0f, -1.0f, -1.0f};
+    vec bbextend = {0.0f, 0.0f, 0.0f};
+    vec collidecenter = {0.0f, 0.0f, 0.0f};
+    vec collideradius = {-1.0f, -1.0f, -1.0f};
+
+    float rejectradius = -1.0f;
+    float eyeheight = 0.9f;
+    float collidexyradius = 0.0f;
+    float collideheight = 0.0f;
+    std::string collidemodel;
+    int collide = COLLIDE_OBB;
+    int batch = -1;
+
+    model() = default;
+    model(const char *name) : model() {
+        if (name)
+        {
+            this->name = name;
+        }
+    }
+    virtual ~model() { DELETEP(bih); }
     virtual void calcbb(vec &center, vec &radius) = 0;
     virtual void calctransform(matrix4x3 &m) = 0;
     virtual int intersect(int anim, int basetime, int basetime2, const vec &pos, float yaw, float pitch, float roll, MovableEntity *d, modelattach *a, float size, const vec &o, const vec &ray, float &dist, int mode) = 0;

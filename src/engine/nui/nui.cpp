@@ -1,5 +1,6 @@
 #include "nui.h"
 #include "shared/entities/EntityEditorMenu.h"
+#include <cassert>
 
 //FIXME: use some kind of gamestate/editorstate controller for this
 extern bool editmode;

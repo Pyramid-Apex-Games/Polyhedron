@@ -2,6 +2,7 @@
 #include "EntityFactory.h"
 #include "engine/nui/nui.h"
 #include <string>
+#include <cstring>
 
 class Entity;
 struct nk_context;

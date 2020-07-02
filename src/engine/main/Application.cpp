@@ -6,7 +6,7 @@
 #include "Window.h"
 #include "Renderer.h"
 #include "Input.h"
-#include "Console.h"
+#include "engine/console.h"
 #include "Compatibility.h"
 #include "renderdoc_api.h"
 #include "shared/command.h"

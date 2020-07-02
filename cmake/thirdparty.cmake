@@ -20,6 +20,88 @@ macro(CopyFileIfDifferent FromFile ToFile)
     endif()
 endmacro()
 
+
+message("Fetching python")
+FetchContent_Declare(
+        PYTHON
+        SOURCE_DIR          ${CMAKE_CURRENT_BINARY_DIR}/thirdparty_sources/python
+        GIT_REPOSITORY      https://github.com/python-cmake-buildsystem/python-cmake-buildsystem
+        DOWNLOAD_DIR        ${DEPENDENCY_DOWNLOAD_DIR}
+        INSTALL_COMMAND     ""
+)
+FetchContent_GetProperties(PYTHON)
+if (NOT python_POPULATED)
+    source_group(TREE python)
+
+    #    set(INSTALL_MANUAL OFF)
+    #    set(USE_SYSTEM_LIBRARIES OFF)
+    #    set(INSTALL_WINDOWS_TRADITIONAL OFF)
+    #    set(BUILD_WININST OFF)
+    #    set(BUILD_WININST_ALWAYS OFF)
+    #    set(INSTALL_DEVELOPMENT OFF)
+    #    set(INSTALL_MANUAL OFF)
+    #    set(INSTALL_TEST OFF)
+    #    set(_use_builtin_zlib_default OFF)
+    #    set(_use_system_zlib_default OFF)
+    #    set(CMAKE_OSX_DEPLOYMENT_TARGET 10.14)
+    list(APPEND THIRDPARTY_INCLUDE_DIRS
+            ${CMAKE_CURRENT_BINARY_DIR}/_deps/Python-3.6.7/include
+            ${CMAKE_CURRENT_BINARY_DIR}/_deps/python-build/bin
+            )
+
+    CopyFileIfDifferent(
+            "${CMAKE_CURRENT_BINARY_DIR}/_deps/Python-3.6.7/Lib/abc.py"
+            "${CMAKE_CURRENT_LIST_DIR}/../config/site-py/abc.py"
+    )
+
+    CopyFileIfDifferent(
+            "${CMAKE_CURRENT_BINARY_DIR}/_deps/Python-3.6.7/Lib/codecs.py"
+            "${CMAKE_CURRENT_LIST_DIR}/../config/site-py/codecs.py"
+    )
+
+    CopyFileIfDifferent(
+            "${CMAKE_CURRENT_BINARY_DIR}/_deps/Python-3.6.7/Lib/encodings/__init__.py"
+            "${CMAKE_CURRENT_LIST_DIR}/../config/site-py/encodings/__init__.py"
+    )
+
+    CopyFileIfDifferent(
+            "${CMAKE_CURRENT_BINARY_DIR}/_deps/Python-3.6.7/Lib/encodings/aliases.py"
+            "${CMAKE_CURRENT_LIST_DIR}/../config/site-py/encodings/aliases.py"
+    )
+
+    CopyFileIfDifferent(
+            "${CMAKE_CURRENT_BINARY_DIR}/_deps/Python-3.6.7/Lib/encodings/ascii.py"
+            "${CMAKE_CURRENT_LIST_DIR}/../config/site-py/encodings/ascii.py"
+    )
+
+    CopyFileIfDifferent(
+            "${CMAKE_CURRENT_BINARY_DIR}/_deps/Python-3.6.7/Lib/encodings/latin_1.py"
+            "${CMAKE_CURRENT_LIST_DIR}/../config/site-py/encodings/latin_1.py"
+    )
+
+    CopyFileIfDifferent(
+            "${CMAKE_CURRENT_BINARY_DIR}/_deps/Python-3.6.7/Lib/encodings/utf_8.py"
+            "${CMAKE_CURRENT_LIST_DIR}/../config/site-py/encodings/utf_8.py"
+    )
+
+    CopyFileIfDifferent(
+            "${CMAKE_CURRENT_BINARY_DIR}/_deps/Python-3.6.7/Lib/io.py"
+            "${CMAKE_CURRENT_LIST_DIR}/../config/site-py/io.py"
+    )
+
+    CopyFileIfDifferent(
+            "${CMAKE_CURRENT_BINARY_DIR}/_deps/Python-3.6.7/Lib/os.py"
+            "${CMAKE_CURRENT_LIST_DIR}/../config/site-py/os.py"
+    )
+
+    CopyFileIfDifferent(
+            "${CMAKE_CURRENT_BINARY_DIR}/_deps/Python-3.6.7/Lib/_weakrefset.py"
+            "${CMAKE_CURRENT_LIST_DIR}/../config/site-py/_weakrefset.py"
+    )
+
+    FetchContent_MakeAvailable(PYTHON)
+endif()
+
 message("Fetching dependency: SDL2")
 FetchContent_Declare(
     SDL2
@@ -230,87 +312,6 @@ if (WIN32)
         set(Iconv_LIBRARY libiconv)
         set(Iconv_INCLUDE_DIR ${iconv_SOURCE_DIR})
     endif()
-endif()
-
-message("Fetching python")
-FetchContent_Declare(
-    PYTHON
-    SOURCE_DIR          ${CMAKE_CURRENT_BINARY_DIR}/thirdparty_sources/python
-    GIT_REPOSITORY      https://github.com/python-cmake-buildsystem/python-cmake-buildsystem
-    DOWNLOAD_DIR        ${DEPENDENCY_DOWNLOAD_DIR}
-    INSTALL_COMMAND     ""
-)
-FetchContent_GetProperties(PYTHON)
-if (NOT python_POPULATED)
-    source_group(TREE python)
-
-    set(INSTALL_MANUAL OFF)
-    set(USE_SYSTEM_LIBRARIES OFF)
-    set(INSTALL_WINDOWS_TRADITIONAL OFF)
-    set(BUILD_WININST OFF)
-    set(BUILD_WININST_ALWAYS OFF)
-    set(INSTALL_DEVELOPMENT OFF)
-    set(INSTALL_MANUAL OFF)
-    set(INSTALL_TEST OFF)
-    set(_use_builtin_zlib_default OFF)
-    set(_use_system_zlib_default OFF)
-    set(CMAKE_OSX_DEPLOYMENT_TARGET 10.14)
-    list(APPEND THIRDPARTY_INCLUDE_DIRS
-        ${CMAKE_CURRENT_BINARY_DIR}/_deps/Python-3.6.7/include
-        ${CMAKE_CURRENT_BINARY_DIR}/_deps/python-build/bin
-    )
-
-    CopyFileIfDifferent(
-        "${CMAKE_CURRENT_BINARY_DIR}/_deps/Python-3.6.7/Lib/abc.py"
-        "${CMAKE_CURRENT_LIST_DIR}/../config/site-py/abc.py"
-    )
-
-    CopyFileIfDifferent(
-        "${CMAKE_CURRENT_BINARY_DIR}/_deps/Python-3.6.7/Lib/codecs.py"
-        "${CMAKE_CURRENT_LIST_DIR}/../config/site-py/codecs.py"
-    )
-
-    CopyFileIfDifferent(
-        "${CMAKE_CURRENT_BINARY_DIR}/_deps/Python-3.6.7/Lib/encodings/__init__.py"
-        "${CMAKE_CURRENT_LIST_DIR}/../config/site-py/encodings/__init__.py"
-    )
-
-    CopyFileIfDifferent(
-        "${CMAKE_CURRENT_BINARY_DIR}/_deps/Python-3.6.7/Lib/encodings/aliases.py"
-        "${CMAKE_CURRENT_LIST_DIR}/../config/site-py/encodings/aliases.py"
-    )
-
-    CopyFileIfDifferent(
-        "${CMAKE_CURRENT_BINARY_DIR}/_deps/Python-3.6.7/Lib/encodings/ascii.py"
-        "${CMAKE_CURRENT_LIST_DIR}/../config/site-py/encodings/ascii.py"
-    )
-
-    CopyFileIfDifferent(
-        "${CMAKE_CURRENT_BINARY_DIR}/_deps/Python-3.6.7/Lib/encodings/latin_1.py"
-        "${CMAKE_CURRENT_LIST_DIR}/../config/site-py/encodings/latin_1.py"
-    )
-
-    CopyFileIfDifferent(
-        "${CMAKE_CURRENT_BINARY_DIR}/_deps/Python-3.6.7/Lib/encodings/utf_8.py"
-        "${CMAKE_CURRENT_LIST_DIR}/../config/site-py/encodings/utf_8.py"
-    )
-
-    CopyFileIfDifferent(
-        "${CMAKE_CURRENT_BINARY_DIR}/_deps/Python-3.6.7/Lib/io.py"
-        "${CMAKE_CURRENT_LIST_DIR}/../config/site-py/io.py"
-    )
-
-    CopyFileIfDifferent(
-        "${CMAKE_CURRENT_BINARY_DIR}/_deps/Python-3.6.7/Lib/os.py"
-        "${CMAKE_CURRENT_LIST_DIR}/../config/site-py/os.py"
-    )
-
-    CopyFileIfDifferent(
-        "${CMAKE_CURRENT_BINARY_DIR}/_deps/Python-3.6.7/Lib/_weakrefset.py"
-        "${CMAKE_CURRENT_LIST_DIR}/../config/site-py/_weakrefset.py"
-    )
-
-    FetchContent_MakeAvailable(PYTHON)
 endif()
 
 if(WIN32)

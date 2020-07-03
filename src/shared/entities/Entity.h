@@ -165,6 +165,7 @@ public:
     PHUI_IVEC("Orientation") ivec d {0, 0, 0}; //yaw, pitch, roll
     PHUI_SLIDER("Scale", 0.0f, 300.0f, 5.0f) float scale = 0.0f;
     PHUI_SLIDER("Radius", 0.0f, 10.0f, 0.25f) float radius = 1.0f;
+    PHUI_SLIDER("Sound Radius", 10.0f, 500.0f, 10.0f) float soundRadius = 500.0f;
 //            PHUI_CHECKBOX("Attribute 2") int attr2 = 0;
 //            int attr3 = 0;
 //            int attr4 = 0;

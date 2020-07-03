@@ -9,31 +9,26 @@ public:
     void preload();
     void think();
 
-    enum DYNAMIC_LIGHT_STATE {
-        ON,
-        OFF,
-        FLICKERING,
-        FADING
+    enum LIGHT_STATE {
+        ON,             // Light is on.
+        OFF,            // Light is off.
     };
-//
-//			NLOHMANN_JSON_SERIALIZE_ENUM( DYNAMIC_LIGHT_STATE, {
-//				{ON, "ON"},
-//				{OFF, "OFF"},
-//				{FLICKERING, "FLICKERING"},
-//				{FADING, "FADING"},
-//			});
+    enum LIGHT_STYLE {
+        DEFAULT,        // Non Flickering Light
+        SINE,           // Sine Wave animating Light
+    };
 
-    void setState(LightEntity::DYNAMIC_LIGHT_STATE &state);
+    void setState(LightEntity::LIGHT_STATE &state);
+    void setStyle(LightEntity::LIGHT_STYLE &style);
 
 public:
     //
-    // Light states.
+    // Light.
     //
     // Stores the current state of the dynamic light.
-    LightEntity::DYNAMIC_LIGHT_STATE lightState;
-
-    // Obviously speaks for itself, the color.
-    vec4 lightColor;
+    LightEntity::LIGHT_STATE lightState;
+    LightEntity::LIGHT_STYLE lightStyle;
+    vec lightColor;
     float radius;
     int type;
 };

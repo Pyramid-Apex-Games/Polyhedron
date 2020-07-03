@@ -4,12 +4,7 @@
 #include "shared/entities/EntityFactory.h"
 
 LightEntity::LightEntity() : Entity() {
-
-//    ent_type = ENT_INANIMATE;
-//    et_type = ET_GAMESPECIFIC;
-//    game_type = GAMEENTITY;
-
-//    setAttribute("name", "DynamicLight");
+    flags = EF_RENDER | EF_NOSHADOW;
 }
 
 
@@ -22,14 +17,11 @@ void LightEntity::think() {
 }
 
 void LightEntity::render(game::RenderPass pass) {
+
 }
 
-// TODO: Add other optional arguments, so all can be done in 1 command. Kindly using other method functions such as fade time or flicker style, or even interval speeds.
-void LightEntity::setState(DYNAMIC_LIGHT_STATE &_lightState) {
-    // Change the state.
-    lightState = _lightState;
-}
-
+void LightEntity::setState(LightEntity::LIGHT_STATE &_lightState) { lightState = _lightState; }
+void LightEntity::setStyle(LightEntity::LIGHT_STYLE &_lightStyle) { lightStyle = _lightStyle; }
 
 void LightEntity::on(const Event& event)
 {

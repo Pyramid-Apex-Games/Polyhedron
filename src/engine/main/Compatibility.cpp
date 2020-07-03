@@ -57,7 +57,7 @@ void fatal(const char *fmt, ...)
 void keyrepeat(bool on, int mask)
 {
     //noop
-    void;
+    //void;
     //FIXME: understand this function
 }
 

@@ -1640,9 +1640,9 @@ struct lightinfo
         if(spot > 0) calcspot();
         calcscissor();
     }
-    lightinfo(int i, const Entity *e)
+    lightinfo(int i, const LightEntity *e)
 	: ent(i), shadowmap(-1), flags(e->scale),
-	o(e->o), color(vec(e->d.x, e->d.y, e->d.z).max(0)), radius(e->scale), dist(camera1->o.dist(e->o)),
+	o(e->o), color(vec(e->lightColor.x, e->lightColor.y, e->lightColor.z).max(0)), radius(e->scale), dist(camera1->o.dist(e->o)),
         dir(0, 0, 0), spot(0), query(NULL)
     {
         //FIXME: attached feature / spotlight feature

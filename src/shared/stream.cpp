@@ -727,7 +727,7 @@ struct filestream : stream
 		{
 			if (c[0] == '\r' || c[0] == '\n')
             {
-			    outPtr++;
+//			    outPtr++;
 				break;
             }
 			str[outPtr++] = c[0];

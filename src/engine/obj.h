@@ -43,18 +43,6 @@ struct obj : vertloader<obj>
             vector<tcvert> tcverts;
             vector<tri> tris;
 
-            #define STARTMESH do { \
-                vertmesh &m = *new vertmesh; \
-                m.group = this; \
-                m.name = meshname[0] ? newcubestr(meshname) : NULL; \
-                meshes.add(&m); \
-                curmesh = &m; \
-                verthash.clear(); \
-                verts.setsize(0); \
-                tcverts.setsize(0); \
-                tris.setsize(0); \
-            } while(0)
-
             #define FLUSHMESH do { \
                 curmesh->numverts = verts.length(); \
                 if(verts.length()) \
@@ -107,7 +95,19 @@ struct obj : vertloader<obj>
                     }
                     case 'f':
                     {
-                        if(!curmesh) STARTMESH;
+                        if(!curmesh)
+                        {
+                            auto m = new vertmesh;
+                            m->group = this;
+                            m->name = meshname[0] ? meshname : "";
+                            meshes.add(m);
+                            curmesh = m;
+
+                            verthash.clear();
+                            verts.setsize(0);
+                            tcverts.setsize(0);
+                            tris.setsize(0);
+                        }
                         int v0 = -1, v1 = -1;
                         while(isalpha(*c)) c++;
                         for(;;)

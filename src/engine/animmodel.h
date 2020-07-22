@@ -393,7 +393,7 @@ struct animmodel : model
         void preloadshaders();
         void preloadmeshes();
         virtual void getdefaultanim(animinfo &info, int anim, uint varseed, MovableEntity *d);
-        bool calcanim(int animpart, int anim, int basetime, int basetime2, MovableEntity *d, int interp, animinfo &info, int &aitime);
+        bool calcanim(int animpart, int anim, int basetime, int basetime2, MovableEntity *d, int interp, animinfo &info, int &animinterptime);
         void intersect(int anim, int basetime, int basetime2, float pitch, const vec &axis, const vec &forward, MovableEntity *d, const vec &o, const vec &ray);
         void intersect(int anim, int basetime, int basetime2, float pitch, const vec &axis, const vec &forward, MovableEntity *d, const vec &o, const vec &ray, animstate *as);
         void render(int anim, int basetime, int basetime2, float pitch, const vec &axis, const vec &forward, MovableEntity *d);

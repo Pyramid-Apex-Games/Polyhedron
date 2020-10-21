@@ -575,7 +575,7 @@ void animmodel::part::getdefaultanim(animinfo &info, int anim, uint varseed, Mov
     info.range = 1;
 }
 
-bool animmodel::part::calcanim(int animpart, int anim, int basetime, int basetime2, MovableEntity *d, int interp, animinfo &info, int &aitime)
+bool animmodel::part::calcanim(int animpart, int anim, int basetime, int basetime2, MovableEntity *d, int interp, animinfo &info, int &animinterptime)
 {
     uint varseed = uint((size_t)d);
     info.anim = anim;
@@ -641,21 +641,21 @@ bool animmodel::part::calcanim(int animpart, int anim, int basetime, int basetim
     if(d && interp>=0)
     {
         animinterpinfo &ai = d->animinterp[interp];
-        if((info.anim&(ANIM_LOOP|ANIM_CLAMP))==ANIM_CLAMP) aitime = min(aitime, int(info.range*info.speed*0.5e-3f));
+        if((info.anim&(ANIM_LOOP|ANIM_CLAMP))==ANIM_CLAMP) animinterptime = min(animinterptime, int(info.range*info.speed*0.5e-3f));
         void *ak = meshes->animkey();
         if(d->ragdoll && d->ragdoll->millis != lastmillis)
         {
             ai.prev.range = ai.cur.range = 0;
             ai.lastswitch = -1;
         }
-        else if(ai.lastmodel!=ak || ai.lastswitch<0 || lastmillis-d->lastrendered>aitime)
+        else if(ai.lastmodel!=ak || ai.lastswitch<0 || lastmillis-d->lastrendered>animinterptime)
         {
             ai.prev = ai.cur = info;
-            ai.lastswitch = lastmillis-aitime*2;
+            ai.lastswitch = lastmillis-animinterptime*2;
         }
         else if(ai.cur!=info)
         {
-            if(lastmillis-ai.lastswitch>aitime/2) ai.prev = ai.cur;
+            if(lastmillis-ai.lastswitch>animinterptime/2) ai.prev = ai.cur;
             ai.cur = info;
             ai.lastswitch = lastmillis;
         }

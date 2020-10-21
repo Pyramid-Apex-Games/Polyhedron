@@ -34,9 +34,9 @@ struct md5 : skelloader<md5>
 
     struct md5mesh : skelmesh
     {
-        md5weight *weightinfo;
+        md5weight *weightinfo;  //TODO: Make gsl::span
         int numweights;
-        md5vert *vertinfo;
+        md5vert *vertinfo; //TODO: Make gsl::span
 
         md5mesh() : weightinfo(NULL), numweights(0), vertinfo(NULL)
         {
@@ -77,6 +77,7 @@ struct md5 : skelloader<md5>
                 loopj(v.count)
                 {
                     md5weight &w = weightinfo[v.start+j];
+                    assert(w.joint < joints.length() && "Joint Weight out-of-bounds!");
                     sorted = c.addweight(sorted, w.bias, w.joint);
                 }
                 c.finalize(sorted);
@@ -91,8 +92,14 @@ struct md5 : skelloader<md5>
             tri t;
             int index;
 
+#ifdef _DEBUG
+            int dbg_LineCount = 0;
+#endif
             while(f->getline(buf, bufsize) && buf[0]!='}')
             {
+#ifdef _DEBUG
+                dbg_LineCount++;
+#endif
                 if(strstr(buf, "// meshes:"))
                 {
                     char *start = strchr(buf, ':')+1;
@@ -147,6 +154,9 @@ struct md5 : skelloader<md5>
                     if(index>=0 && index<numweights) weightinfo[index] = w;
                 }
             }
+#ifdef _DEBUG
+            conoutf("MD5 read %d lines", dbg_LineCount);
+#endif
         }
     };
 

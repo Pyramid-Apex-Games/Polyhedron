@@ -14,6 +14,8 @@ public:
     void ApplyValuesToCubeScript();
 
     void GetFramebufferSize(int& w, int& h) const;
+
+    SDL_GLContext GetContextHandle() const;
 private:
     GLConfig m_Config;
     GLContextState m_ContextState;

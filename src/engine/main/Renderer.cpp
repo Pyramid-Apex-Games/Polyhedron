@@ -17,6 +17,7 @@
 #include "engine/nui/nui.h"
 #include "engine/hud.h"
 #include "engine/GLFeatures.h"
+#include "engine/editor/ui.h"
 #include "renderdoc_api.h"
 
 extern Texture *notexture;
@@ -83,6 +84,7 @@ void Renderer::RunFrame()
     inbetweenframes = false;
     gl_drawframe();
     engine::nui::Render();
+    EditorUI::Render();
 
     if (m_FrameCount == 4)
     {

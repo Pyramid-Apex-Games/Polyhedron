@@ -305,7 +305,7 @@ struct animmodel : model
         using forEachMeshIterationIndexed = std::function<void(T&, int)>;
 
         template <class T>
-        void forEachRenderMesh(forEachMeshIterationIndexed<T> iteration)
+        void forEachRenderMesh(const forEachMeshIterationIndexed<T>& iteration)
         {
             extern int dbgcolmesh;
 
@@ -313,12 +313,10 @@ struct animmodel : model
             for (int i = 0; i < meshes.length(); i++)
             {
                 auto& mesh = meshes[i];
-#ifdef _DEBUG
-                T* meshT = dynamic_cast<T*>(mesh);
-#else
+
                 T* meshT = static_cast<T*>(mesh);
-#endif
-                if (meshT && (meshT->canrender || dbgcolmesh))
+
+                if (meshT->canrender || dbgcolmesh)
                 {
                     iteration(*meshT, i);
                 }
@@ -326,7 +324,7 @@ struct animmodel : model
         }
 
         template <class T>
-        void forEachRenderMesh(forEachMeshIteration<T> iteration)
+        void forEachRenderMesh(const forEachMeshIteration<T>& iteration)
         {
             forEachRenderMesh<T>([&](T& t, int){ iteration(t); });
         }
@@ -573,31 +571,79 @@ template<class MDL, class MESH> struct modelcommands
     {
         if(!MDL::loading)
         {
-            conoutf("not loading an %s", MDL::formatname());
+            conoutf("model::setdir: not loading an %s", MDL::formatname());
             return;
         }
         MDL::dir = fmt::format("media/model/{}", name);
     }
 
-    #define loopmeshes(meshname, m, body) do { \
-        if(!MDL::loading || MDL::loading->parts.empty()) { conoutf("not loading an %s", MDL::formatname()); return; } \
-        part &mdl = *MDL::loading->parts.last(); \
-        if(!mdl.meshes) return; \
-        loopv(mdl.meshes->meshes) \
-        { \
-            MESH &m = *(MESH *)mdl.meshes->meshes[i]; \
-            if(meshname == "*" || m.name == meshname) \
-            { \
-                body; \
-            } \
-        } \
-    } while(0)
+    static void ForEachMesh(const std::string& meshname, const std::function<void(MESH&)>& forEachCallback)
+    {
+        if (!MDL::loading || MDL::loading->parts.empty())
+        {
+            conoutf("ForEachMesh: not loading an %s", MDL::formatname());
+            return;
+        }
 
-    #define loopskins(meshname, s, body) loopmeshes(meshname, m, { skin &s = mdl.skins[i]; body; })
+        part &mdl = *MDL::loading->parts.last();
+        if(!mdl.meshes) return;
+
+        const bool wildcard = meshname == "*";
+
+        for(int i = 0; i < mdl.meshes->meshes.length(); ++i)
+        {
+            auto& mesh = mdl.meshes->meshes[i];
+            if (wildcard || mesh->name == meshname)
+            {
+                forEachCallback(*static_cast<MESH*>(mesh));
+            }
+        }
+    }
+
+    static void ForEachSkin(const std::string& meshname, const std::function<void(skin&)>& forEachCallback)
+    {
+        if (!MDL::loading || MDL::loading->parts.empty())
+        {
+            conoutf("ForEachSkin: not loading an %s", MDL::formatname());
+            return;
+        }
+
+        part &mdl = *MDL::loading->parts.last();
+        if(!mdl.meshes) return;
+
+        const bool wildcard = meshname == "*";
+
+        for(int i = 0; i < mdl.skins.length() && i < mdl.meshes->meshes.length(); ++i)
+        {
+            auto& skin = mdl.skins[i];
+            auto& mesh = mdl.meshes->meshes[i];
+            if (wildcard || mesh->name == meshname)
+            {
+                forEachCallback(skin);
+            }
+        }
+    }
+
+//    #define loopmeshes(meshname, m, body) do { \
+//        if(!MDL::loading || MDL::loading->parts.empty()) { conoutf("loopmeshes: not loading an %s", MDL::formatname()); return; } \
+//        part &mdl = *MDL::loading->parts.last(); \
+//        if(!mdl.meshes) return; \
+//        loopv(mdl.meshes->meshes) \
+//        { \
+//            MESH &m = *(MESH *)mdl.meshes->meshes[i]; \
+//            if(meshname == "*" || m.name == meshname) \
+//            { \
+//                body; \
+//            } \
+//        } \
+//    } while(0)
+//
+//    #define loopskins(meshname, s, body) loopmeshes(meshname, m, { skin &s = mdl.skins[i]; body; })
 
     static void setskin(char *meshname, char *tex, char *masks, float *envmapmax, float *envmapmin)
     {
-        loopskins(meshname, s,
+        ForEachSkin(meshname, [&](skin& s)
+        {
             s.tex = textureload(makerelpath(MDL::dir.c_str(), tex), 0, true, false);
             if(*masks)
             {
@@ -605,87 +651,148 @@ template<class MDL, class MESH> struct modelcommands
                 s.envmapmax = *envmapmax;
                 s.envmapmin = *envmapmin;
             }
-        );
+        });
     }
 
     static void setspec(char *meshname, float *percent)
     {
         float spec = *percent > 0 ? *percent/100.0f : 0.0f;
-        loopskins(meshname, s, s.spec = spec);
+        ForEachSkin(meshname, [&](skin& s)
+        {
+            s.spec = spec;
+        });
     }
 
     static void setgloss(char *meshname, int *gloss)
     {
-        loopskins(meshname, s, s.gloss = clamp(*gloss, 0, 2));
+        ForEachSkin(meshname, [&](skin& s)
+        {
+            s.gloss = clamp(*gloss, 0, 2);
+        });
     }
 
     static void setglow(char *meshname, float *percent, float *delta, float *pulse)
     {
-        float glow = *percent > 0 ? *percent/100.0f : 0.0f, glowdelta = *delta/100.0f, glowpulse = *pulse > 0 ? *pulse/1000.0f : 0;
+        float glow = *percent > 0 ? *percent/100.0f : 0.0f;
+        float glowdelta = *delta/100.0f;
+        float glowpulse = *pulse > 0 ? *pulse/1000.0f : 0;
         glowdelta -= glow;
-        loopskins(meshname, s, { s.glow = glow; s.glowdelta = glowdelta; s.glowpulse = glowpulse; });
+        ForEachSkin(meshname, [&](skin& s)
+        {
+            s.glow = glow;
+            s.glowdelta = glowdelta;
+            s.glowpulse = glowpulse;
+        });
     }
 
     static void setalphatest(char *meshname, float *cutoff)
     {
-        loopskins(meshname, s, s.alphatest = max(0.0f, min(1.0f, *cutoff)));
+        ForEachSkin(meshname, [&](skin& s)
+        {
+            s.alphatest = max(0.0f, min(1.0f, *cutoff));
+        });
     }
 
     static void setcullface(char *meshname, int *cullface)
     {
-        loopskins(meshname, s, s.cullface = *cullface);
+        ForEachSkin(meshname, [&](skin& s)
+        {
+            s.cullface = *cullface;
+        });
     }
 
     static void setcolor(char *meshname, float *r, float *g, float *b)
     {
-        loopskins(meshname, s, s.color = vec(*r, *g, *b));
+        ForEachSkin(meshname, [&](skin& s)
+        {
+            s.color = vec(*r, *g, *b);
+        });
     }
 
     static void setenvmap(char *meshname, char *envmap)
     {
         Texture *tex = cubemapload(envmap);
-        loopskins(meshname, s, s.envmap = tex);
+        ForEachSkin(meshname, [&](skin& s)
+        {
+            s.envmap = tex;
+        });
     }
 
     static void setbumpmap(char *meshname, char *normalmapfile)
     {
         Texture *normalmaptex = textureload(makerelpath(MDL::dir.c_str(), normalmapfile), 0, true, false);
-        loopskins(meshname, s, s.normalmap = normalmaptex);
+        ForEachSkin(meshname, [&](skin& s)
+        {
+            s.normalmap = normalmaptex;
+        });
     }
 
     static void setdecal(char *meshname, char *decal)
     {
-        loopskins(meshname, s,
+        ForEachSkin(meshname, [&](skin& s)
+        {
             s.decal = textureload(makerelpath(MDL::dir.c_str(), decal), 0, true, false);
-        );
+        });
     }
 
     static void setfullbright(char *meshname, float *fullbright)
     {
-        loopskins(meshname, s, s.fullbright = *fullbright);
+        ForEachSkin(meshname, [&](skin& s)
+        {
+            s.fullbright = *fullbright;
+        });
     }
 
     static void setshader(char *meshname, char *shader)
     {
-        loopskins(meshname, s, s.shader = lookupshaderbyname(shader));
+        ForEachSkin(meshname, [&](skin& s)
+        {
+            s.shader = lookupshaderbyname(shader);
+        });
     }
 
     static void setscroll(char *meshname, float *scrollu, float *scrollv)
     {
-        loopskins(meshname, s, { s.scrollu = *scrollu; s.scrollv = *scrollv; });
+        ForEachSkin(meshname, [&](skin& s)
+        {
+            s.scrollu = *scrollu;
+            s.scrollv = *scrollv;
+        });
     }
 
     static void setnoclip(char *meshname, int *noclip)
     {
-        loopmeshes(meshname, m, m.noclip = *noclip!=0);
+        ForEachMesh(meshname, [&](MESH& m)
+        {
+            m.noclip = *noclip!=0;
+        });
     }
 
     static void settricollide(char *meshname)
     {
         bool init = true;
-        loopmeshes("*", m, { if(!m.cancollide) init = false; });
-        if(init) loopmeshes("*", m, m.cancollide = false);
-        loopmeshes(meshname, m, { m.cancollide = true; m.canrender = false; });
+        ForEachMesh(meshname, [&](MESH& m)
+        {
+            if(!m.cancollide)
+            {
+                init = false;
+            }
+        });
+
+        if(init)
+        {
+            ForEachMesh("*", [](MESH& m)
+            {
+                m.cancollide = false;
+            });
+        }
+
+        ForEachMesh(meshname, [](MESH& m)
+        {
+            m.cancollide = true;
+            m.canrender = false;
+        });
+
         MDL::loading->collide = COLLIDE_TRI;
     }
 
@@ -693,7 +800,7 @@ template<class MDL, class MESH> struct modelcommands
     {
         if(!MDL::loading)
         {
-            conoutf("not loading an %s", MDL::formatname());
+            conoutf("skelmodel: not loading an %s", MDL::formatname());
             return;
         }
         if(!MDL::loading->parts.inrange(*parent) || !MDL::loading->parts.inrange(*child))

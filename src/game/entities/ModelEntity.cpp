@@ -24,18 +24,6 @@
 //extern inline void transformbb(const Entity *e, vec &center, vec &radius);
 //extern inline void mmboundbox(const Entity *e, model *m, vec &center, vec &radius);
 
-
-ModelEntity::ModelEntity()
-{
-//	et_type = ET_MAPMODEL;
-//    ent_type = ENT_INANIMATE;
-//    game_type = GAMEENTITY;
-    physstate = PHYS_FALL;
-    collidetype = COLLIDE_TRI;
-
-    setAttribute("name", "model");
-}
-
 ModelEntity::ModelEntity(const std::string &modelname)
     : ModelEntity()
 {
@@ -44,11 +32,13 @@ ModelEntity::ModelEntity(const std::string &modelname)
 }
 
 
-void ModelEntity::preload() {
+void ModelEntity::preload()
+{
 	preloadMapModel(modelname);
 }
 
-void ModelEntity::think() {
+void ModelEntity::think()
+{
 
 }
 
@@ -56,7 +46,7 @@ void ModelEntity::render(game::RenderPass pass)
 {
 	if (pass == game::RenderPass::Main)
 	{
-		rendermodel(modelname.c_str(), ANIM_MAPMODEL|ANIM_LOOP|(animation & ANIM_INDEX), o, d.z, d.y, d.x, MDL_NOBATCH | MDL_CULL_VFC | MDL_CULL_DIST | MDL_CULL_OCCLUDED, this, nullptr, curtime, curtime, size, color);
+		rendermodel(modelname.c_str(), ANIM_MAPMODEL|ANIM_LOOP|(animation & ANIM_INDEX), o, d.x, d.y, d.z, MDL_NOBATCH/* MDL_NOBATCH | MDL_CULL_VFC | MDL_CULL_DIST | MDL_CULL_OCCLUDED*/, this, nullptr, curtime, curtime, size, color);
 	}
 }
 

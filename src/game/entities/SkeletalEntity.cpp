@@ -39,7 +39,7 @@ namespace
         NUMANIMS
     };
 
-    static std::array<std::string, NUMANIMS> AnimationNameMapping {
+    static const std::array<std::string, NUMANIMS> AnimationNameMapping {
         "mapmodel",
         "dead", "dying",
         "idle", "run N", "run NE", "run E", "run SE", "run S", "run SW", "run W", "run NW",
@@ -97,9 +97,10 @@ void SkeletalEntity::FindAnimations(const std::string& pattern, vector<int> &ani
     }
 }
 
-//extern void rendermodel(const char *mdl, int anim, const vec &o, float yaw, float pitch, float roll, int flags, MovableEntity *d, modelattach *a, int basetime, int basetime2, float size, const vec4 &color);
 void SkeletalEntity::render(game::RenderPass pass)
 {
+    //extern void rendermodel(const char *mdl, int anim, const vec &o, float yaw, float pitch, float roll, int flags, MovableEntity *d, modelattach *a, int basetime, int basetime2, float size, const vec4 &color);
+//    ModelEntity::render(pass);
 }
 
 bool SkeletalEntity::onTrigger(const Entity *otherEnt, const vec &dir) {

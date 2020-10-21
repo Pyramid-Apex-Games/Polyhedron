@@ -55,11 +55,9 @@ namespace game
     void updateentities() {
         loopv(getents())
         {
-            if (getents().inrange(i)) {
+            if (getents().inrange(i))
+            {
                 send_entity_event(i, EntityEventTick());
-//                classes::BaseEntity *e = dynamic_cast<classes::BaseEntity *>(getents()[i]);
-//                if (e != NULL && e->ent_type != ENT_PLAYER)
-//                    e->think();
             }
 
         }
@@ -258,17 +256,17 @@ namespace game
     }
 
     void setupcamera() {
-        MovableEntity *target = dynamic_cast<MovableEntity*>(player1);
-        //assert(target);
-        if(target)
-        {
-            player1->strafe = target->strafe;
-            player1->move = target->move;
-            player1->d.x = target->d.x;
-            player1->d.y = target->state==CS_DEAD ? 0 : target->d.y;
-            player1->o = target->o;
-            player1->resetinterp();
-        }
+//        MovableEntity *target = dynamic_cast<MovableEntity*>(player1);
+//        //assert(target);
+//        if(target)
+//        {
+//            player1->strafe = target->strafe;
+//            player1->move = target->move;
+//            player1->d.x = target->d.x;
+//            player1->d.y = target->state==CS_DEAD ? 0 : target->d.y;
+//            player1->o = target->o;
+//            player1->resetinterp();
+//        }
     }
 
     bool allowthirdperson() {
@@ -359,18 +357,11 @@ namespace game
     }
 
     const char *gameident() {
-        return "SchizoMania";
+        return "Polyhedron";
     }
     const char *getscreenshotinfo() {
         return NULL;
     }
-
-
-// >>>>>>>>>> SCRIPTBIND >>>>>>>>>>>>>> //
-#if 0
-#include "/Users/micha/dev/ScMaMike/src/build/binding/..+game+game.binding.cpp"
-#endif
-// <<<<<<<<<< SCRIPTBIND <<<<<<<<<<<<<< //
 
 }; // namespace game.
 

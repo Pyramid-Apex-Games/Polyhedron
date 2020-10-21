@@ -5,19 +5,26 @@
 #include "engine/main/GLContext.h"
 #include "engine/main/Input.h"
 #include "shared/Easing.h"
+#include <imgui.h>
 #include <variant>
+#include <imgui_internal.h>
 
-EntityEditorMenu::EntityEditorMenu(Entity* entity)
-    : m_Entity(entity)
-    , m_AttributeTree(m_Entity->attributeTree())
+EntityEditorMenu::EntityEditorMenu(size_t entityId)
+    : m_EntityID(entityId)
     , m_AnimSlideInStart(totalmillis)
 {
+    if (!GetEntity())
+    {
+        return;
+    }
+
+    m_AttributeTree = GetEntity()->attributeTree();
     for (const auto& attribSection : m_AttributeTree)
     {
         if (attribSection.size() > 1)
         {
             m_Widgets.push_back(
-                std::make_unique<EditorWidgetGroup>(m_Entity, attribSection)
+                std::make_unique<EditorWidgetGroup>(m_EntityID, attribSection)
             );
         }
     }
@@ -27,9 +34,9 @@ void EntityEditorMenu::Render()
 {
     using namespace std::string_literals;
 
-    if (m_Closed)
-        return;
-
+//    if (!m_Open)
+//        return;
+//
     int screenw = 0, screenh = 0;
     Application::Instance().GetWindow().GetContext().GetFramebufferSize(screenw, screenh);
 
@@ -37,7 +44,8 @@ void EntityEditorMenu::Render()
     {
         float animRatio = Easing::ElasticEaseOut(float(totalmillis - m_AnimSlideInStart) / float(m_AnimSlideInDuration));
 
-        nk_begin(engine::nui::GetNKContext(), "Properties", nk_rect(screenw - m_Width * animRatio, 0, std::max(m_Width, m_Width * animRatio), screenh), 0);
+        ImGui::SetNextWindowSize(ImVec2(m_Width * animRatio, screenh));
+        ImGui::SetNextWindowPos(ImVec2(screenw - m_Width * animRatio, 0));
     }
     else if(totalmillis < m_AnimSlideOutStart + m_AnimSlideOutDuration)
     {
@@ -46,26 +54,28 @@ void EntityEditorMenu::Render()
         if (animRatio <= 0.0f)
         {
             animRatio = 0.0f;
-            m_Closed = true;
+            m_Open = false;
         }
-        nk_begin(engine::nui::GetNKContext(), "Properties", nk_rect(screenw - m_Width * animRatio, 0, std::max(m_Width, m_Width * animRatio), screenh), 0);
+        ImGui::SetNextWindowSize(ImVec2(m_Width * animRatio, screenh));
+        ImGui::SetNextWindowPos(ImVec2(screenw - m_Width * animRatio, 0));
     }
     else
     {
-        nk_begin(engine::nui::GetNKContext(), "Properties", nk_rect(screenw - m_Width, 0, m_Width, screenh), 0);
+        ImGui::SetNextWindowSize(ImVec2(m_Width, screenh));
+        ImGui::SetNextWindowPos(ImVec2(screenw - m_Width, 0));
     }
+
+    ImGui::Begin("Properties", &m_Open, ImGuiWindowFlags_NoMove);
+    ImGui::Columns(2, nullptr, true);
 
     for (auto& widgetGroup : m_Widgets)
     {
         widgetGroup->Render();
+//        ImGui::NextColumn();
     }
 
-    nk_end(engine::nui::GetNKContext());
-}
-
-bool EntityEditorMenu::HasEntity(Entity* entity)
-{
-    return entity == m_Entity;
+    ImGui::Columns(1);
+    ImGui::End();
 }
 
 void EntityEditorMenu::Hide()
@@ -79,18 +89,45 @@ void EntityEditorMenu::Show()
     {
         m_AnimSlideOutStart = 0;
         m_AnimSlideInStart = totalmillis;
-        m_Closed = false;
+        m_Open = true;
     }
 }
 
-const Entity *EntityEditorWidget::GetEntity() const
+Entity* EntityEditorMenu::GetEntity() const
 {
-    return m_Entity;
+    const auto& ents = getents();
+    if (ents.inrange(m_EntityID))
+    {
+        return ents[m_EntityID];
+    }
+    return nullptr;
 }
 
-Entity *EntityEditorWidget::GetEntity()
+bool EntityEditorMenu::HasEntity(Entity* entity) const
 {
-    return m_Entity;
+    return entity == GetEntity() && entity != nullptr;
+}
+
+const Entity* EntityEditorWidget::GetEntity() const
+{
+    const auto& ents = getents();
+    if (ents.inrange(m_EntityID))
+    {
+        return ents[m_EntityID];
+    }
+
+    return nullptr;
+}
+
+Entity* EntityEditorWidget::GetEntity()
+{
+    const auto& ents = getents();
+    if (ents.inrange(m_EntityID))
+    {
+        return ents[m_EntityID];
+    }
+
+    return nullptr;
 }
 
 const attributeRow_T &EntityEditorWidget::GetAttributes() const
@@ -100,6 +137,7 @@ const attributeRow_T &EntityEditorWidget::GetAttributes() const
 
 void InputEntityEditorWidget::Render()
 {
+    auto label = std::get<std::string>(GetAttributes()[0]);
     auto variableKey = std::get<std::string>(GetAttributes()[1]);
     auto attribValue = GetEntity()->getAttribute(variableKey);
 
@@ -113,50 +151,39 @@ void InputEntityEditorWidget::Render()
     }
 
     const auto inputFieldCount = m_InputTypeConfig->StorageCount();
-    auto placerBox = nk_rect(0.5, 0, (1.0/float(inputFieldCount)) * 0.5f, 1.0f);
-
+    if (inputFieldCount > 1)
+    {
+//        ImGui::BeginGroup();
+        ImGui::PushMultiItemsWidths(inputFieldCount, ImGui::CalcItemWidth());
+    }
     bool needsUpdate = false;
     for (int i = 0; i < inputFieldCount; ++i)
     {
+        ImGui::PushID(i);
+
         if (m_Storages.size() <= i)
         {
             m_Storages.push_back(InputStorageSpace(*(m_InputTypeConfig.get()), 255));
         }
 
+        if (i > 0)
+            ImGui::SameLine(0, ImGui::GetStyle().ItemInnerSpacing.x);
+
         m_Storages[i].Update(i);
 
-        auto padding = nk_rect(2.0f/400.0f, 2.0f/30.0f, -4.0f/400.0f, -4.0f/30.0f);
-        auto result = nk_rect(
-            placerBox.x + padding.x, placerBox.y + padding.y,
-            placerBox.w + padding.w, placerBox.h + padding.h
-        );
+        m_Storages[i].Render(inputFieldCount == 1 ? m_Label.c_str() : "", i, variableKey);
 
-        nk_layout_space_push(Context(), result);
-        placerBox.x += placerBox.w;
-
-        nk_flags event = m_Storages[i].Render(engine::nui::GetNKContext(), i, variableKey);
-
-        if (event & NK_EDIT_ACTIVATED)
+        std::string currentValue = m_Storages[i];
+        if (m_Storages[i].pointer() && m_Storages[i].inputConfig.ToString() != currentValue)
         {
-            Application::Instance().GetInput().Text(true);
-        }
-        if (event & NK_EDIT_DEACTIVATED)
-        {
-            Application::Instance().GetInput().Text(false);
-        }
-        if (event & NK_EDIT_COMMITED)
-        {
-            GetEntity()->setAttribute(variableKey, m_Storages[i]);
+            m_Storages[i].inputConfig.ToSource(currentValue, i);
+            needsUpdate = true;
         }
 
-        if (event & NK_EDIT_ACTIVE)
+        ImGui::PopID();
+        if (inputFieldCount > 1)
         {
-            std::string currentValue = m_Storages[i];
-            if (m_Storages[i].pointer() && m_Storages[i].inputConfig.ToString() != currentValue)
-            {
-                m_Storages[i].inputConfig.ToSource(currentValue, i);
-                needsUpdate = true;
-            }
+            ImGui::PopItemWidth();
         }
     }
 
@@ -165,121 +192,53 @@ void InputEntityEditorWidget::Render()
         GetEntity()->setAttribute(variableKey, m_InputTypeConfig->m_SourceVariable);
     }
 
-    if (inputFieldCount > 1)
-    {
-        nk_layout_space_end(engine::nui::GetNKContext());
-    }
+//    if (inputFieldCount > 1)
+//    {
+//        ImGui::EndGroup();
+//    }
 }
 
-nk_flags InputEntityEditorWidget::InputStorageSpace::Render(nk_context* context, int fromStorageIndex, const std::string& variable)
+void InputEntityEditorWidget::InputStorageSpace::Render(const std::string& label, int fromStorageIndex, const std::string& variable)
 {
-    nk_flags event;
-
-/*    if (std::holds_alternative<vec4>(inputConfig.m_SourceVariable))
-    {
-        assert(fromStorageIndex >= 0 && fromStorageIndex < 4 && "StorageIndex out of bounds!");
-
-        auto unwrappedVariable = std::get<vec4>(inputConfig.m_SourceVariable);
-        auto changedValue = nk_propertyf(context, ("#" + variable).c_str(), FLT_MIN, unwrappedVariable[fromStorageIndex], FLT_MAX, 0.1f, 0.2f);
-        if (changedValue != unwrappedVariable[fromStorageIndex])
-        {
-            inputConfig.m_SourceVariable = unwrappedVariable;
-            event |= NK_EDIT_COMMITED;
-        }
-    }
-    else if (std::holds_alternative<vec>(inputConfig.m_SourceVariable))
-    {
-        assert(fromStorageIndex >= 0 && fromStorageIndex < 3 && "StorageIndex out of bounds!");
-
-        auto unwrappedVariable = std::get<vec>(inputConfig.m_SourceVariable);
-        auto changedValue = nk_propertyf(context, ("#" + variable).c_str(), FLT_MIN, unwrappedVariable[fromStorageIndex], FLT_MAX, 0.1f, 0.2f);
-        if (changedValue != unwrappedVariable[fromStorageIndex])
-        {
-            inputConfig.m_SourceVariable = unwrappedVariable;
-            event |= NK_EDIT_COMMITED;
-        }
-    }
-    else if (std::holds_alternative<ivec4>(inputConfig.m_SourceVariable))
-    {
-        assert(fromStorageIndex >= 0 && fromStorageIndex < 4 && "StorageIndex out of bounds!");
-
-        auto unwrappedVariable = std::get<ivec4>(inputConfig.m_SourceVariable);
-        auto changedValue = nk_propertyi(context, ("#" + variable).c_str(), INT_MIN, unwrappedVariable[fromStorageIndex], INT_MAX, 1, 0.2f);
-        if (changedValue != unwrappedVariable[fromStorageIndex])
-        {
-            inputConfig.m_SourceVariable = unwrappedVariable;
-            event |= NK_EDIT_COMMITED;
-        }
-    }
-    else if (std::holds_alternative<ivec>(inputConfig.m_SourceVariable))
-    {
-        assert(fromStorageIndex >= 0 && fromStorageIndex < 3 && "StorageIndex out of bounds!");
-
-        auto unwrappedVariable = std::get<ivec>(inputConfig.m_SourceVariable);
-        auto changedValue = nk_propertyi(context, ("#" + variable).c_str(), INT_MIN, unwrappedVariable[fromStorageIndex], INT_MAX, 1, 0.2f);
-        if (changedValue != unwrappedVariable[fromStorageIndex])
-        {
-            inputConfig.m_SourceVariable = unwrappedVariable;
-            event |= NK_EDIT_COMMITED;
-        }
-    }
-    else if (std::holds_alternative<int>(inputConfig.m_SourceVariable))
-    {
-        assert(fromStorageIndex >= 0 && fromStorageIndex < 3 && "StorageIndex out of bounds!");
-
-        auto unwrappedVariable = std::get<int>(inputConfig.m_SourceVariable);
-        auto changedValue = nk_propertyi(context, ("#" + variable).c_str(), INT_MIN, unwrappedVariable, INT_MAX, 1, 0.2f);
-        if (changedValue != unwrappedVariable)
-        {
-            inputConfig.m_SourceVariable = unwrappedVariable;
-            event |= NK_EDIT_COMMITED;
-        }
-    }
-    else if (std::holds_alternative<float>(inputConfig.m_SourceVariable))
-    {
-        assert(fromStorageIndex >= 0 && fromStorageIndex < 3 && "StorageIndex out of bounds!");
-
-        auto unwrappedVariable = std::get<float>(inputConfig.m_SourceVariable);
-        auto changedValue = nk_propertyf(context, ("#" + variable).c_str(), FLT_MIN, unwrappedVariable, FLT_MAX, 0.1f, 0.2f);
-        if (changedValue != unwrappedVariable)
-        {
-            inputConfig.m_SourceVariable = unwrappedVariable;
-            event |= NK_EDIT_COMMITED;
-        }
-    }
-    else*/
-    {
-        event = nk_edit_string_zero_terminated(
-            context,
-            NK_EDIT_FIELD,
-            pointer(),
-            bufferSize,
-            inputConfig.GetInputFilterer()
-        );
-    }
-
-    return event;
+    ImGui::InputText(
+        "",
+        pointer(),
+        bufferSize/*,
+        ImGuiInputTextFlags_CallbackCharFilter,
+        inputConfig.GetInputFilterer()*/
+    );
 }
 
-InputEntityEditorWidget::InputEntityEditorWidget(Entity *entity, const attributeRow_T &attributes)
-    : EntityEditorWidget(entity, attributes)
+InputEntityEditorWidget::InputEntityEditorWidget(size_t entityId, const attributeRow_T &attributes)
+    : EntityEditorWidget(entityId, attributes)
 {
 }
 
 template <>
-SliderEntityEditorWidget<int>::SliderEntityEditorWidget(Entity *entity, const attributeRow_T &attributes)
-    : EntityEditorWidget(entity, attributes)
-    , nk_slider_any(&nk_slider_int)
+SliderEntityEditorWidget<int>::SliderEntityEditorWidget(size_t entityId, const attributeRow_T &attributes)
+    : EntityEditorWidget(entityId, attributes)
 {}
 
 template <>
-SliderEntityEditorWidget<float>::SliderEntityEditorWidget(Entity *entity, const attributeRow_T &attributes)
-    : EntityEditorWidget(entity, attributes)
-    , nk_slider_any(&nk_slider_float)
-{}
+void SliderEntityEditorWidget<int>::ImGuiSliderAnyImpl(const char* label, int *val, int min, int max, int step)
+{
+    ImGui::SliderInt(label, val, min, max);
+}
 
-CheckboxEntityEditorWidget::CheckboxEntityEditorWidget(Entity *entity, const attributeRow_T &attributes)
-    : EntityEditorWidget(entity, attributes)
+template <>
+SliderEntityEditorWidget<float>::SliderEntityEditorWidget(size_t entityId, const attributeRow_T &attributes)
+    : EntityEditorWidget(entityId, attributes)
+{
+}
+
+template <>
+void SliderEntityEditorWidget<float>::ImGuiSliderAnyImpl(const char* label, float *val, float min, float max, float step)
+{
+    ImGui::SliderFloat(label, val, min, max);
+}
+
+CheckboxEntityEditorWidget::CheckboxEntityEditorWidget(size_t entityId, const attributeRow_T &attributes)
+    : EntityEditorWidget(entityId, attributes)
 {
 }
 
@@ -287,62 +246,53 @@ void CheckboxEntityEditorWidget::Render()
 {
     auto variableKey = std::get<std::string>(GetAttributes()[1]);
     auto variable = GetEntity()->getAttribute(variableKey);
-    m_Storage = 0;
+    m_Storage = false;
     if (std::holds_alternative<bool>(variable))
     {
-        m_Storage = std::get<bool>(variable) ? 1 : 0;
+        m_Storage = std::get<bool>(variable) ? true : false;
     }
     else if (std::holds_alternative<int>(variable))
     {
-        m_Storage = std::get<int>(variable) ? 1 : 0;
+        m_Storage = std::get<int>(variable) ? true : false;
     }
 
-    int workValue = m_Storage;
+    bool workValue = m_Storage;
 
-    auto bounds = nk_rect(0.5f, 0.0f, 0.5f, 1.0f);
-    auto padding = nk_rect(2.0f/400.0f, 2.0f/30.0f, -4.0f/400.0f, -4.0f/30.0f);
-    auto result = nk_rect(
-        bounds.x + padding.x, bounds.y + padding.y,
-        bounds.w + padding.w, bounds.h + padding.h
-    );
-    nk_layout_space_push(Context(), result);
-
-    nk_checkbox_label(engine::nui::GetNKContext(), "", &workValue);
+    ImGui::Checkbox("", &workValue);
 
     if (workValue != m_Storage)
     {
         if (std::holds_alternative<bool>(variable))
         {
-            GetEntity()->setAttribute(variableKey, workValue == 1 ? true : false);
+            GetEntity()->setAttribute(variableKey, workValue ? true : false);
         }
         else if (std::holds_alternative<int>(variable))
         {
-            GetEntity()->setAttribute(variableKey, workValue);
+            GetEntity()->setAttribute(variableKey, workValue ? 1 : 0);
         }
 
         m_Storage = workValue;
     }
 }
 
-nk_context *EditorRenderable::Context()
-{
-    return engine::nui::GetNKContext();
-}
+//ImGuiContext& EditorRenderable::Context()
+//{
+//    return ImGui;
+//}
 
 void WidgetLabelPair::Render()
 {
-//    nk_layout_row_dynamic(Context(), 30, 2);
-    nk_layout_space_begin(Context(), NK_DYNAMIC, 30, 5);
-    auto bounds = nk_rect(0.0f, 0.0f, 0.5f, 1.0f);
-    nk_layout_space_push(Context(), bounds);
-    nk_label(Context(), m_Label.c_str(), NK_TEXT_LEFT);
+    ImGui::PushID(m_Label.c_str());
+    ImGui::Text(m_Label.c_str());
+    ImGui::NextColumn();
 
+    ImGui::SetNextItemWidth(-1);
     m_Widget->Render();
-
-    nk_layout_space_end(Context());
+    ImGui::NextColumn();
+    ImGui::PopID();
 }
 
-EditorWidgetGroup::EditorWidgetGroup(Entity* entity, const attributeList_T& attributeList)
+EditorWidgetGroup::EditorWidgetGroup(size_t entityId, const attributeList_T& attributeList)
 {
     using namespace std::string_literals;
 
@@ -354,16 +304,24 @@ EditorWidgetGroup::EditorWidgetGroup(Entity* entity, const attributeList_T& attr
         }
         else
         {
-            AppendWidget(entity, attrRow);
+            AppendWidget(entityId, attrRow);
         }
     }
 }
 
-void EditorWidgetGroup::AppendWidget(Entity* entity, const attributeRow_T& attributes)
+void EditorWidgetGroup::AppendWidget(size_t entityId, const attributeRow_T& attributes)
 {
+    const auto& ents = getents();
+    if (!ents.inrange(entityId))
+    {
+        return;
+    }
+    auto entity = ents[entityId];
+
     using namespace std::string_literals;
     auto widgetType = std::get<std::string>(attributes[0]);
     auto variableKey = std::get<std::string>(attributes[1]);
+    auto label = std::get<std::string>(attributes[2]);
 
     if (widgetType == "slider"s)
     {
@@ -372,8 +330,8 @@ void EditorWidgetGroup::AppendWidget(Entity* entity, const attributeRow_T& attri
         {
             m_Widgets.push_back(
                 std::make_unique<WidgetLabelPair>(
-                    std::get<std::string>(attributes[2]),
-                    std::make_unique<SliderEntityEditorWidget<float> >(entity, attributes)
+                    label,
+                    std::make_unique<SliderEntityEditorWidget<float> >(entityId, attributes)
                 )
             );
         }
@@ -381,8 +339,8 @@ void EditorWidgetGroup::AppendWidget(Entity* entity, const attributeRow_T& attri
         {
             m_Widgets.push_back(
                 std::make_unique<WidgetLabelPair>(
-                    std::get<std::string>(attributes[2]),
-                    std::make_unique<SliderEntityEditorWidget<int> >(entity, attributes)
+                    label,
+                    std::make_unique<SliderEntityEditorWidget<int> >(entityId, attributes)
                 )
             );
         }
@@ -391,8 +349,8 @@ void EditorWidgetGroup::AppendWidget(Entity* entity, const attributeRow_T& attri
     {
         m_Widgets.push_back(
             std::make_unique<WidgetLabelPair>(
-                std::get<std::string>(attributes[2]),
-                std::make_unique<CheckboxEntityEditorWidget>(entity, attributes)
+                label,
+                std::make_unique<CheckboxEntityEditorWidget>(entityId, attributes)
             )
         );
     }
@@ -407,8 +365,8 @@ void EditorWidgetGroup::AppendWidget(Entity* entity, const attributeRow_T& attri
     {
         m_Widgets.push_back(
             std::make_unique<WidgetLabelPair>(
-                std::get<std::string>(attributes[2]),
-                std::make_unique<InputEntityEditorWidget>(entity, attributes)
+                label,
+                std::make_unique<InputEntityEditorWidget>(entityId, attributes)
             )
         );
     }
@@ -416,8 +374,8 @@ void EditorWidgetGroup::AppendWidget(Entity* entity, const attributeRow_T& attri
     {
         m_Widgets.push_back(
             std::make_unique<WidgetLabelPair>(
-                std::get<std::string>(attributes[2]),
-                std::make_unique<DummyEntityEditorWidget>(entity, attributes)
+                label,
+                std::make_unique<DummyEntityEditorWidget>(entityId, attributes)
             )
         );
     }
@@ -425,49 +383,41 @@ void EditorWidgetGroup::AppendWidget(Entity* entity, const attributeRow_T& attri
 
 void EditorWidgetGroup::Render()
 {
-//    nk_layout_row_dynamic(Context(), 30, 1);
-//    nk_layout_row_template_begin(Context(), 30);
-//    auto bounds = nk_layout_widget_bounds(Context());
-//    nk_layout_row_template_push_static(Context(), bounds.w);
-
-    m_OpenState = nk_tree_push_hashed(
-        Context(),
-        NK_TREE_TAB,
-        m_Label.c_str(),
-        NK_MAXIMIZED,
-        m_Label.c_str(),
-        m_Label.size(),
-        int((*(int*)this) & 0xFFFFFFFF)
-    );
-    if (m_OpenState)
+    ImGui::AlignTextToFramePadding();
+    ImGui::SetNextItemOpen(m_OpenState, ImGuiCond_Once);
+    if (ImGui::TreeNode(m_Label.c_str()))
     {
-
-//    nk_label(Context(), m_Label.c_str(), NK_TEXT_CENTERED);
-
-//        nk_layout_row_template_end(Context());
+        ImGui::NextColumn();
+        ImGui::AlignTextToFramePadding();
+        ImGui::Text("");
+        ImGui::NextColumn();
 
         for (auto &widget : m_Widgets) {
             widget->Render();
         }
 
-        nk_tree_pop(Context());
+        ImGui::TreePop();
+        m_OpenState = true;
+    }
+    else
+    {
+        ImGui::NextColumn();
+        ImGui::AlignTextToFramePadding();
+        ImGui::Text("");
+        ImGui::NextColumn();
+        m_OpenState = false;
     }
 }
 
-DummyEntityEditorWidget::DummyEntityEditorWidget(Entity *entity, const attributeRow_T &attributes)
-    : EntityEditorWidget(entity, attributes)
+DummyEntityEditorWidget::DummyEntityEditorWidget(size_t entityId, const attributeRow_T &attributes)
+    : EntityEditorWidget(entityId, attributes)
     , m_Storage(std::get<std::string>(attributes[0]))
 {
 }
 
 void DummyEntityEditorWidget::Render()
 {
-    auto bounds = nk_layout_widget_bounds(Context());
-    bounds.w *= 0.5f;
-    bounds.x += bounds.w;
-    nk_layout_space_push(Context(), bounds);
-
-    nk_label(Context(), ("-(" + m_Storage + ")-").c_str(), NK_TEXT_CENTERED);
+    ImGui::Text(m_Storage.c_str());
 }
 
 std::string InputEntityEditorWidget::InputTypeConfig::ToString(int fromStorageIndex)
@@ -593,11 +543,17 @@ AttributeVisitCoercer<float> InputEntityEditorWidget::InputTypeConfig::floatConv
 AttributeVisitCoercer<int> InputEntityEditorWidget::InputTypeConfig::intConverter;
 AttributeVisitCoercer<bool> InputEntityEditorWidget::InputTypeConfig::boolConverter;
 
+namespace {
+    int InputFilterAny(ImGuiInputTextCallbackData* data)
+    {
+        return 1;
+    }
+}
 
-InputEntityEditorWidget::InputTypeConfig::nk_filter_func_t
+InputEntityEditorWidget::InputTypeConfig::filter_func_t
 InputEntityEditorWidget::InputTypeConfig::GetInputFilterer() const
 {
-    if (std::holds_alternative<std::string>(m_SourceVariable))
+    /*if (std::holds_alternative<std::string>(m_SourceVariable))
     {
         return &nk_filter_ascii;
     }
@@ -628,9 +584,9 @@ InputEntityEditorWidget::InputTypeConfig::GetInputFilterer() const
     else if (std::holds_alternative<ivec>(m_SourceVariable))
     {
         return &nk_filter_decimal;
-    }
+    }*/
 
-    return &nk_filter_default;
+    return &InputFilterAny;
 }
 
 

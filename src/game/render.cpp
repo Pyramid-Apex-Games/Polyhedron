@@ -15,6 +15,9 @@ namespace game
 			
 			entity->renderImpl(pass);
         }
+
+        if (player1)
+            player1->renderImpl(pass);
     }
 
     VARP(hudgun, 0, 1, 1);
@@ -56,6 +59,7 @@ namespace game
 
     __attribute__((used)) void findanims(const char *pattern, vector<int> &anims)
     {
+        SkeletalEntity::FindAnimations(pattern, anims);
 //        loopi(sizeof(animnames)/sizeof(animnames[0])) if(matchanim(animnames[i], pattern)) anims.add(i);
     }
 
@@ -78,10 +82,3 @@ SCRIPTEXPORT int getplayercolor(int team, int color)
         default: return 0xFFFF77;
     }
 }
-
-
-// >>>>>>>>>> SCRIPTBIND >>>>>>>>>>>>>> //
-#if 0
-#include "/Users/micha/dev/ScMaMike/src/build/binding/..+game+render.binding.cpp"
-#endif
-// <<<<<<<<<< SCRIPTBIND <<<<<<<<<<<<<< //

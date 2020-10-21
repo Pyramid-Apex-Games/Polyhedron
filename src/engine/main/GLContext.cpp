@@ -106,3 +106,8 @@ void GLContext::GetFramebufferSize(int& w, int& h) const
     w = m_ContextState.FrameBufferWidth;
     h = m_ContextState.FrameBufferHeight;
 }
+
+SDL_GLContext GLContext::GetContextHandle() const
+{
+    return m_Context;
+}

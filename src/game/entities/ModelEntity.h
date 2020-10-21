@@ -7,7 +7,7 @@
 class ModelEntity : public MovableEntity {
     ENTITY_FACTORY_IMPL(ModelEntity);
 public:
-    ModelEntity();
+    ModelEntity() = default;
     ModelEntity(const std::string &filename);
 
     virtual void preload();
@@ -26,7 +26,7 @@ private:
 
 private:
     DONTSERIALIZE mapmodelinfo mmi;
-    PHUI_INPUT("Animation id") int animation = 0;
+    PHUI_INPUT("Animation id") int animation = 5;
     PHUI_INPUT("Size") float size = 1.0f;
     DONTSERIALIZE vec4 color = {1.0f, 1.0f, 1.0f, 1.0f};
     PHUI_INPUT("Model") std::string modelname;

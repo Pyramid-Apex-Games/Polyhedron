@@ -24,6 +24,11 @@ template <class T> struct vector
 
     ~vector() { shrink(0); if(buf) delete[] (uchar *)buf; }
 
+    T* begin() { return buf; }
+    const T * begin() const { return buf; }
+    T* end() { return buf + ulen; }
+    const T * end() const { return buf + ulen; }
+
     vector<T> &operator=(const vector<T> &v)
     {
         shrink(0);

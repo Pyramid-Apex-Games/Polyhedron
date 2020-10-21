@@ -175,13 +175,8 @@ static const char *finddecls(const char *line)
 
 extern int amd_eal_bug;
 
-static void compileglslshader(Shader &s, GLenum type, GLuint &obj, const char *def, const char *name, bool msg = true)
+std::string GetShaderVersionHeader()
 {
-    const char *source = def + strspn(def, " \t\r\n");
-    char *modsource = NULL;
-    const char *parts[16];
-    int numparts = 0;
-
     struct OpenGLShaderVersion {
         int version;
         std::string header;
@@ -192,7 +187,7 @@ static void compileglslshader(Shader &s, GLenum type, GLuint &obj, const char *d
     };
 
 #ifndef OPEN_GL_ES
-    const std::array<OpenGLShaderVersion, 7> glslVersions {
+    static const std::array<OpenGLShaderVersion, 7> glslVersions {
         OpenGLShaderVersion { 400, "#version 400\n" },
         OpenGLShaderVersion { 330, "#version 330\n" },
         OpenGLShaderVersion { 320, "#version 150\n" },
@@ -202,7 +197,7 @@ static void compileglslshader(Shader &s, GLenum type, GLuint &obj, const char *d
         OpenGLShaderVersion { 120, "#version 120\n" }
     };
 #else
-    const std::array<OpenGLShaderVersion, 6> glslVersions {
+    static const std::array<OpenGLShaderVersion, 6> glslVersions {
         OpenGLShaderVersion { 400, "#version 400\n" },
         OpenGLShaderVersion { 330, "#version 330 es\nprecision mediump float;\nprecision mediump sampler3D;\n" },
         OpenGLShaderVersion { 320, "#version 320 es\nprecision mediump float;\nprecision mediump sampler3D;\n" },
@@ -213,10 +208,22 @@ static void compileglslshader(Shader &s, GLenum type, GLuint &obj, const char *d
 #endif
     for(auto glslVersion : glslVersions) {
         if (GLFeatures::ShaderVersion() >= glslVersion.version) {
-            parts[numparts++] = glslVersion.header.c_str();
-            break;
+            return glslVersion.header;
         }
     }
+
+    return "#version 100";
+}
+
+static void compileglslshader(Shader &s, GLenum type, GLuint &obj, const char *def, const char *name, bool msg = true)
+{
+    const char *source = def + strspn(def, " \t\r\n");
+    char *modsource = NULL;
+    const char *parts[16];
+    int numparts = 0;
+
+    parts[numparts++] = GetShaderVersionHeader().c_str();
+
     if(GLFeatures::ShaderVersion() < 140)
     {
         parts[numparts++] = "#extension GL_ARB_texture_rectangle : enable\n";

@@ -2879,119 +2879,119 @@ namespace UI
         }
     };
 
-    struct ModelPreview : Preview
-    {
-        std::string name;
-        int anim = -1;
-
-        void setup(const char *name_, const char *animspec, float minw_, float minh_)
-        {
-            Preview::setup(minw_, minh_);
-
-            anim = ANIM_ALL;
-            if(animspec[0])
-            {
-                if(isdigit(animspec[0]))
-                {
-                    anim = parseint(animspec);
-                    if(anim >= 0) anim %= ANIM_INDEX;
-                    else anim = ANIM_ALL;
-                }
-                else
-                {
-                    vector<int> anims;
-                    game::findanims(animspec, anims);
-                    if(anims.length()) anim = anims[0];
-                }
-            }
-            anim |= ANIM_LOOP;
-        }
-
-        static const char *typestr() { return "#ModelPreview"; }
-        const char *gettype() const { return typestr(); }
-
-        void draw(float sx, float sy)
-        {
-            Object::draw(sx, sy);
-
-            changedraw(CHANGE_SHADER);
-
-            int sx1, sy1, sx2, sy2;
-            window->calcscissor(sx, sy, sx+w, sy+h, sx1, sy1, sx2, sy2, false);
-            modelpreview::start(sx1, sy1, sx2-sx1, sy2-sy1, false, clipstack.length() > 0);
-            auto [m, loadedName] = loadmodel(name);
-            if(m)
-            {
-                vec center, radius;
-                m->boundbox(center, radius);
-                float yaw;
-                vec o = calcmodelpreviewpos(radius, yaw).sub(center);
-                rendermodel(name.c_str(), anim, o, yaw, 0, 0, 0, NULL, NULL, 0);
-            }
-            if(clipstack.length()) clipstack.last().scissor();
-            modelpreview::end();
-        }
-    };
-
-    struct PlayerPreview : Preview
-    {
-        int model, color, team, weapon;
-
-        void setup(int model_, int color_, int team_, int weapon_, float minw_, float minh_)
-        {
-            Preview::setup(minw_, minh_);
-            model = model_;
-            color = color_;
-            team = team_;
-            weapon = weapon_;
-        }
-
-        static const char *typestr() { return "#PlayerPreview"; }
-        const char *gettype() const { return typestr(); }
-
-        void draw(float sx, float sy)
-        {
-            Object::draw(sx, sy);
-
-            changedraw(CHANGE_SHADER);
-
-            int sx1, sy1, sx2, sy2;
-            window->calcscissor(sx, sy, sx+w, sy+h, sx1, sy1, sx2, sy2, false);
-            modelpreview::start(sx1, sy1, sx2-sx1, sy2-sy1, false, clipstack.length() > 0);
-            game::renderplayerpreview(model, color, team, weapon);
-            if(clipstack.length()) clipstack.last().scissor();
-            modelpreview::end();
-        }
-    };
-
-    struct PrefabPreview : Preview
-    {
-        std::string name;
-        vec color;
-
-        void setup(const char *name_, int color_, float minw_, float minh_)
-        {
-            Preview::setup(minw_, minh_);
-            color = vec::hexcolor(color_);
-        }
-
-        static const char *typestr() { return "#PrefabPreview"; }
-        const char *gettype() const { return typestr(); }
-
-        void draw(float sx, float sy)
-        {
-            Object::draw(sx, sy);
-
-            changedraw(CHANGE_SHADER);
-
-            int sx1, sy1, sx2, sy2;
-            window->calcscissor(sx, sy, sx+w, sy+h, sx1, sy1, sx2, sy2, false);
-            modelpreview::start(sx1, sy1, sx2-sx1, sy2-sy1, false, clipstack.length() > 0);
-            previewprefab(name.c_str(), color);
-            if(clipstack.length()) clipstack.last().scissor();
-            modelpreview::end();
-        }
-    };
+//    struct ModelPreview : Preview
+//    {
+//        std::string name;
+//        int anim = -1;
+//
+//        void setup(const char *name_, const char *animspec, float minw_, float minh_)
+//        {
+//            Preview::setup(minw_, minh_);
+//
+//            anim = ANIM_ALL;
+//            if(animspec[0])
+//            {
+//                if(isdigit(animspec[0]))
+//                {
+//                    anim = parseint(animspec);
+//                    if(anim >= 0) anim %= ANIM_INDEX;
+//                    else anim = ANIM_ALL;
+//                }
+//                else
+//                {
+//                    vector<int> anims;
+//                    game::findanims(animspec, anims);
+//                    if(anims.length()) anim = anims[0];
+//                }
+//            }
+//            anim |= ANIM_LOOP;
+//        }
+//
+//        static const char *typestr() { return "#ModelPreview"; }
+//        const char *gettype() const { return typestr(); }
+//
+//        void draw(float sx, float sy)
+//        {
+//            Object::draw(sx, sy);
+//
+//            changedraw(CHANGE_SHADER);
+//
+//            int sx1, sy1, sx2, sy2;
+//            window->calcscissor(sx, sy, sx+w, sy+h, sx1, sy1, sx2, sy2, false);
+//            modelpreview::start(sx1, sy1, sx2-sx1, sy2-sy1, false, clipstack.length() > 0);
+//            auto [m, loadedName] = loadmodel(name);
+//            if(m)
+//            {
+//                vec center, radius;
+//                m->boundbox(center, radius);
+//                float yaw;
+//                vec o = calcmodelpreviewpos(radius, yaw).sub(center);
+//                rendermodel(name.c_str(), anim, o, yaw, 0, 0, 0, NULL, NULL, 0);
+//            }
+//            if(clipstack.length()) clipstack.last().scissor();
+//            modelpreview::end();
+//        }
+//    };
+//
+//    struct PlayerPreview : Preview
+//    {
+//        int model, color, team, weapon;
+//
+//        void setup(int model_, int color_, int team_, int weapon_, float minw_, float minh_)
+//        {
+//            Preview::setup(minw_, minh_);
+//            model = model_;
+//            color = color_;
+//            team = team_;
+//            weapon = weapon_;
+//        }
+//
+//        static const char *typestr() { return "#PlayerPreview"; }
+//        const char *gettype() const { return typestr(); }
+//
+//        void draw(float sx, float sy)
+//        {
+//            Object::draw(sx, sy);
+//
+//            changedraw(CHANGE_SHADER);
+//
+//            int sx1, sy1, sx2, sy2;
+//            window->calcscissor(sx, sy, sx+w, sy+h, sx1, sy1, sx2, sy2, false);
+//            modelpreview::start(sx1, sy1, sx2-sx1, sy2-sy1, false, clipstack.length() > 0);
+//            game::renderplayerpreview(model, color, team, weapon);
+//            if(clipstack.length()) clipstack.last().scissor();
+//            modelpreview::end();
+//        }
+//    };
+//
+//    struct PrefabPreview : Preview
+//    {
+//        std::string name;
+//        vec color;
+//
+//        void setup(const char *name_, int color_, float minw_, float minh_)
+//        {
+//            Preview::setup(minw_, minh_);
+//            color = vec::hexcolor(color_);
+//        }
+//
+//        static const char *typestr() { return "#PrefabPreview"; }
+//        const char *gettype() const { return typestr(); }
+//
+//        void draw(float sx, float sy)
+//        {
+//            Object::draw(sx, sy);
+//
+//            changedraw(CHANGE_SHADER);
+//
+//            int sx1, sy1, sx2, sy2;
+//            window->calcscissor(sx, sy, sx+w, sy+h, sx1, sy1, sx2, sy2, false);
+//            modelpreview::start(sx1, sy1, sx2-sx1, sy2-sy1, false, clipstack.length() > 0);
+//            previewprefab(name.c_str(), color);
+//            if(clipstack.length()) clipstack.last().scissor();
+//            modelpreview::end();
+//        }
+//    };
 
     VARP(uislotviewtime, 0, 25, 1000);
     static int lastthumbnail = 0;
@@ -3626,20 +3626,20 @@ namespace UI
         }, children);
     }
 
-    SCRIPTEXPORT void uimodelpreview(char *model, char *animspec, float *minw, float *minh, CommandTypes::Expression children)
-    {
-        BUILD(ModelPreview, o, o->setup(model, animspec, *minw, *minh), children);
-    }
-
-    SCRIPTEXPORT void uiplayerpreview(int *model, int *color, int *team, int *weapon, float *minw, float *minh, CommandTypes::Expression children)
-    {
-        BUILD(PlayerPreview, o, o->setup(*model, *color, *team, *weapon, *minw, *minh), children);
-    }
-
-    SCRIPTEXPORT void uiprefabpreview(char *prefab, int *color, float *minw, float *minh, CommandTypes::Expression children)
-    {
-        BUILD(PrefabPreview, o, o->setup(prefab, *color, *minw, *minh), children);
-    }
+//    SCRIPTEXPORT void uimodelpreview(char *model, char *animspec, float *minw, float *minh, CommandTypes::Expression children)
+//    {
+//        BUILD(ModelPreview, o, o->setup(model, animspec, *minw, *minh), children);
+//    }
+//
+//    SCRIPTEXPORT void uiplayerpreview(int *model, int *color, int *team, int *weapon, float *minw, float *minh, CommandTypes::Expression children)
+//    {
+//        BUILD(PlayerPreview, o, o->setup(*model, *color, *team, *weapon, *minw, *minh), children);
+//    }
+//
+//    SCRIPTEXPORT void uiprefabpreview(char *prefab, int *color, float *minw, float *minh, CommandTypes::Expression children)
+//    {
+//        BUILD(PrefabPreview, o, o->setup(prefab, *color, *minw, *minh), children);
+//    }
 
     SCRIPTEXPORT void uislotview(int *index, float *minw, float *minh, CommandTypes::Expression children)
     {

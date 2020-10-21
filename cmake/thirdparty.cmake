@@ -1,4 +1,6 @@
 
+set(OFFLINE_MODE 1)
+
 set(BUILD_SHARED_LIBS OFF)
 set(DEPENDENCY_DOWNLOAD_DIR ${CMAKE_CURRENT_BINARY_DIR}/tmp)
 SET(CMAKE_INSTALL_PREFIX ${CMAKE_CURRENT_BINARY_DIR}/thirdparty)
@@ -20,15 +22,22 @@ macro(CopyFileIfDifferent FromFile ToFile)
     endif()
 endmacro()
 
-
-message("Fetching python")
-FetchContent_Declare(
-        PYTHON
-        SOURCE_DIR          ${CMAKE_CURRENT_BINARY_DIR}/thirdparty_sources/python
-        GIT_REPOSITORY      https://github.com/python-cmake-buildsystem/python-cmake-buildsystem
-        DOWNLOAD_DIR        ${DEPENDENCY_DOWNLOAD_DIR}
-        INSTALL_COMMAND     ""
-)
+if (OFFLINE_MODE)
+    message("Reusing python")
+    FetchContent_Declare(
+            PYTHON
+            SOURCE_DIR          ${CMAKE_CURRENT_BINARY_DIR}/thirdparty_sources/python
+            INSTALL_COMMAND     ""
+    )
+else()
+    message("Fetching python")
+    FetchContent_Declare(
+            PYTHON
+            SOURCE_DIR          ${CMAKE_CURRENT_BINARY_DIR}/thirdparty_sources/python
+            GIT_REPOSITORY      https://github.com/python-cmake-buildsystem/python-cmake-buildsystem
+            INSTALL_COMMAND     ""
+    )
+endif()
 FetchContent_GetProperties(PYTHON)
 if (NOT python_POPULATED)
     source_group(TREE python)
@@ -102,14 +111,24 @@ if (NOT python_POPULATED)
     FetchContent_MakeAvailable(PYTHON)
 endif()
 
-message("Fetching dependency: SDL2")
-FetchContent_Declare(
-    SDL2
-    SOURCE_DIR          "${CMAKE_CURRENT_BINARY_DIR}/thirdparty_sources/SDL2-2.0.12"
-    URL                 https://www.libsdl.org/release/SDL2-2.0.12.tar.gz
-    DOWNLOAD_DIR        ${DEPENDENCY_DOWNLOAD_DIR}
-    INSTALL_COMMAND     ""
-)
+if (OFFLINE_MODE)
+    message("Reusing dependency: SDL2")
+    FetchContent_Declare(
+        SDL2
+        SOURCE_DIR          "${CMAKE_CURRENT_BINARY_DIR}/thirdparty_sources/SDL2-2.0.12"
+        DOWNLOAD_DIR        ${DEPENDENCY_DOWNLOAD_DIR}
+        INSTALL_COMMAND     ""
+    )
+else()
+    message("Fetching dependency: SDL2")
+    FetchContent_Declare(
+        SDL2
+        SOURCE_DIR          "${CMAKE_CURRENT_BINARY_DIR}/thirdparty_sources/SDL2-2.0.12"
+        URL                 https://www.libsdl.org/release/SDL2-2.0.12.tar.gz
+        DOWNLOAD_DIR        ${DEPENDENCY_DOWNLOAD_DIR}
+        INSTALL_COMMAND     ""
+    )
+endif()
 FetchContent_GetProperties(SDL2)
 if (NOT sdl2_POPULATED)
     source_group(TREE SDL2)
@@ -132,15 +151,25 @@ if (NOT sdl2_POPULATED)
     )
 endif()
 
-message("Fetching dependency: OGG")
-FetchContent_Declare(
-        OGG
-        SOURCE_DIR          "${CMAKE_CURRENT_BINARY_DIR}/thirdparty_sources/libogg-1.3.4"
-        URL                 https://ftp.osuosl.org/pub/xiph/releases/ogg/libogg-1.3.4.tar.gz
-                            #http://downloads.xiph.org/releases/ogg/libogg-1.3.4.tar.gz
-        DOWNLOAD_DIR        ${DEPENDENCY_DOWNLOAD_DIR}
-        INSTALL_COMMAND     ""
-)
+if (OFFLINE_MODE)
+    message("Reusing dependency: OGG")
+    FetchContent_Declare(
+            OGG
+            SOURCE_DIR          "${CMAKE_CURRENT_BINARY_DIR}/thirdparty_sources/libogg-1.3.4"
+            DOWNLOAD_DIR        ${DEPENDENCY_DOWNLOAD_DIR}
+            INSTALL_COMMAND     ""
+    )
+else()
+    message("Fetching dependency: OGG")
+    FetchContent_Declare(
+            OGG
+            SOURCE_DIR          "${CMAKE_CURRENT_BINARY_DIR}/thirdparty_sources/libogg-1.3.4"
+            URL                 https://ftp.osuosl.org/pub/xiph/releases/ogg/libogg-1.3.4.tar.gz
+                                #http://downloads.xiph.org/releases/ogg/libogg-1.3.4.tar.gz
+            DOWNLOAD_DIR        ${DEPENDENCY_DOWNLOAD_DIR}
+            INSTALL_COMMAND     ""
+    )
+endif()
 FetchContent_GetProperties(OGG)
 if (NOT ogg_POPULATED)
     source_group(TREE OGG)
@@ -335,6 +364,7 @@ FetchContent_Declare(
     LIBFMT
     SOURCE_DIR          ${CMAKE_CURRENT_BINARY_DIR}/thirdparty_sources/libfmt
     GIT_REPOSITORY      https://github.com/fmtlib/fmt.git
+    GIT_TAG             6.2.1
     DOWNLOAD_DIR        ${DEPENDENCY_DOWNLOAD_DIR}
     INSTALL_COMMAND     ""
 )

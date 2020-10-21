@@ -4376,10 +4376,3 @@ void clearsleep_(int *clearoverrides)
 
 COMMANDN(clearsleep, clearsleep_, "i", "builtin");
 #endif
-
-
-// >>>>>>>>>> SCRIPTBIND >>>>>>>>>>>>>> //
-#if 0
-#include "/Users/micha/dev/ScMaMike/src/build/binding/..+engine+command.binding.cpp"
-#endif
-// <<<<<<<<<< SCRIPTBIND <<<<<<<<<<<<<< //

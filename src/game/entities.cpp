@@ -58,7 +58,7 @@ const char *entmodel(const Entity *e)
     {
         return modelEnt->getModelName().c_str();
     }
-    return "";
+    return nullptr;
 }
 
 void preloadentities()

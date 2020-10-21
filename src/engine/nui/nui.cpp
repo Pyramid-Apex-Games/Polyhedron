@@ -19,6 +19,10 @@ namespace engine { namespace nui {
         NuklearPolyhedronDevice->Render();
     }
 
+    void Update()
+    {
+    }
+
     void InputProcessBegin()
     {
         NuklearPolyhedronDevice->InputProcessBegin();
@@ -80,51 +84,5 @@ namespace engine { namespace nui {
         return *NuklearPolyhedronDevice.get();
     }
 
-    namespace {
-        std::unique_ptr<EntityEditorMenu> ActiveEntityEditorMenu;
-    }
-
-    void StartEntityEditor(Entity* entity)
-    {
-        if (::editmode)
-        {
-            if (!ActiveEntityEditorMenu)
-            {
-                ActiveEntityEditorMenu = std::make_unique<EntityEditorMenu>(entity);
-            }
-            else
-            {
-                 if (ActiveEntityEditorMenu->HasEntity(entity))
-                 {
-                     ActiveEntityEditorMenu->Show();
-                 }
-                 else
-                 {
-                     ActiveEntityEditorMenu = std::make_unique<EntityEditorMenu>(entity);
-                 }
-            }
-        }
-    }
-
-    void StopEntityEditor(Entity* entity)
-    {
-        if (ActiveEntityEditorMenu && ActiveEntityEditorMenu->HasEntity(entity))
-        {
-            ActiveEntityEditorMenu->Hide();
-        }
-    }
-
-    void Update()
-    {
-        if (ActiveEntityEditorMenu)
-        {
-            ActiveEntityEditorMenu->Render();
-        }
-    }
-
-    void Reset()
-    {
-        ActiveEntityEditorMenu.release();
-    }
 }
 }

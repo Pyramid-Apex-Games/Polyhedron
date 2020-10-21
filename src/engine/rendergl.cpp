@@ -379,13 +379,10 @@ void fixcamerarange()
 
 void modifyorient(float yaw, float pitch)
 {
-    // WatIsDeze: Dunno why nobody ever checked.
-    if (!camera1 || !player) return;
-
     camera1->d.x += yaw;
     camera1->d.y += pitch;
     fixcamerarange();
-    if(camera1!=((MovableEntity*)player) && !detachedcamera)
+    if(camera1 != player && !detachedcamera)
     {
         player->d.x = camera1->d.x;
         player->d.y = camera1->d.y;
@@ -419,71 +416,70 @@ void recomputecamera()
     game::setupcamera();
     computezoom();
 
-    auto prepCamera1 = dynamic_cast<MovableEntity*>(camera1);
-    auto prepPlayer = dynamic_cast<MovableEntity*>(player);
-
-    assert(prepCamera1);
-    assert(prepPlayer);
+    assert(camera1);
+    assert(player);
 
     bool allowthirdperson = true;
     bool shoulddetach = (allowthirdperson && thirdperson > 1) || game::detachcamera();
     if((!allowthirdperson || !thirdperson) && !shoulddetach)
     {
-        *prepCamera1 = *prepPlayer;
+        camera1 = player;
 
         detachedcamera = false;
     }
     else
     {
         static MovableEntity tempcamera;
+        camera1 = &tempcamera;
 
         if(detachedcamera && shoulddetach) {
-            prepCamera1->o = prepPlayer->o;
+            camera1->o = player->o;
         } else {
-            *prepCamera1 = *prepPlayer;
+            *camera1 = *player;
 
             detachedcamera = shoulddetach;
         }
 //        prepCamera1->ent_type = ENT_CAMERA;
-        prepCamera1->move = -1;
-        prepCamera1->eyeheight = prepCamera1->aboveeye = prepCamera1->radius = prepCamera1->xradius = prepCamera1->yradius = 2;
+        camera1->move = -1;
+        camera1->eyeheight = camera1->aboveeye = camera1->radius = camera1->xradius = camera1->yradius = 2;
+
         matrix3 orient;
         orient.identity();
-        orient.rotate_around_z(prepCamera1->d.x*RAD);
-        orient.rotate_around_x(prepCamera1->d.y*RAD);
-        orient.rotate_around_y(prepCamera1->d.z*-RAD);
+        orient.rotate_around_z(camera1->d.x*RAD);
+        orient.rotate_around_x(camera1->d.y*RAD);
+        orient.rotate_around_y(camera1->d.z*-RAD);
         vec dir = vec(orient.b).neg(), side = vec(orient.a).neg(), up = orient.c;
 
         if(game::collidecamera())
         {
-            movecamera(prepCamera1, dir, thirdpersondistance, 1);
-            movecamera(prepCamera1, dir, clamp(thirdpersondistance - prepCamera1->o.dist(prepPlayer->o), 0.0f, 1.0f), 0.1f);
+            movecamera(camera1, dir, thirdpersondistance, 1);
+            movecamera(camera1, dir, clamp(thirdpersondistance - camera1->o.dist(player->o), 0.0f, 1.0f), 0.1f);
             if(thirdpersonup)
             {
-                vec pos = prepCamera1->o;
+                vec pos = camera1->o;
                 float dist = fabs(thirdpersonup);
                 if(thirdpersonup < 0) up.neg();
-                movecamera(prepCamera1, up, dist, 1);
-                movecamera(prepCamera1, up, clamp(dist - prepCamera1->o.dist(pos), 0.0f, 1.0f), 0.1f);
+                movecamera(camera1, up, dist, 1);
+                movecamera(camera1, up, clamp(dist - camera1->o.dist(pos), 0.0f, 1.0f), 0.1f);
             }
             if(thirdpersonside)
             {
-                vec pos = prepCamera1->o;
+                vec pos = camera1->o;
                 float dist = fabs(thirdpersonside);
                 if(thirdpersonside < 0) side.neg();
-                movecamera(prepCamera1, side, dist, 1);
-                movecamera(prepCamera1, side, clamp(dist - prepCamera1->o.dist(pos), 0.0f, 1.0f), 0.1f);
+                movecamera(camera1, side, dist, 1);
+                movecamera(camera1, side, clamp(dist - camera1->o.dist(pos), 0.0f, 1.0f), 0.1f);
             }
         }
         else
         {
-            prepCamera1->o.add(vec(dir).mul(thirdpersondistance));
-            if(thirdpersonup) prepCamera1->o.add(vec(up).mul(thirdpersonup));
-            if(thirdpersonside) prepCamera1->o.add(vec(side).mul(thirdpersonside));
+            camera1->o.add(vec(dir).mul(thirdpersondistance));
+            if(thirdpersonup) camera1->o.add(vec(up).mul(thirdpersonup));
+            if(thirdpersonside) camera1->o.add(vec(side).mul(thirdpersonside));
         }
     }
 
-    setviewcell(prepCamera1->o);
+    setviewcell(camera1->o);
 }
 
 float calcfrustumboundsphere(float nearplane, float farplane,  const vec &pos, const vec &view, vec &center)
@@ -1040,322 +1036,322 @@ void clipminimap(ivec &bbmin, ivec &bbmax, cube *c = worldroot, const ivec &co =
 
 void drawminimap()
 {
-    if(!game::needminimap()) { clearminimap(); return; }
-
-    if(!showminimap)
-    {
-        if(!minimaptex){
-            glCheckError(glGenTextures(1, &minimaptex));
-        }
-        createtexture(minimaptex, 1, 1, nominimapcolour.v, 3, 0, GL_RGB, GL_TEXTURE_2D);
-        return;
-    }
-
-    GLERROR;
-    renderprogress(0, "generating mini-map...", !renderedframe);
-
-    drawtex = DRAWTEX_MINIMAP;
-
-    GLERROR;
-    gl_setupframe(true);
-
-    int size = 1<<minimapsize, sizelimit = min(hwtexsize, min(gw, gh));
-    while(size > sizelimit) size /= 2;
-    if(!minimaptex){
-        glCheckError(glGenTextures(1, &minimaptex));
-    }
-
-    ivec bbmin(worldsize, worldsize, worldsize), bbmax(0, 0, 0);
-    loopv(valist)
-    {
-        vtxarray *va = valist[i];
-        loopk(3)
-        {
-            if(va->geommin[k]>va->geommax[k]) continue;
-            bbmin[k] = min(bbmin[k], va->geommin[k]);
-            bbmax[k] = max(bbmax[k], va->geommax[k]);
-        }
-    }
-    if(minimapclip)
-    {
-        ivec clipmin(worldsize, worldsize, worldsize), clipmax(0, 0, 0);
-        clipminimap(clipmin, clipmax);
-        loopk(2) bbmin[k] = max(bbmin[k], clipmin[k]);
-        loopk(2) bbmax[k] = min(bbmax[k], clipmax[k]);
-    }
-
-    minimapradius = vec(bbmax).sub(vec(bbmin)).mul(0.5f);
-    minimapcenter = vec(bbmin).add(minimapradius);
-    minimapradius.x = minimapradius.y = max(minimapradius.x, minimapradius.y);
-    minimapscale = vec((0.5f - 1.0f/size)/minimapradius.x, (0.5f - 1.0f/size)/minimapradius.y, 1.0f);
-
-    MovableEntity *oldcamera = camera1;
-    static MovableEntity cmcamera;
-    cmcamera = *player;
-//    cmcamera.ent_type = ENT_CAMERA;
-    cmcamera.o = vec(minimapcenter.x, minimapcenter.y, minimapheight > 0 ? minimapheight : minimapcenter.z + minimapradius.z + 1);
-    cmcamera.d.x = 0;
-    cmcamera.d.y = -90;
-    cmcamera.d.z = 0;
-    camera1 = &cmcamera;
-    setviewcell(vec(-1, -1, -1));
-
-    float oldldrscale = ldrscale, oldldrscaleb = ldrscaleb;
-    int oldfarplane = farplane, oldvieww = vieww, oldviewh = viewh;
-    farplane = worldsize*2;
-    vieww = viewh = size;
-
-    float zscale = max(float(minimapheight), minimapcenter.z + minimapradius.z + 1) + 1;
-
-    projmatrix.ortho(-minimapradius.x, minimapradius.x, -minimapradius.y, minimapradius.y, 0, 2*zscale);
-    setcamprojmatrix();
-
-    glCheckError(glEnable(GL_CULL_FACE));
-    glCheckError(glEnable(GL_DEPTH_TEST));
-
-    xtravertsva = xtraverts = glde = gbatches = vtris = vverts = 0;
-    flipqueries();
-
-    ldrscale = 1;
-    ldrscaleb = ldrscale/255;
-
-    visiblecubes(false);
-
-    rendergbuffer();
-
-    rendershadowatlas();
-
-    shademinimap(minimapcolour.tocolor().mul(ldrscale));
-
-    if(minimapheight > 0 && minimapheight < minimapcenter.z + minimapradius.z)
-    {
-        camera1->o.z = minimapcenter.z + minimapradius.z + 1;
-        projmatrix.ortho(-minimapradius.x, minimapradius.x, -minimapradius.y, minimapradius.y, -zscale, zscale);
-        setcamprojmatrix();
-        rendergbuffer(false);
-        shademinimap();
-    }
-
-    glCheckError(glDisable(GL_DEPTH_TEST));
-    glCheckError(glDisable(GL_CULL_FACE));
-
-    farplane = oldfarplane;
-    vieww = oldvieww;
-    viewh = oldviewh;
-    ldrscale = oldldrscale;
-    ldrscaleb = oldldrscaleb;
-
-    camera1 = oldcamera;
-    drawtex = 0;
-
-    createtexture(minimaptex, size, size, NULL, 3, 1, GL_RGBA, GL_TEXTURE_2D);
-    glCheckError(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER));
-    glCheckError(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER));
-    GLfloat border[4] = { minimapcolour.x/255.0f, minimapcolour.y/255.0f, minimapcolour.z/255.0f, 1.0f };
-    glCheckError(glTexParameterfv(GL_TEXTURE_2D, GL_TEXTURE_BORDER_COLOR, border));
-    glCheckError(glBindTexture(GL_TEXTURE_2D, 0));
-
-    GLuint fbo = 0;
-    glCheckError(glGenFramebuffers_(1, &fbo));
-    glCheckError(glBindFramebuffer_(GL_FRAMEBUFFER, fbo));
-    glCheckError(glFramebufferTexture2D_(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, minimaptex, 0));
-    copyhdr(size, size, fbo);
-    glCheckError(glBindFramebuffer_(GL_FRAMEBUFFER, 0));
-    glCheckError(glDeleteFramebuffers_(1, &fbo));
-
-    glCheckError(glViewport(0, 0, hudw, hudh));
+//    if(!game::needminimap()) { clearminimap(); return; }
+//
+//    if(!showminimap)
+//    {
+//        if(!minimaptex){
+//            glCheckError(glGenTextures(1, &minimaptex));
+//        }
+//        createtexture(minimaptex, 1, 1, nominimapcolour.v, 3, 0, GL_RGB, GL_TEXTURE_2D);
+//        return;
+//    }
+//
+//    GLERROR;
+//    renderprogress(0, "generating mini-map...", !renderedframe);
+//
+//    drawtex = DRAWTEX_MINIMAP;
+//
+//    GLERROR;
+//    gl_setupframe(true);
+//
+//    int size = 1<<minimapsize, sizelimit = min(hwtexsize, min(gw, gh));
+//    while(size > sizelimit) size /= 2;
+//    if(!minimaptex){
+//        glCheckError(glGenTextures(1, &minimaptex));
+//    }
+//
+//    ivec bbmin(worldsize, worldsize, worldsize), bbmax(0, 0, 0);
+//    loopv(valist)
+//    {
+//        vtxarray *va = valist[i];
+//        loopk(3)
+//        {
+//            if(va->geommin[k]>va->geommax[k]) continue;
+//            bbmin[k] = min(bbmin[k], va->geommin[k]);
+//            bbmax[k] = max(bbmax[k], va->geommax[k]);
+//        }
+//    }
+//    if(minimapclip)
+//    {
+//        ivec clipmin(worldsize, worldsize, worldsize), clipmax(0, 0, 0);
+//        clipminimap(clipmin, clipmax);
+//        loopk(2) bbmin[k] = max(bbmin[k], clipmin[k]);
+//        loopk(2) bbmax[k] = min(bbmax[k], clipmax[k]);
+//    }
+//
+//    minimapradius = vec(bbmax).sub(vec(bbmin)).mul(0.5f);
+//    minimapcenter = vec(bbmin).add(minimapradius);
+//    minimapradius.x = minimapradius.y = max(minimapradius.x, minimapradius.y);
+//    minimapscale = vec((0.5f - 1.0f/size)/minimapradius.x, (0.5f - 1.0f/size)/minimapradius.y, 1.0f);
+//
+//    MovableEntity *oldcamera = camera1;
+//    static MovableEntity cmcamera;
+//    cmcamera = *player;
+////    cmcamera.ent_type = ENT_CAMERA;
+//    cmcamera.o = vec(minimapcenter.x, minimapcenter.y, minimapheight > 0 ? minimapheight : minimapcenter.z + minimapradius.z + 1);
+//    cmcamera.d.x = 0;
+//    cmcamera.d.y = -90;
+//    cmcamera.d.z = 0;
+//    camera1 = &cmcamera;
+//    setviewcell(vec(-1, -1, -1));
+//
+//    float oldldrscale = ldrscale, oldldrscaleb = ldrscaleb;
+//    int oldfarplane = farplane, oldvieww = vieww, oldviewh = viewh;
+//    farplane = worldsize*2;
+//    vieww = viewh = size;
+//
+//    float zscale = max(float(minimapheight), minimapcenter.z + minimapradius.z + 1) + 1;
+//
+//    projmatrix.ortho(-minimapradius.x, minimapradius.x, -minimapradius.y, minimapradius.y, 0, 2*zscale);
+//    setcamprojmatrix();
+//
+//    glCheckError(glEnable(GL_CULL_FACE));
+//    glCheckError(glEnable(GL_DEPTH_TEST));
+//
+//    xtravertsva = xtraverts = glde = gbatches = vtris = vverts = 0;
+//    flipqueries();
+//
+//    ldrscale = 1;
+//    ldrscaleb = ldrscale/255;
+//
+//    visiblecubes(false);
+//
+//    rendergbuffer();
+//
+//    rendershadowatlas();
+//
+//    shademinimap(minimapcolour.tocolor().mul(ldrscale));
+//
+//    if(minimapheight > 0 && minimapheight < minimapcenter.z + minimapradius.z)
+//    {
+//        camera1->o.z = minimapcenter.z + minimapradius.z + 1;
+//        projmatrix.ortho(-minimapradius.x, minimapradius.x, -minimapradius.y, minimapradius.y, -zscale, zscale);
+//        setcamprojmatrix();
+//        rendergbuffer(false);
+//        shademinimap();
+//    }
+//
+//    glCheckError(glDisable(GL_DEPTH_TEST));
+//    glCheckError(glDisable(GL_CULL_FACE));
+//
+//    farplane = oldfarplane;
+//    vieww = oldvieww;
+//    viewh = oldviewh;
+//    ldrscale = oldldrscale;
+//    ldrscaleb = oldldrscaleb;
+//
+//    camera1 = oldcamera;
+//    drawtex = 0;
+//
+//    createtexture(minimaptex, size, size, NULL, 3, 1, GL_RGBA, GL_TEXTURE_2D);
+//    glCheckError(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER));
+//    glCheckError(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER));
+//    GLfloat border[4] = { minimapcolour.x/255.0f, minimapcolour.y/255.0f, minimapcolour.z/255.0f, 1.0f };
+//    glCheckError(glTexParameterfv(GL_TEXTURE_2D, GL_TEXTURE_BORDER_COLOR, border));
+//    glCheckError(glBindTexture(GL_TEXTURE_2D, 0));
+//
+//    GLuint fbo = 0;
+//    glCheckError(glGenFramebuffers_(1, &fbo));
+//    glCheckError(glBindFramebuffer_(GL_FRAMEBUFFER, fbo));
+//    glCheckError(glFramebufferTexture2D_(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, minimaptex, 0));
+//    copyhdr(size, size, fbo);
+//    glCheckError(glBindFramebuffer_(GL_FRAMEBUFFER, 0));
+//    glCheckError(glDeleteFramebuffers_(1, &fbo));
+//
+//    glCheckError(glViewport(0, 0, hudw, hudh));
 }
 
 void drawcubemap(int size, const vec &o, float yaw, float pitch, const cubemapside &side, bool onlysky)
 {
-    drawtex = DRAWTEX_ENVMAP;
-
-    MovableEntity *oldcamera = camera1;
-    static MovableEntity cmcamera;
-    cmcamera = *player;
-//    cmcamera.ent_type = ENT_CAMERA;
-    cmcamera.o = o;
-    cmcamera.d.x = yaw;
-    cmcamera.d.y = pitch;
-    cmcamera.d.z = 0;
-    camera1 = &cmcamera;
-    setviewcell(camera1->o);
-
-    float fogmargin = 1 + WATER_AMPLITUDE + nearplane;
-    int fogmat = lookupmaterial(vec(camera1->o.x, camera1->o.y, camera1->o.z - fogmargin))&(MATF_VOLUME|MATF_INDEX), abovemat = MAT_AIR;
-    float fogbelow = 0;
-    if(isliquid(fogmat&MATF_VOLUME))
-    {
-        float z = findsurface(fogmat, vec(camera1->o.x, camera1->o.y, camera1->o.z - fogmargin), abovemat) - WATER_OFFSET;
-        if(camera1->o.z < z + fogmargin)
-        {
-            fogbelow = z - camera1->o.z;
-        }
-        else fogmat = abovemat;
-    }
-    else fogmat = MAT_AIR;
-    setfog(abovemat);
-
-    float oldaspect = aspect, oldfovy = fovy, oldfov = curfov, oldldrscale = ldrscale, oldldrscaleb = ldrscaleb;
-    int oldfarplane = farplane, oldvieww = vieww, oldviewh = viewh;
-    curfov = fovy = 90;
-    aspect = 1;
-    farplane = worldsize*2;
-    vieww = viewh = size;
-    projmatrix.perspective(fovy, aspect, nearplane, farplane);
-    setcamprojmatrix();
-
-    glCheckError(glEnable(GL_CULL_FACE));
-    glCheckError(glEnable(GL_DEPTH_TEST));
-
-    xtravertsva = xtraverts = glde = gbatches = vtris = vverts = 0;
-    flipqueries();
-
-    ldrscale = 1;
-    ldrscaleb = ldrscale/255;
-
-    visiblecubes();
-
-    if(onlysky)
-    {
-        preparegbuffer();
-        GLERROR;
-
-        shadesky();
-        GLERROR;
-    }
-    else
-    {
-        rendergbuffer();
-        GLERROR;
-
-        renderradiancehints();
-        GLERROR;
-
-        rendershadowatlas();
-        GLERROR;
-
-        shadegbuffer();
-        GLERROR;
-
-        if(fogmat)
-        {
-            setfog(fogmat, fogbelow, 1, abovemat);
-
-            renderwaterfog(fogmat, fogbelow);
-
-            setfog(fogmat, fogbelow, clamp(fogbelow, 0.0f, 1.0f), abovemat);
-        }
-
-        rendertransparent();
-        GLERROR;
-    }
-
-    glCheckError(glDisable(GL_DEPTH_TEST));
-    glCheckError(glDisable(GL_CULL_FACE));
-
-    aspect = oldaspect;
-    fovy = oldfovy;
-    curfov = oldfov;
-    farplane = oldfarplane;
-    vieww = oldvieww;
-    viewh = oldviewh;
-    ldrscale = oldldrscale;
-    ldrscaleb = oldldrscaleb;
-
-    camera1 = oldcamera;
-    drawtex = 0;
+//    drawtex = DRAWTEX_ENVMAP;
+//
+//    MovableEntity *oldcamera = camera1;
+//    static MovableEntity cmcamera;
+//    cmcamera = *player;
+////    cmcamera.ent_type = ENT_CAMERA;
+//    cmcamera.o = o;
+//    cmcamera.d.x = yaw;
+//    cmcamera.d.y = pitch;
+//    cmcamera.d.z = 0;
+//    camera1 = &cmcamera;
+//    setviewcell(camera1->o);
+//
+//    float fogmargin = 1 + WATER_AMPLITUDE + nearplane;
+//    int fogmat = lookupmaterial(vec(camera1->o.x, camera1->o.y, camera1->o.z - fogmargin))&(MATF_VOLUME|MATF_INDEX), abovemat = MAT_AIR;
+//    float fogbelow = 0;
+//    if(isliquid(fogmat&MATF_VOLUME))
+//    {
+//        float z = findsurface(fogmat, vec(camera1->o.x, camera1->o.y, camera1->o.z - fogmargin), abovemat) - WATER_OFFSET;
+//        if(camera1->o.z < z + fogmargin)
+//        {
+//            fogbelow = z - camera1->o.z;
+//        }
+//        else fogmat = abovemat;
+//    }
+//    else fogmat = MAT_AIR;
+//    setfog(abovemat);
+//
+//    float oldaspect = aspect, oldfovy = fovy, oldfov = curfov, oldldrscale = ldrscale, oldldrscaleb = ldrscaleb;
+//    int oldfarplane = farplane, oldvieww = vieww, oldviewh = viewh;
+//    curfov = fovy = 90;
+//    aspect = 1;
+//    farplane = worldsize*2;
+//    vieww = viewh = size;
+//    projmatrix.perspective(fovy, aspect, nearplane, farplane);
+//    setcamprojmatrix();
+//
+//    glCheckError(glEnable(GL_CULL_FACE));
+//    glCheckError(glEnable(GL_DEPTH_TEST));
+//
+//    xtravertsva = xtraverts = glde = gbatches = vtris = vverts = 0;
+//    flipqueries();
+//
+//    ldrscale = 1;
+//    ldrscaleb = ldrscale/255;
+//
+//    visiblecubes();
+//
+//    if(onlysky)
+//    {
+//        preparegbuffer();
+//        GLERROR;
+//
+//        shadesky();
+//        GLERROR;
+//    }
+//    else
+//    {
+//        rendergbuffer();
+//        GLERROR;
+//
+//        renderradiancehints();
+//        GLERROR;
+//
+//        rendershadowatlas();
+//        GLERROR;
+//
+//        shadegbuffer();
+//        GLERROR;
+//
+//        if(fogmat)
+//        {
+//            setfog(fogmat, fogbelow, 1, abovemat);
+//
+//            renderwaterfog(fogmat, fogbelow);
+//
+//            setfog(fogmat, fogbelow, clamp(fogbelow, 0.0f, 1.0f), abovemat);
+//        }
+//
+//        rendertransparent();
+//        GLERROR;
+//    }
+//
+//    glCheckError(glDisable(GL_DEPTH_TEST));
+//    glCheckError(glDisable(GL_CULL_FACE));
+//
+//    aspect = oldaspect;
+//    fovy = oldfovy;
+//    curfov = oldfov;
+//    farplane = oldfarplane;
+//    vieww = oldvieww;
+//    viewh = oldviewh;
+//    ldrscale = oldldrscale;
+//    ldrscaleb = oldldrscaleb;
+//
+//    camera1 = oldcamera;
+//    drawtex = 0;
 }
 
 VAR(modelpreviewfov, 10, 20, 100);
 VAR(modelpreviewpitch, -90, -15, 90);
 
-namespace modelpreview
-{
-    MovableEntity *oldcamera;
-    MovableEntity camera;
-
-    float oldaspect, oldfovy, oldfov, oldldrscale, oldldrscaleb;
-    int oldfarplane, oldvieww, oldviewh;
-
-    int x, y, w, h;
-    bool background, scissor;
-
-    void start(int x, int y, int w, int h, bool background, bool scissor)
-    {
-        modelpreview::x = x;
-        modelpreview::y = y;
-        modelpreview::w = w;
-        modelpreview::h = h;
-        modelpreview::background = background;
-        modelpreview::scissor = scissor;
-
-        setupgbuffer();
-
-        useshaderbyname("modelpreview");
-
-        drawtex = DRAWTEX_MODELPREVIEW;
-
-        oldcamera = camera1;
-        camera = *camera1;
-//        camera.et_type = ET_GAMESPECIFIC;
-//        camera.ent_type = ENT_CAMERA;
-//        camera.game_type = GAMEENTITY;
-        camera.o = vec(0, 0, 0);
-        camera.d.x = 0;
-        camera.d.y = modelpreviewpitch;
-        camera.d.z = 0;
-        camera1 = &camera;
-
-        oldaspect = aspect;
-        oldfovy = fovy;
-        oldfov = curfov;
-        oldldrscale = ldrscale;
-        oldldrscaleb = ldrscaleb;
-        oldfarplane = farplane;
-        oldvieww = vieww;
-        oldviewh = viewh;
-
-        aspect = w/float(h);
-        fovy = modelpreviewfov;
-        curfov = 2*atan2(tan(fovy/2*RAD), 1/aspect)/RAD;
-        farplane = 1024;
-        vieww = min(gw, w);
-        viewh = min(gh, h);
-        ldrscale = 1;
-        ldrscaleb = ldrscale/255;
-
-        projmatrix.perspective(fovy, aspect, nearplane, farplane);
-        setcamprojmatrix();
-
-        glCheckError(glEnable(GL_CULL_FACE));
-        glCheckError(glEnable(GL_DEPTH_TEST));
-
-        preparegbuffer();
-    }
-
-    void end()
-    {
-        rendermodelbatches();
-
-        glCheckError(glDisable(GL_DEPTH_TEST));
-        glCheckError(glDisable(GL_CULL_FACE));
-
-        shademodelpreview(x, y, w, h, background, scissor);
-
-        aspect = oldaspect;
-        fovy = oldfovy;
-        curfov = oldfov;
-        farplane = oldfarplane;
-        vieww = oldvieww;
-        viewh = oldviewh;
-        ldrscale = oldldrscale;
-        ldrscaleb = oldldrscaleb;
-
-        camera1 = oldcamera;
-        drawtex = 0;
-    }
-}
+//namespace modelpreview
+//{
+//    MovableEntity *oldcamera;
+//    MovableEntity camera;
+//
+//    float oldaspect, oldfovy, oldfov, oldldrscale, oldldrscaleb;
+//    int oldfarplane, oldvieww, oldviewh;
+//
+//    int x, y, w, h;
+//    bool background, scissor;
+//
+//    void start(int x, int y, int w, int h, bool background, bool scissor)
+//    {
+//        modelpreview::x = x;
+//        modelpreview::y = y;
+//        modelpreview::w = w;
+//        modelpreview::h = h;
+//        modelpreview::background = background;
+//        modelpreview::scissor = scissor;
+//
+//        setupgbuffer();
+//
+//        useshaderbyname("modelpreview");
+//
+//        drawtex = DRAWTEX_MODELPREVIEW;
+//
+//        oldcamera = camera1;
+//        camera = *camera1;
+////        camera.et_type = ET_GAMESPECIFIC;
+////        camera.ent_type = ENT_CAMERA;
+////        camera.game_type = GAMEENTITY;
+//        camera.o = vec(0, 0, 0);
+//        camera.d.x = 0;
+//        camera.d.y = modelpreviewpitch;
+//        camera.d.z = 0;
+//        camera1 = &camera;
+//
+//        oldaspect = aspect;
+//        oldfovy = fovy;
+//        oldfov = curfov;
+//        oldldrscale = ldrscale;
+//        oldldrscaleb = ldrscaleb;
+//        oldfarplane = farplane;
+//        oldvieww = vieww;
+//        oldviewh = viewh;
+//
+//        aspect = w/float(h);
+//        fovy = modelpreviewfov;
+//        curfov = 2*atan2(tan(fovy/2*RAD), 1/aspect)/RAD;
+//        farplane = 1024;
+//        vieww = min(gw, w);
+//        viewh = min(gh, h);
+//        ldrscale = 1;
+//        ldrscaleb = ldrscale/255;
+//
+//        projmatrix.perspective(fovy, aspect, nearplane, farplane);
+//        setcamprojmatrix();
+//
+//        glCheckError(glEnable(GL_CULL_FACE));
+//        glCheckError(glEnable(GL_DEPTH_TEST));
+//
+//        preparegbuffer();
+//    }
+//
+//    void end()
+//    {
+//        rendermodelbatches();
+//
+//        glCheckError(glDisable(GL_DEPTH_TEST));
+//        glCheckError(glDisable(GL_CULL_FACE));
+//
+//        shademodelpreview(x, y, w, h, background, scissor);
+//
+//        aspect = oldaspect;
+//        fovy = oldfovy;
+//        curfov = oldfov;
+//        farplane = oldfarplane;
+//        vieww = oldvieww;
+//        viewh = oldviewh;
+//        ldrscale = oldldrscale;
+//        ldrscaleb = oldldrscaleb;
+//
+//        camera1 = oldcamera;
+//        drawtex = 0;
+//    }
+//}
 
 vec calcmodelpreviewpos(const vec &radius, float &yaw)
 {

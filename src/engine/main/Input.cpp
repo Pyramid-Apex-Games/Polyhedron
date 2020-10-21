@@ -135,16 +135,19 @@ void Input::WantGrab(bool wantGrab)
 
 void Input::Text(bool enable)
 {
-    if (enable)
+    if (m_IsTyping != enable)
     {
-        SDL_StartTextInput();
-    }
-    else
-    {
-        SDL_StopTextInput();
-    }
+        if (enable)
+        {
+            SDL_StartTextInput();
+        }
+        else
+        {
+            SDL_StopTextInput();
+        }
 
-    m_IsTyping = enable;
+        m_IsTyping = enable;
+    }
 }
 
 bool Input::InterceptKey(SDL_KeyCode key)

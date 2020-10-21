@@ -39,6 +39,7 @@ include_directories(
     ext/nuklear
     ext/renderdoc
     ext/glad/include
+    ext/imgui
 )
 
 CHECK_INCLUDE_FILE(renderdoc.h HAVE_RENDERDOC_H)
@@ -341,11 +342,32 @@ list(APPEND extNuklearFiles
     ext/nuklear/nuklear_polyhedron.cpp
 )
 
-
 list(APPEND extGladFiles
     ext/glad/src/glad.c
     ext/glad/include/glad/glad.h
     ext/glad/include/KHR/khrplatform.h
+)
+
+list(APPEND extImguiFiles
+    ext/imgui/imconfig.h
+    ext/imgui/imgui.cpp
+    ext/imgui/imgui.h
+    ext/imgui/imgui_demo.cpp
+    ext/imgui/imgui_draw.cpp
+    ext/imgui/imgui_internal.h
+    ext/imgui/imgui_widgets.cpp
+    ext/imgui/imstb_rectpack.h
+    ext/imgui/imstb_textedit.h
+    ext/imgui/imstb_truetype.h
+    ext/imgui/examples/imgui_impl_sdl.h
+    ext/imgui/examples/imgui_impl_sdl.cpp
+    ext/imgui/examples/imgui_impl_opengl3.h
+    ext/imgui/examples/imgui_impl_opengl3.cpp
+)
+
+list(APPEND engineEditorFiles
+    engine/editor/ui.cpp
+    engine/editor/ui.h
 )
 
 list(APPEND fileList
@@ -355,9 +377,11 @@ list(APPEND fileList
     ${fileListGame}
     ${fileListSharedEntities}
     ${fileListGameEntities}
+    ${engineEditorFiles}
     ${extRenderdocFiles}
     ${extNuklearFiles}
     ${extGladFiles}
+    ${extImguiFiles}
 )
 
 function(GenerateBindingFor input_file ide_folder)
@@ -459,6 +483,12 @@ foreach(input_file ${fileListGameEntities})
     GenerateBindingFor(${input_file} "Generated\\\\Entities\\\\Game")
 endforeach()
 
+foreach(input_file ${engineEditorFiles})
+    GenerateBindingFor(${input_file} "Generated\\\\Engine\\\\Editor")
+endforeach()
+
+
+
 #Everything ready, now define the executables
 if (APPLE)
     list(APPEND fileListXCode
@@ -488,6 +518,13 @@ else()
         ${fileList}
     )
 endif()
+
+#Options
+target_compile_definitions(Polyhedron
+    PRIVATE
+        $<$<CONFIG:Debug>:_DEBUG>
+        $<$<CONFIG:RelWithDebInfo>:_DEBUG>
+)
 
 #Link the libraries
 target_compile_features(Polyhedron PUBLIC cxx_std_17)

@@ -1,1 +1,104 @@
-null
+[
+    {
+        "class": "light",
+        "entity": {
+            "d": {
+                "x": 0,
+                "y": 0,
+                "z": 0
+            },
+            "flags": 98,
+            "name": "coreentity_unnamed",
+            "o": {
+                "x": 554.3753662109375,
+                "y": 466.6155090332031,
+                "z": 540.5604248046875
+            }
+        },
+        "light": {
+            "lightColor": {
+                "x": -3.412682861318559e-29,
+                "y": 0.0,
+                "z": -3.365150910291082e-29
+            },
+            "lightState": 2424626184,
+            "lightStyle": 32767,
+            "radius": 4.591634678053128e-41,
+            "type": -1872353080
+        }
+    },
+    {
+        "class": "model",
+        "dynamic": {
+            "aboveeye": 2.0,
+            "blocked": false,
+            "collidetype": 2,
+            "editstate": 0,
+            "eyeheight": 7.0,
+            "maxheight": 8.0,
+            "maxspeed": 25.0,
+            "radius": 2.4000000953674316,
+            "state": 0,
+            "xradius": 1.6699999570846558,
+            "yradius": 1.6699999570846558,
+            "zmargin": 0.0
+        },
+        "entity": {
+            "d": {
+                "x": 0,
+                "y": 0,
+                "z": 0
+            },
+            "flags": 32,
+            "name": "SkeletalEntity",
+            "o": {
+                "x": 540.0,
+                "y": 476.0,
+                "z": 514.0
+            }
+        },
+        "model": {
+            "animation": 5,
+            "modelname": "actors/bones",
+            "size": 1.0
+        },
+        "movable": null
+    },
+    {
+        "class": "model",
+        "dynamic": {
+            "aboveeye": 2.0,
+            "blocked": false,
+            "collidetype": 1,
+            "editstate": 0,
+            "eyeheight": 7.0,
+            "maxheight": 8.0,
+            "maxspeed": 25.0,
+            "radius": 2.4000000953674316,
+            "state": 0,
+            "xradius": 1.6699999570846558,
+            "yradius": 1.6699999570846558,
+            "zmargin": 0.0
+        },
+        "entity": {
+            "d": {
+                "x": 0,
+                "y": 0,
+                "z": 0
+            },
+            "flags": 32,
+            "name": "coreentity_unnamed",
+            "o": {
+                "x": 550.0,
+                "y": 452.0,
+                "z": 556.0
+            }
+        },
+        "model": {
+            "animation": 5,
+            "modelname": "",
+            "size": 1.0
+        },
+        "movable": null
+    }
+]

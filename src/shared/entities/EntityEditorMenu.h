@@ -1,27 +1,27 @@
 #pragma once
 #include "EntityFactory.h"
-#include "engine/nui/nui.h"
+#include "engine/editor/ui.h"
 #include <string>
 #include <cstring>
 
 class Entity;
-struct nk_context;
+class ImGuiContext;
+class ImGuiInputTextCallbackData;
 
 class EditorRenderable
 {
 public:
     virtual void Render() = 0;
-
-protected:
-    nk_context* Context();
+    virtual ~EditorRenderable() {};
 };
 
 class EntityEditorWidget : public EditorRenderable
 {
 public:
-    EntityEditorWidget(Entity* entity, const attributeRow_T& attributes)
-        : m_Entity(entity)
+    EntityEditorWidget(size_t entityId, const attributeRow_T& attributes)
+        : m_EntityID(entityId)
         , m_Attributes(attributes)
+        , m_Label(std::get<std::string>(attributes[2]))
     {
     }
 
@@ -31,20 +31,23 @@ protected:
     const attributeRow_T& GetAttributes() const;
 
 private:
-    Entity* m_Entity;
+    size_t m_EntityID;
     const attributeRow_T& m_Attributes;
+
+protected:
+    const std::string m_Label;
 };
 
 class InputEntityEditorWidget : public EntityEditorWidget
 {
 public:
-    InputEntityEditorWidget(Entity* entity, const attributeRow_T& attributes);
+    InputEntityEditorWidget(size_t entityId, const attributeRow_T& attributes);
     void Render() override;
 
 private:
     struct InputTypeConfig
     {
-        using nk_filter_func_t = int (*)(const struct nk_text_edit*, nk_rune);
+        using filter_func_t = int (*)(ImGuiInputTextCallbackData*);
         attribute_T m_SourceVariable;
 
         std::string ToString(int fromStorageIndex = 0);
@@ -52,7 +55,7 @@ private:
         int StorageCount();
         explicit InputTypeConfig(const attribute_T variable);
         void Update(const attribute_T variable);
-        nk_filter_func_t GetInputFilterer() const;
+        filter_func_t GetInputFilterer() const;
 
 
         static AttributeVisitCoercer<std::string> stringConverter;
@@ -101,7 +104,7 @@ private:
             buffer.resize(bufferSize);
         }
 
-        nk_flags Render(nk_context* context, int fromStorageIndex, const std::string& variable);
+        void Render(const std::string& label, int fromStorageIndex, const std::string& variable);
     };
 
     std::vector<InputStorageSpace> m_Storages;
@@ -123,7 +126,7 @@ template <
 class SliderEntityEditorWidget : public EntityEditorWidget
 {
 public:
-    SliderEntityEditorWidget(Entity* entity, const attributeRow_T& attributes);
+    SliderEntityEditorWidget(size_t entityId, const attributeRow_T& attributes);
     void Render() override
     {
         auto variableKey = std::get<std::string>(GetAttributes()[1]);
@@ -135,10 +138,7 @@ public:
 
         auto workValue = m_Storage;
 
-        auto bounds = nk_rect(0.5f, 0.0f, 0.5f, 1.0f);
-        nk_layout_space_push(Context(), bounds);
-
-        nk_slider_any(Context(), minValue, &workValue, maxValue, stepValue);
+        ImGuiSliderAnyImpl("", &workValue, minValue, maxValue, stepValue);
 
         if (workValue != m_Storage)
         {
@@ -148,24 +148,24 @@ public:
     }
 
 private:
-    int (*nk_slider_any)(struct nk_context*, IntFloat min, IntFloat *val, IntFloat max, IntFloat step);
+    void ImGuiSliderAnyImpl(const char* label, IntFloat *val, IntFloat min, IntFloat max, IntFloat step);
     IntFloat m_Storage;
 };
 
 class CheckboxEntityEditorWidget : public EntityEditorWidget
 {
 public:
-    CheckboxEntityEditorWidget(Entity* entity, const attributeRow_T& attributes);
+    CheckboxEntityEditorWidget(size_t entityId, const attributeRow_T& attributes);
     void Render() override;
 
 private:
-    int m_Storage;
+    bool m_Storage;
 };
 
 class DummyEntityEditorWidget : public EntityEditorWidget
 {
 public:
-    DummyEntityEditorWidget(Entity* entity, const attributeRow_T& attributes);
+    DummyEntityEditorWidget(size_t entityId, const attributeRow_T& attributes);
     void Render() override;
 
 private:
@@ -195,33 +195,34 @@ private:
 class EditorWidgetGroup : public EditorRenderable
 {
 public:
-    explicit EditorWidgetGroup(Entity* entity, const attributeList_T& attributeList);
+    explicit EditorWidgetGroup(size_t entityId, const attributeList_T& attributeList);
 
     void Render() override;
 
 private:
-    void AppendWidget(Entity* entity, const attributeRow_T& attributes);
+    void AppendWidget(size_t entityId, const attributeRow_T& attributes);
 
     std::string m_Label;
-    int m_OpenState = 1;
+    bool m_OpenState = true;
     std::vector<std::unique_ptr<EditorRenderable> > m_Widgets;
 };
 
 class EntityEditorMenu
 {
 public:
-    explicit EntityEditorMenu(Entity* entity);
+    explicit EntityEditorMenu(size_t entityId);
 
     void Render();
 
-    bool HasEntity(Entity* entity);
     void Hide();
     void Show();
+    Entity* GetEntity() const;
+    bool HasEntity(Entity* entity) const;
 
 private:
     //Listen to global event EventEntityRemovedFromMap, if == m_Entity -> destroy
-    Entity* m_Entity;
-    bool m_Closed = false;
+    size_t m_EntityID;
+    bool m_Open = true;
     float m_Width = 400;
     int m_AnimSlideInDuration = 500;
     int m_AnimSlideOutDuration = 500;
@@ -229,7 +230,7 @@ private:
     int m_AnimSlideInStart = 0;
     int m_AnimSlideOutStart = 0;
 
-    const attributeTree_T m_AttributeTree;
+    attributeTree_T m_AttributeTree;
     std::vector<std::unique_ptr<EditorRenderable> > m_Widgets;
 };
 

@@ -223,7 +223,11 @@ struct iqm : skelloader<iqm>
                     {
                         blendcombo c;
                         int sorted = 0;
-                        loopk(4) sorted = c.addweight(sorted, mweight[k], mindex[k]);
+                        loopk(4)
+                        {
+                            assert(mindex[k] < skel->numbones && "Joint Weight out-of-bounds!");
+                            sorted = c.addweight(sorted, mweight[k], mindex[k]);
+                        }
                         mweight += 4;
                         mindex += 4;
                         c.finalize(sorted);

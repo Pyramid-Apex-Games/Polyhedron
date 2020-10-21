@@ -687,12 +687,9 @@ bool save_world(const char *mname, bool nolms)
 
     loopv(ents)
     {
-        if(nolms)
-        {
-			json eleDoc {};
-			ents[i]->saveToJson(eleDoc);
-			document[i] = eleDoc;
-        }
+        json eleDoc {};
+        ents[i]->saveToJson(eleDoc);
+        document[i] = eleDoc;
     }
 
     // Generate JSON Entity filename.

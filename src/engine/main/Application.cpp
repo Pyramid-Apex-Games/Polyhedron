@@ -19,6 +19,7 @@
 #include "engine/octaedit.h"
 #include "engine/command.h"
 #include "engine/renderparticles.h"
+#include "engine/editor/ui.h"
 #include "shared/entities/EntityFactory.h"
 #include "game/entities/SkeletalEntity.h"
 #include "shared/entities/Entity.h"
@@ -88,6 +89,7 @@ Application::Application(const CommandlineArguments& commandlineArguments)
 
 //    gl_setupframe(true);
     engine::nui::Initialize();
+    EditorUI::Initialize();
     UI::setup();
 
     m_Renderer->RenderBackground("Initializing...");
@@ -99,8 +101,17 @@ Application::Application(const CommandlineArguments& commandlineArguments)
 
     //FIXME: move to game
     game::initclient();
-    player = game::player1 = dynamic_cast<SkeletalEntity*>(game::iterdynents(0));
+    game::player1 = dynamic_cast<SkeletalEntity*>(game::iterdynents(0));
     camera1 = new MovableEntity();
+    if (thirdperson)
+    {
+        player = game::player1;
+    }
+    else
+    {
+        player = camera1;
+    }
+    player->setAttribute("model", "actors/bones");
     //emptymap(0, true, NULL, false);
 
     execfile("config/stdlib.cfg", true);
@@ -150,6 +161,7 @@ void Application::RunFrame()
 
     UI::update();
     engine::nui::Update();
+    EditorUI::Update();
     menuprocess();
     tryedit();
 
@@ -170,6 +182,7 @@ void Application::ProcessEvents()
 {
     SDL_Event event;
     engine::nui::InputProcessBegin();
+    EditorUI::InputProcessBegin();
     while(true)
     {
         if (!m_CachedEvents.empty())
@@ -187,6 +200,11 @@ void Application::ProcessEvents()
 
         if (event.type == SDL_QUIT)
             Quit();
+
+        if (EditorUI::InputEvent(event) == EditorUI::InputEventProcessState::Handled)
+        {
+            continue;
+        }
 
         if (engine::nui::InputEvent(event) == engine::nui::InputEventProcessState::Handled)
         {
@@ -224,6 +242,7 @@ void Application::ProcessEvents()
         m_Input->HandleEvent(event);
     }
     engine::nui::InputProcessEnd();
+    EditorUI::InputProcessEnd();
 }
 
 void Application::Quit()

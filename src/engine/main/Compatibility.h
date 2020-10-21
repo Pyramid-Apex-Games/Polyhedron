@@ -7,7 +7,7 @@ struct Texture;
 class MovableEntity;
 class SkeletalEntity;
 
-extern SkeletalEntity *player;
+extern MovableEntity *player;
 namespace game {
     extern SkeletalEntity *player1;
 }

@@ -24,6 +24,8 @@ struct skelmodel : animmodel
         float weights[4] = {0.0f, 0.0f, 0.0f, 0.0f};
         uchar bones[4] = {0, 0, 0, 0}, interpbones[4] = {0, 0, 0, 0};
 
+        blendcombo() = default;
+
         bool operator==(const blendcombo &c) const
         {
             loopk(4) if(bones[k] != c.bones[k]) return false;
@@ -138,6 +140,8 @@ struct skelmodel : animmodel
     {
         GLuint vbuf = 0;
         int owner = -1;
+
+        vbocacheentry() = default;
     };
 
     struct skelcacheentry : animcacheentry
@@ -149,13 +153,15 @@ struct skelmodel : animmodel
         {
             version = Shader::uniformlocversion();
         }
+
+        skelcacheentry() = default;
     };
 
     struct blendcacheentry : skelcacheentry
     {
-        int owner;
+        int owner = -1;
 
-        blendcacheentry() : owner(-1) {}
+        blendcacheentry() = default;
     };
 
     struct skelmeshgroup;
@@ -168,6 +174,8 @@ struct skelmodel : animmodel
 
         int voffset = 0, eoffset = 0, elen = 0;
         ushort minvert = 0, maxvert = 0;
+
+        skelmesh() = default;
 
         virtual ~skelmesh()
         {
@@ -458,23 +466,22 @@ struct skelmodel : animmodel
         skelanimspec *findskelanim(const std::string& name, char sep = '\0')
         {
             int len = sep ? name.length() : 0;
-            loopv(skelanims)
+            for(auto& skelanim : skelanims)
             {
-                if(!skelanims[i].name.empty())
+                if(!skelanim.name.empty())
                 {
                     if(sep)
                     {
-//                        const char *end = strchr(skelanims[i].name, ':');
-                        auto end = skelanims[i].name.rfind(':');
+                        auto end = skelanim.name.find(':');
                         if (
                             end != std::string::npos &&
-                            end - skelanims[i].name.length() == len &&
-                            name == skelanims[i].name
+                            end == len &&
+                            skelanim.name.rfind(name, 0) == 0
                         )
-                            return &skelanims[i];
+                            return &skelanim;
                     }
-                    if(name == skelanims[i].name)
-                        return &skelanims[i];
+                    if(name == skelanim.name)
+                        return &skelanim;
                 }
             }
 
@@ -602,6 +609,7 @@ struct skelmodel : animmodel
                             if(!c.weights[l]) break;
                             if(l == k) continue;
                             int parent = c.bones[l];
+                            assert(parent < numbones && "parent out-of-bound bone index!");
                             if(info.parent == parent || (info.parent >= 0 && info.parent == bones[parent].parent)) { info.group = -info.parent; break; }
                             if(info.group <= parent) continue;
                             int child = c.bones[k];
@@ -852,14 +860,31 @@ struct skelmodel : animmodel
                 d.accumulate(f.pfr2[bone], s.prev.t*(1-s.interp)); \
             }
 
+        struct framedata
+        {
+            const dualquat *fr1, *fr2, *pfr1, *pfr2;
+        };
+
+        dualquat interpbone(const animstate *as, const uchar *partmask, framedata* partframes, int bone) const
+        {
+            const animstate &s = as[partmask[bone]];
+            const framedata &f = partframes[partmask[bone]];
+            dualquat d;
+            (d = f.fr1[bone]).mul((1-s.cur.t)*s.interp);
+            d.accumulate(f.fr2[bone], s.cur.t*s.interp);
+            if(s.interp<1)
+            {
+                d.accumulate(f.pfr1[bone], (1-s.prev.t)*(1-s.interp));
+                d.accumulate(f.pfr2[bone], s.prev.t*(1-s.interp));
+            }
+            return d;
+        }
+
         void interpbones(const animstate *as, float pitch, const vec &axis, const vec &forward, int numanimparts, const uchar *partmask, skelcacheentry &sc)
         {
             if(!sc.bdata) sc.bdata = new dualquat[numinterpbones];
             sc.nextversion();
-            struct framedata
-            {
-                const dualquat *fr1, *fr2, *pfr1, *pfr2;
-            } partframes[MAXANIMPARTS];
+            framedata partframes[MAXANIMPARTS];
             loopi(numanimparts)
             {
                 partframes[i].fr1 = &framebones[as[i].cur.fr1*numbones];
@@ -873,7 +898,8 @@ struct skelmodel : animmodel
             loopv(pitchdeps)
             {
                 pitchdep &p = pitchdeps[i];
-                INTERPBONE(p.bone);
+//                INTERPBONE(p.bone);
+                auto d = interpbone(as, partmask, partframes, p.bone);
                 d.normalize();
                 if(p.parent >= 0) p.pose.mul(pitchdeps[p.parent].pose, d);
                 else p.pose = d;
@@ -881,7 +907,8 @@ struct skelmodel : animmodel
             calcpitchcorrects(pitch, axis, forward);
             loopi(numbones) if(bones[i].interpindex>=0)
             {
-                INTERPBONE(i);
+//                INTERPBONE(i);
+                auto d = interpbone(as, partmask, partframes, i);
                 d.normalize();
                 const boneinfo &b = bones[i];
                 if(b.interpparent<0) sc.bdata[b.interpindex] = d;
@@ -1197,12 +1224,12 @@ struct skelmodel : animmodel
                 }
 
                 vertsize = sizeof(vvert);
-                forEachRenderMesh<skelmesh>([&](skelmesh& m){
+                forEachRenderMesh<skelmesh>([&idxs, this](skelmesh& m){
                     vlen += m.genvbo(idxs, vlen);
                 });
                 DELETEA(vdata);
                 vdata = new uchar[vlen*vertsize];
-                forEachRenderMesh<skelmesh>([&](skelmesh& m){
+                forEachRenderMesh<skelmesh>([this](skelmesh& m){
                     m.fillverts((vvert *)vdata);
                 });
             }
@@ -1234,38 +1261,37 @@ struct skelmodel : animmodel
                 }
 
                 gle::bindvbo(vc.vbuf);
-                #define GENVBO(type, args) \
-                    do \
-                    { \
-                        vertsize = sizeof(type); \
-                        vector<type> vverts; \
-                        forEachRenderMesh<skelmesh>([&](skelmesh& m){\
-                            vlen += m.genvbo args;\
-                        });\
-                        glBufferData_(GL_ARRAY_BUFFER, vverts.length()*sizeof(type), vverts.getbuf(), GL_STATIC_DRAW); \
-                    } while(0)
-                #define GENVBOANIM(type) GENVBO(type, (idxs, vlen, vverts))
-                #define GENVBOSTAT(type) GENVBO(type, (idxs, vlen, vverts, htdata, htlen))
+
                 if(skel->numframes)
                 {
-                    GENVBOANIM(vvertgw);
+                    vertsize = sizeof(vvertgw);
+                    vector<vvertgw> vverts;
+                    forEachRenderMesh<skelmesh>([&idxs, &vverts, this](skelmesh& m){
+                        vlen += m.genvbo(idxs, vlen, vverts);
+                    });
+                    glBufferData_(GL_ARRAY_BUFFER, vverts.length()*vertsize, vverts.getbuf(), GL_STATIC_DRAW);
                 }
                 else
                 {
                     int numverts = 0, htlen = 128;
-                    forEachRenderMesh<skelmesh>([&](skelmesh& m){
+                    forEachRenderMesh<skelmesh>([&numverts](skelmesh& m){
                         numverts += m.numverts;
                     });
                     while(htlen < numverts) htlen *= 2;
                     if(numverts*4 > htlen*3) htlen *= 2;
                     int *htdata = new int[htlen];
                     memset(htdata, -1, htlen*sizeof(int));
-                    GENVBOSTAT(vvertg);
+
+                    vertsize = sizeof(vvertg);
+                    vector<vvertg> vverts;
+                    forEachRenderMesh<skelmesh>([&](skelmesh& m){
+                        vlen += m.genvbo(idxs, vlen, vverts, htdata, htlen);
+                    });
+                    glBufferData_(GL_ARRAY_BUFFER, vverts.length()*vertsize, vverts.getbuf(), GL_STATIC_DRAW);
+
                     delete[] htdata;
                 }
-                #undef GENVBO
-                #undef GENVBOANIM
-                #undef GENVBOSTAT
+
                 gle::clearvbo();
             }
 
@@ -1712,13 +1738,13 @@ template<class MDL> struct skelcommands : modelcommands<MDL, struct MDL::skelmes
 
     static void loadpart(char *meshfile, char *skelname, float *smooth)
     {
-        if(!MDL::loading) { conoutf("not loading an %s", MDL::formatname()); return; }
+        if(!MDL::loading) { conoutf(CON_ERROR, "skelmodel::loadpart: not loading an %s", MDL::formatname()); return; }
         defformatcubestr(filename, "%s/%s", MDL::dir.c_str(), meshfile);
         part &mdl = MDL::loading->addpart();
         mdl.meshes = MDL::loading->sharemeshes(path(filename), skelname[0] ? skelname : NULL, *smooth > 0 ? cosf(clamp(*smooth, 0.0f, 180.0f)*RAD) : 2);
         if(!mdl.meshes)
         {
-            conoutf("could not load %s", filename);
+            conoutf(CON_ERROR, "could not load %s", filename);
         }
         else
         {
@@ -1732,7 +1758,7 @@ template<class MDL> struct skelcommands : modelcommands<MDL, struct MDL::skelmes
     {
         if(!MDL::loading || MDL::loading->parts.empty())
         {
-            conoutf("not loading an %s", MDL::formatname());
+            conoutf(CON_ERROR, "skelmodel::settag: not loading an %s", MDL::formatname());
             return;
         }
         part &mdl = *(part *)MDL::loading->parts.last();
@@ -1747,12 +1773,16 @@ template<class MDL> struct skelcommands : modelcommands<MDL, struct MDL::skelmes
             ((meshgroup *)mdl.meshes)->skel->addtag(tagname, i, m);
             return;
         }
-        conoutf("could not find bone %s for tag %s", name, tagname);
+        conoutf(CON_ERROR, "could not find bone %s for tag %s", name, tagname);
     }
 
     static void setpitch(char *name, float *pitchscale, float *pitchoffset, float *pitchmin, float *pitchmax)
     {
-        if(!MDL::loading || MDL::loading->parts.empty()) { conoutf("not loading an %s", MDL::formatname()); return; }
+        if(!MDL::loading || MDL::loading->parts.empty())
+        {
+            conoutf(CON_ERROR, "skelmodel::setpitch: not loading an %s", MDL::formatname());
+            return;
+        }
         part &mdl = *(part *)MDL::loading->parts.last();
 
         if(name[0])
@@ -1775,7 +1805,7 @@ template<class MDL> struct skelcommands : modelcommands<MDL, struct MDL::skelmes
                 }
                 return;
             }
-            conoutf("could not find bone %s to pitch", name);
+            conoutf(CON_ERROR, "could not find bone %s to pitch", name);
             return;
         }
 
@@ -1797,7 +1827,7 @@ template<class MDL> struct skelcommands : modelcommands<MDL, struct MDL::skelmes
     {
         if(!MDL::loading || MDL::loading->parts.empty())
         {
-            conoutf("\frnot loading an %s", MDL::formatname());
+            conoutf(CON_ERROR, "skelmodel::setpitchtarget: not loading an %s", MDL::formatname());
             return;
         }
         part &mdl = *(part *)MDL::loading->parts.last();
@@ -1809,14 +1839,14 @@ template<class MDL> struct skelcommands : modelcommands<MDL, struct MDL::skelmes
         animspec *sa = ((meshgroup *)mdl.meshes)->loadanim(path(filename));
         if(!sa)
         {
-            conoutf("\frcould not load %s anim file %s", MDL::formatname(), filename);
+            conoutf(CON_ERROR, "could not load %s anim file %s", MDL::formatname(), filename);
             return;
         }
         skeleton *skel = ((meshgroup *)mdl.meshes)->skel;
         int bone = skel ? skel->findbone(name) : -1;
         if(bone < 0)
         {
-            conoutf("\frcould not find bone %s to pitch target", name);
+            conoutf(CON_ERROR, "could not find bone %s to pitch target", name);
             return;
         }
         loopv(skel->pitchtargets) if(skel->pitchtargets[i].bone == bone) return;
@@ -1829,14 +1859,18 @@ template<class MDL> struct skelcommands : modelcommands<MDL, struct MDL::skelmes
 
     static void setpitchcorrect(char *name, char *targetname, float *scale, float *pitchmin, float *pitchmax)
     {
-        if(!MDL::loading || MDL::loading->parts.empty()) { conoutf("\frnot loading an %s", MDL::formatname()); return; }
+        if(!MDL::loading || MDL::loading->parts.empty())
+        {
+            conoutf(CON_ERROR, "skelmodel::setpitchcorrect: not loading an %s", MDL::formatname());
+            return;
+        }
         part &mdl = *(part *)MDL::loading->parts.last();
         if(!mdl.meshes) return;
         skeleton *skel = ((meshgroup *)mdl.meshes)->skel;
         int bone = skel ? skel->findbone(name) : -1;
         if(bone < 0)
         {
-            conoutf("\frcould not find bone %s to pitch correct", name);
+            conoutf(CON_ERROR, "could not find bone %s to pitch correct", name);
             return;
         }
         if(skel->findpitchcorrect(bone) >= 0) return;
@@ -1844,7 +1878,7 @@ template<class MDL> struct skelcommands : modelcommands<MDL, struct MDL::skelmes
         if(targetbone >= 0) loopv(skel->pitchtargets) if(skel->pitchtargets[i].bone == targetbone) { target = i; break; }
         if(target < 0)
         {
-            conoutf("\frcould not find pitch target %s to pitch correct %s", targetname, name);
+            conoutf(CON_ERROR, "could not find pitch target %s to pitch correct %s", targetname, name);
             return;
         }
         pitchcorrect c;
@@ -1854,7 +1888,14 @@ template<class MDL> struct skelcommands : modelcommands<MDL, struct MDL::skelmes
         c.pitchmax = *pitchmax;
         c.pitchscale = *scale;
         int pos = skel->pitchcorrects.length();
-        loopv(skel->pitchcorrects) if(bone <= skel->pitchcorrects[i].bone) { pos = i; break; }
+        loopv(skel->pitchcorrects)
+        {
+            if(bone <= skel->pitchcorrects[i].bone)
+            {
+                pos = i;
+                break;
+            }
+        }
         skel->pitchcorrects.insert(pos, c);
     }
 
@@ -1862,7 +1903,7 @@ template<class MDL> struct skelcommands : modelcommands<MDL, struct MDL::skelmes
     {
         if(!MDL::loading || MDL::loading->parts.empty())
         {
-            conoutf("not loading an %s", MDL::formatname());
+            conoutf(CON_ERROR, "skelmodel::setanim: not loading an %s", MDL::formatname());
             return;
         }
 
@@ -1870,7 +1911,7 @@ template<class MDL> struct skelcommands : modelcommands<MDL, struct MDL::skelmes
         SkeletalEntity::FindAnimations(anim, anims);
         if(anims.empty())
         {
-            conoutf("could not find animation %s", anim);
+            conoutf(CON_ERROR, "could not find animation %s", anim);
         }
         else
         {
@@ -1883,7 +1924,7 @@ template<class MDL> struct skelcommands : modelcommands<MDL, struct MDL::skelmes
             animspec *sa = ((meshgroup *)p->meshes)->loadanim(path(filename));
             if(!sa)
             {
-                conoutf("could not load %s anim file %s", MDL::formatname(), filename);
+                conoutf(CON_ERROR, "could not load %s anim file %s", MDL::formatname(), filename);
             }
             else
             {
@@ -1917,7 +1958,7 @@ template<class MDL> struct skelcommands : modelcommands<MDL, struct MDL::skelmes
     {
         if(!MDL::loading || MDL::loading->parts.empty())
         {
-            conoutf("not loading an %s", MDL::formatname());
+            conoutf(CON_ERROR, "skelmodel::setanimpart: not loading an %s", MDL::formatname());
             return;
         }
 
@@ -1930,7 +1971,12 @@ template<class MDL> struct skelcommands : modelcommands<MDL, struct MDL::skelmes
         {
             char *bonestr = bonestrs[i];
             int bone = p->meshes ? ((meshgroup *)p->meshes)->skel->findbone(bonestr[0]=='!' ? bonestr+1 : bonestr) : -1;
-            if(bone<0) { conoutf("could not find bone %s for anim part mask [%s]", bonestr, maskstr); bonestrs.deletearrays(); return; }
+            if(bone<0)
+            {
+                conoutf(CON_ERROR, "could not find bone %s for anim part mask [%s]", bonestr, maskstr);
+                bonestrs.deletearrays();
+                return;
+            }
             bonemask.add(bone | (bonestr[0]=='!' ? BONEMASK_NOT : 0));
         }
         bonestrs.deletearrays();
@@ -1942,7 +1988,7 @@ template<class MDL> struct skelcommands : modelcommands<MDL, struct MDL::skelmes
 
         if(!p->addanimpart(bonemask.getbuf()))
         {
-            conoutf("too many animation parts");
+            conoutf(CON_ERROR, "too many animation parts");
         }
     }
 
@@ -1950,7 +1996,7 @@ template<class MDL> struct skelcommands : modelcommands<MDL, struct MDL::skelmes
     {
         if(!MDL::loading || MDL::loading->parts.empty())
         {
-            conoutf("not loading an %s", MDL::formatname());
+            conoutf(CON_ERROR, "skelmodel::setadjust: not loading an %s", MDL::formatname());
             return;
         }
         part &mdl = *(part *)MDL::loading->parts.last();
@@ -1960,7 +2006,7 @@ template<class MDL> struct skelcommands : modelcommands<MDL, struct MDL::skelmes
         int i = mdl.meshes ? ((meshgroup *)mdl.meshes)->skel->findbone(name) : -1;
         if(i < 0)
         {
-            conoutf("could not find bone %s to adjust", name);
+            conoutf(CON_ERROR, "could not find bone %s to adjust", name);
             return;
         }
         while(!MDL::adjustments.inrange(i))
@@ -1972,8 +2018,16 @@ template<class MDL> struct skelcommands : modelcommands<MDL, struct MDL::skelmes
 
     static void sethitzone(int *id, char *maskstr)
     {
-        if(!MDL::loading || MDL::loading->parts.empty()) { conoutf("not loading an %s", MDL::formatname()); return; }
-        if(*id >= 0x80) { conoutf("invalid hit zone id %d", *id); return; }
+        if(!MDL::loading || MDL::loading->parts.empty())
+        {
+            conoutf(CON_ERROR, "skelmodel::sethitzone: not loading an %s", MDL::formatname());
+            return;
+        }
+        if(*id >= 0x80)
+        {
+            conoutf(CON_ERROR, "invalid hit zone id %d", *id);
+            return;
+        }
 
         part *p = (part *)MDL::loading->parts.last();
         meshgroup *m = (meshgroup *)p->meshes;
@@ -1986,7 +2040,12 @@ template<class MDL> struct skelcommands : modelcommands<MDL, struct MDL::skelmes
         {
             char *bonestr = bonestrs[i];
             int bone = p->meshes ? ((meshgroup *)p->meshes)->skel->findbone(bonestr[0]=='!' ? bonestr+1 : bonestr) : -1;
-            if(bone<0) { conoutf("could not find bone %s for hit zone mask [%s]", bonestr, maskstr); bonestrs.deletearrays(); return; }
+            if(bone<0)
+            {
+                conoutf(CON_ERROR, "could not find bone %s for hit zone mask [%s]", bonestr, maskstr);
+                bonestrs.deletearrays();
+                return;
+            }
             bonemask.add(bone | (bonestr[0]=='!' ? BONEMASK_NOT : 0));
         }
         bonestrs.deletearrays();

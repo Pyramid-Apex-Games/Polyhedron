@@ -9,7 +9,7 @@
 #include "engine/texture.h"
 #include "engine/rendergl.h"
 #include "engine/world.h"
-#include "engine/nui/nui.h"
+#include "engine/editor/ui.h"
 #include <vector>
 #include <string>
 #include <variant>
@@ -179,7 +179,8 @@ void Entity::on(const Event& event)
 {
 	if (
         event.type != EntityEventType::HoverStart &&
-        event.type != EntityEventType::Tick
+        event.type != EntityEventType::Tick &&
+        event.type != EntityEventType::AttributeChanged
     )
 	{
 		conoutf(CON_DEBUG, "EntityEvent: %s", EntityEventTypeToStringMap.at(event.type).c_str());
@@ -219,11 +220,11 @@ void Entity::on(const Event& event)
 		} break;
 		case EntityEventType::SelectStart:
 			selected = true;
-			engine::nui::StartEntityEditor(this);
+			EditorUI::StartEntityEditor(entityId);
 		break;
 		case EntityEventType::SelectStop:
 			selected = false;
-			engine::nui::StopEntityEditor(this);
+			EditorUI::StopEntityEditor(entityId);
 		break;
 		case EntityEventType::Tick:
 		break;

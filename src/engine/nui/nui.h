@@ -11,6 +11,7 @@ namespace engine {
 		void Initialize();
 
 		void Render();
+		void Update();
 
 		void InputProcessBegin();
         InputEventProcessState InputEvent(const SDL_Event &evt);
@@ -20,12 +21,5 @@ namespace engine {
 
 		nk_context* GetNKContext();
 		NkPolyhedron& GetDevice();
-
-        void StartEntityEditor(Entity* entity);
-        void StopEntityEditor(Entity* entity);
-
-
-		void Update();
-		void Reset();
 	}
 }

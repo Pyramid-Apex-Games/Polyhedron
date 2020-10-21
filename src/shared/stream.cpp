@@ -601,10 +601,21 @@ bool stream::getline(char *str, size_t len)
 {
     loopi(len-1)
     {
-        if(read(&str[i], 1) != 1) { str[i] = '\0'; return i > 0; }
-        else if(str[i] == '\n') { str[i+1] = '\0'; return true; }
+        if(read(&str[i], 1) != 1)
+        {
+            str[i] = '\0';
+            return i > 0;
+        }
+        else if(str[i] == '\n')
+        {
+            str[i+1] = '\0';
+            return true;
+        }
     }
-    if(len > 0) str[len-1] = '\0';
+    if(len > 0)
+    {
+        str[len-1] = '\0';
+    }
     return true;
 }
 
@@ -723,24 +734,27 @@ struct filestream : stream
     {
     	size_t outPtr = 0;
     	char c[1] = {0};
-		while (outPtr < len - 1 && read(c,1))
+    	bool moreData = true;
+		while (outPtr < len - 1)
 		{
-			if (c[0] == '\r' || c[0] == '\n')
+		    if (read(c,1) == 0)
             {
-//			    outPtr++;
+		        moreData = false;
+		        break;
+            }
+			if (c[0] == '\r')
+            {
+			    read(c,1);
 				break;
+            }
+			if (c[0] == '\n')
+            {
+			    break;
             }
 			str[outPtr++] = c[0];
 		}
-		if (outPtr > 0)
-		{
-			str[outPtr] = '\0';
-			return true;
-		}
-		else
-		{
-			return false;
-		}
+		str[outPtr] = '\0';
+		return moreData;
     }
 
     bool putstr(const char *str)

@@ -4,7 +4,7 @@
 #include "Input.h"
 
 
-SkeletalEntity *player = nullptr;
+MovableEntity *player = nullptr;
 
 bool interceptkey(int sym)
 {

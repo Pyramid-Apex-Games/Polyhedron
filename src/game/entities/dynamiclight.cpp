@@ -21,7 +21,7 @@ void DynamicLight::preload() {
 }
 
 void DynamicLight::think() {
-
+    adddynlight(this->o, 38, vec(255, 0, 0), 0, 0, 0, 0, vec(255, 0, 0));
 }
 
 void DynamicLight::render() {
@@ -31,6 +31,10 @@ void DynamicLight::render() {
 void DynamicLight::setState(DYNAMIC_LIGHT_STATE &_lightState) {
     // Change the state.
     lightState = _lightState;
+}
+
+void DynamicLight::setMode(DYNAMIC_LIGHT_MODE &_lightMode) {
+    lightMode = _lightMode;
 }
 
 } // classes

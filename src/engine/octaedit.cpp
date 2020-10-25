@@ -134,7 +134,7 @@ VARF(gridpower, 0, 3, 12,
 });
 
 VAR(passthroughsel, 0, 0, 1);
-VAR(editing, 1, 0, 0);
+VAR(editing, 1, 1, 1);
 VAR(selectcorners, 0, 0, 1);
 VARF(hmapedit, 0, 0, 1, horient = sel.orient);
 

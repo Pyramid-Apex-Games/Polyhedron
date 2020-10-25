@@ -1,5 +1,14 @@
-#include "engine.h"
-#include "shared/entities/basephysicalentity.h"
+#include "engine/engine.h"
+#include "engine/texture.h"
+#include "engine/rendergl.h"
+#include "engine/renderva.h"
+#include "engine/renderlights.h"
+#include "engine/octarender.h"
+#include "engine/material.h"
+#include "engine/water.h"
+#include "engine/Camera.h"
+#include "shared/entities/MovableEntity.h"
+#include "shared/entities/DynamicEntity.h"
 
 struct QuadNode
 {
@@ -463,8 +472,14 @@ static inline bool editmatcmp(const materialsurface &x, const materialsurface &y
 
 void sorteditmaterials()
 {
-    sortorigin = ivec(camera1->o);
-    vec dir = vec(camdir).abs();
+    sortorigin = ivec(Camera::GetActiveCamera()->o);
+    vec dir(0, 0, 1);
+    auto activeCamera = Camera::GetActiveCamera();
+    if (activeCamera)
+    {
+        dir = vec(activeCamera->GetDirection()).abs();
+    }
+
     loopi(3) sortdim[i] = i;
     if(dir[sortdim[2]] > dir[sortdim[1]]) swap(sortdim[2], sortdim[1]);
     if(dir[sortdim[1]] > dir[sortdim[0]]) swap(sortdim[1], sortdim[0]);
@@ -475,7 +490,9 @@ void sorteditmaterials()
 void rendermatgrid()
 {
     enablepolygonoffset(GL_POLYGON_OFFSET_LINE);
+#ifndef OPEN_GL_ES
     glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+#endif
     int lastmat = -1;
     loopvrev(editsurfs)
     {
@@ -503,7 +520,9 @@ void rendermatgrid()
         drawmaterial(m, -0.1f);
     }
     xtraverts += gle::end();
+#ifndef OPEN_GL_ES
     glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+#endif
     disablepolygonoffset(GL_POLYGON_OFFSET_LINE);
 }
 

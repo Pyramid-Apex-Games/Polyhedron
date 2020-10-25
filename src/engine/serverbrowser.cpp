@@ -1,4 +1,9 @@
-#include "engine.h"
+#include "shared/cube.h"
+#include "shared/stream.h"
+#include "engine/server.h"
+#include "engine/serverbrowser.h"
+#include "engine/client.h"
+#include "engine/main/Compatibility.h"
 
 struct resolverthread
 {

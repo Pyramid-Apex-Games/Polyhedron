@@ -43,18 +43,6 @@ struct obj : vertloader<obj>
             vector<tcvert> tcverts;
             vector<tri> tris;
 
-            #define STARTMESH do { \
-                vertmesh &m = *new vertmesh; \
-                m.group = this; \
-                m.name = meshname[0] ? newcubestr(meshname) : NULL; \
-                meshes.add(&m); \
-                curmesh = &m; \
-                verthash.clear(); \
-                verts.setsize(0); \
-                tcverts.setsize(0); \
-                tris.setsize(0); \
-            } while(0)
-
             #define FLUSHMESH do { \
                 curmesh->numverts = verts.length(); \
                 if(verts.length()) \
@@ -107,7 +95,19 @@ struct obj : vertloader<obj>
                     }
                     case 'f':
                     {
-                        if(!curmesh) STARTMESH;
+                        if(!curmesh)
+                        {
+                            auto m = new vertmesh;
+                            m->group = this;
+                            m->name = meshname[0] ? meshname : "";
+                            meshes.add(m);
+                            curmesh = m;
+
+                            verthash.clear();
+                            verts.setsize(0);
+                            tcverts.setsize(0);
+                            tris.setsize(0);
+                        }
                         int v0 = -1, v1 = -1;
                         while(isalpha(*c)) c++;
                         for(;;)
@@ -166,19 +166,19 @@ struct obj : vertloader<obj>
     bool loaddefaultparts()
     {
         part &mdl = addpart();
-        const char *pname = parentdir(name);
-        defformatcubestr(name1, "media/model/%s/tris.obj", name);
-        mdl.meshes = sharemeshes(path(name1));
+        const char *pname = parentdir(name.c_str());
+        auto name1 = fmt::format("media/model/{}/tris.obj", name);
+        mdl.meshes = sharemeshes(path(name1.c_str(), true));
         if(!mdl.meshes)
         {
-            defformatcubestr(name2, "media/model/%s/tris.obj", pname);    // try obj in parent folder (vert sharing)
-            mdl.meshes = sharemeshes(path(name2));
+            auto name2 = fmt::format("media/model/{}/tris.obj", pname);    // try obj in parent folder (vert sharing)
+            mdl.meshes = sharemeshes(path(name2.c_str(), true));
             if(!mdl.meshes) return false;
         }
         Texture *tex, *masks;
-        loadskin(name, pname, tex, masks);
+        loadskin(name.c_str(), pname, tex, masks);
         mdl.initskins(tex, masks);
-        if(tex==notexture) conoutf("could not load model skin for %s", name1);
+        if(tex==notexture) conoutf("could not load model skin for %s", name1.c_str());
         return true;
     }
 };

@@ -268,7 +268,7 @@ class json_sax_dom_parser
                 case 5:
                     JSON_THROW(*static_cast<const detail::other_error*>(&ex));
                 default:
-                    assert(false);
+                        assert(false);
                     // LCOV_EXCL_STOP
             }
         }

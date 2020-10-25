@@ -2,6 +2,7 @@
 
 #include "cube.h"
 
+/*
 void *operator new(size_t size)
 {
     void *p = malloc(size);
@@ -33,7 +34,7 @@ void *operator new[](size_t size, bool err)
     if(!p && err) abort();
     return p;
 }
-
+*/
 ////////////////////////// cubestrs ////////////////////////////////////////
 
 static cubestr tmpstr[4];

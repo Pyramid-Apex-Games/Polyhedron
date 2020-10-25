@@ -1,71 +1,49 @@
-VARP(fullbrightmodels, 0, 0, 200);
-VAR(testtags, 0, 0, 1);
-VARF(dbgcolmesh, 0, 0, 1,
-{
-    extern void cleanupmodels();
-    cleanupmodels();
-});
+#include "engine/model.h"
+#include "engine/texture.h"
+#include "engine/renderlights.h"
+#include "shared/stream.h"
+#include <fmt/format.h>
+
+
+//extern from command.h
+extern int identflags;
+
+extern matrix4 camprojmatrix;
+
+void enablepolygonoffset(GLenum type);
+void disablepolygonoffset(GLenum type);
+
+struct animinfo;
 
 struct animmodel : model
 {
     struct animspec
     {
-        int frame, range;
-        float speed;
-        int priority;
+        int frame = 0, range = 0;
+        float speed = 0.0f;
+        int priority = 0;
     };
 
     struct animpos
     {
-        int anim, fr1, fr2;
-        float t;
+        int anim = 0, fr1 = 0, fr2 = 0;
+        float t = 0.0f;
 
-        void setframes(const animinfo &info)
-        {
-            anim = info.anim;
-            if(info.range<=1)
-            {
-                fr1 = 0;
-                t = 0;
-            }
-            else
-            {
-                int time = info.anim&ANIM_SETTIME ? info.basetime : lastmillis-info.basetime;
-                fr1 = (int)(time/info.speed); // round to full frames
-                t = (time-fr1*info.speed)/info.speed; // progress of the frame, value from 0.0f to 1.0f
-            }
-            if(info.anim&ANIM_LOOP)
-            {
-                fr1 = fr1%info.range+info.frame;
-                fr2 = fr1+1;
-                if(fr2>=info.frame+info.range) fr2 = info.frame;
-            }
-            else
-            {
-                fr1 = min(fr1, info.range-1)+info.frame;
-                fr2 = min(fr1+1, info.frame+info.range-1);
-            }
-            if(info.anim&ANIM_REVERSE)
-            {
-                fr1 = (info.frame+info.range-1)-(fr1-info.frame);
-                fr2 = (info.frame+info.range-1)-(fr2-info.frame);
-            }
-        }
-
-        bool operator==(const animpos &a) const { return fr1==a.fr1 && fr2==a.fr2 && (fr1==fr2 || t==a.t); }
-        bool operator!=(const animpos &a) const { return fr1!=a.fr1 || fr2!=a.fr2 || (fr1!=fr2 && t!=a.t); }
+        void setframes(const animinfo &info);
+        bool operator==(const animpos &a) const;
+        bool operator!=(const animpos &a) const;
     };
 
     struct part;
 
     struct animstate
     {
-        part *owner;
+        part *owner = nullptr;
         animpos cur, prev;
-        float interp;
+        float interp = 0.0f;
 
-        bool operator==(const animstate &a) const { return cur==a.cur && (interp<1 ? interp==a.interp && prev==a.prev : a.interp>=1); }
-        bool operator!=(const animstate &a) const { return cur!=a.cur || (interp<1 ? interp!=a.interp || prev!=a.prev : a.interp<1); }
+        bool operator==(const animstate &a) const;
+        bool operator!=(const animstate &a) const;
     };
 
     struct linkedpart;
@@ -73,10 +51,18 @@ struct animmodel : model
 
     struct shaderparams
     {
-        float spec, gloss, glow, glowdelta, glowpulse, fullbright, envmapmin, envmapmax, scrollu, scrollv, alphatest;
-        vec color;
-
-        shaderparams() : spec(1.0f), gloss(1), glow(3.0f), glowdelta(0), glowpulse(0), fullbright(0), envmapmin(0), envmapmax(0), scrollu(0), scrollv(0), alphatest(0.9f), color(1, 1, 1) {}
+        float spec = 1.0f;
+        float gloss = 1.0f;
+        float glow = 3.0f;
+        float glowdelta = 0.0f;
+        float glowpulse = 0.0f;
+        float fullbright = 0.0f;
+        float envmapmin = 0.0f;
+        float envmapmax = 0.0f;
+        float scrollu = 0.0f;
+        float scrollv = 0.0f;
+        float alphatest = 0.9f;
+        vec color = {1.0f, 1.0f, 1.0f};
     };
 
     struct shaderparamskey
@@ -84,23 +70,9 @@ struct animmodel : model
         static hashtable<shaderparams, shaderparamskey> keys;
         static int firstversion, lastversion;
 
-        int version;
+        int version = -1;
 
-        shaderparamskey() : version(-1) {}
-
-        bool checkversion()
-        {
-            if(version >= firstversion) return true;
-            version = lastversion;
-            if(++lastversion <= 0)
-            {
-                enumerate(keys, shaderparamskey, key, key.version = -1);
-                firstversion = 0;
-                lastversion = 1;
-                version = 0;
-            }
-            return false;
-        }
+        bool checkversion();
 
         static inline void invalidate()
         {
@@ -110,242 +82,53 @@ struct animmodel : model
 
     struct skin : shaderparams
     {
-        part *owner;
-        Texture *tex, *decal, *masks, *envmap, *normalmap;
-        Shader *shader, *rsmshader;
-        int cullface;
-        shaderparamskey *key;
+        part *owner = nullptr;
+        Texture *tex = notexture, *decal = nullptr, *masks = notexture, *envmap = nullptr, *normalmap = nullptr;
+        Shader *shader = nullptr, *rsmshader = nullptr;
+        int cullface = 1;
+        shaderparamskey *key = nullptr;
 
-        skin() : owner(0), tex(notexture), decal(NULL), masks(notexture), envmap(NULL), normalmap(NULL), shader(NULL), rsmshader(NULL), cullface(1), key(NULL) {}
+        bool masked() const;
+        bool envmapped() const;
+        bool bumpmapped() const;
+        bool alphatested() const;
+        bool decaled() const;
 
-        bool masked() const { return masks != notexture; }
-        bool envmapped() const { return envmapmax>0; }
-        bool bumpmapped() const { return normalmap != NULL; }
-        bool alphatested() const { return alphatest > 0 && tex->type&Texture::ALPHA; }
-        bool decaled() const { return decal != NULL; }
+        void setkey();
 
-        void setkey()
-        {
-            key = &shaderparamskey::keys[*this];
-        }
+        void setshaderparams(mesh &m, const animstate *as, bool skinned = true);
 
-        void setshaderparams(mesh &m, const animstate *as, bool skinned = true)
-        {
-            if(!Shader::lastshader) return;
-            if(key->checkversion() && Shader::lastshader->owner == key) return;
-            Shader::lastshader->owner = key;
-
-            LOCALPARAMF(texscroll, scrollu*lastmillis/1000.0f, scrollv*lastmillis/1000.0f);
-            if(alphatested()) LOCALPARAMF(alphatest, alphatest);
-
-            if(!skinned) return;
-
-            if(color.r < 0) LOCALPARAM(colorscale, colorscale);
-            else LOCALPARAMF(colorscale, color.r, color.g, color.b, colorscale.a);
-
-            if(fullbright) LOCALPARAMF(fullbright, 0.0f, fullbright);
-            else LOCALPARAMF(fullbright, 1.0f, as->cur.anim&ANIM_FULLBRIGHT ? 0.5f*fullbrightmodels/100.0f : 0.0f);
-
-            float curglow = glow;
-            if(glowpulse > 0)
-            {
-                float curpulse = lastmillis*glowpulse;
-                curpulse -= floor(curpulse);
-                curglow += glowdelta*2*fabs(curpulse - 0.5f);
-            }
-            LOCALPARAMF(maskscale, spec, gloss, curglow);
-            if(envmapped()) LOCALPARAMF(envmapscale, envmapmin-envmapmax, envmapmax);
-        }
-
-        Shader *loadshader()
-        {
-            #define DOMODELSHADER(name, body) \
-                do { \
-                    static Shader *name##shader = NULL; \
-                    if(!name##shader) name##shader = useshaderbyname(#name); \
-                    body; \
-                } while(0)
-            #define LOADMODELSHADER(name) DOMODELSHADER(name, return name##shader)
-            #define SETMODELSHADER(m, name) DOMODELSHADER(name, (m).setshader(name##shader))
-
-            if(shadowmapping == SM_REFLECT)
-            {
-                if(rsmshader) return rsmshader;
-
-                cubestr opts;
-                int optslen = 0;
-                if(alphatested()) opts[optslen++] = 'a';
-                if(!cullface) opts[optslen++] = 'c';
-                opts[optslen++] = '\0';
-
-                defformatcubestr(name, "rsmmodel%s", opts);
-                rsmshader = generateshader(name, "rsmmodelshader \"%s\"", opts);
-                return rsmshader;
-            }
-
-            if(shader) return shader;
-
-            cubestr opts;
-            int optslen = 0;
-            if(alphatested()) opts[optslen++] = 'a';
-            if(decaled()) opts[optslen++] = decal->type&Texture::ALPHA ? 'D' : 'd';
-            if(bumpmapped()) opts[optslen++] = 'n';
-            if(envmapped()) { opts[optslen++] = 'm'; opts[optslen++] = 'e'; }
-            else if(masked()) opts[optslen++] = 'm';
-            if(!cullface) opts[optslen++] = 'c';
-            opts[optslen++] = '\0';
-
-            defformatcubestr(name, "model%s", opts);
-            shader = generateshader(name, "modelshader \"%s\"", opts);
-            return shader;
-        }
-
-        void cleanup()
-        {
-            if(shader && shader->standard) shader = NULL;
-        }
-
-        void preloadBIH()
-        {
-            if(alphatested() && !tex->alphamask) loadalphamask(tex);
-        }
-
-        void preloadshader()
-        {
-            loadshader();
-            useshaderbyname(alphatested() && owner->model->alphashadow ? "alphashadowmodel" : "shadowmodel");
-            if(useradiancehints()) useshaderbyname(alphatested() ? "rsmalphamodel" : "rsmmodel");
-        }
-
-        void setshader(mesh &m, const animstate *as)
-        {
-            m.setshader(loadshader(), transparentlayer ? 1 : 0);
-        }
-
-        void bind(mesh &b, const animstate *as)
-        {
-            if(cullface > 0)
-            {
-                if(!enablecullface) { glEnable(GL_CULL_FACE); enablecullface = true; }
-            }
-            else if(enablecullface) { glDisable(GL_CULL_FACE); enablecullface = false; }
-
-            if(as->cur.anim&ANIM_NOSKIN)
-            {
-                if(alphatested() && owner->model->alphashadow)
-                {
-                    if(tex!=lasttex)
-                    {
-                        glBindTexture(GL_TEXTURE_2D, tex->id);
-                        lasttex = tex;
-                    }
-                    SETMODELSHADER(b, alphashadowmodel);
-                    setshaderparams(b, as, false);
-                }
-                else
-                {
-                    SETMODELSHADER(b, shadowmodel);
-                }
-                return;
-            }
-            int activetmu = 0;
-            if(tex!=lasttex)
-            {
-                glBindTexture(GL_TEXTURE_2D, tex->id);
-                lasttex = tex;
-            }
-            if(bumpmapped() && normalmap!=lastnormalmap)
-            {
-                glActiveTexture_(GL_TEXTURE3);
-                activetmu = 3;
-                glBindTexture(GL_TEXTURE_2D, normalmap->id);
-                lastnormalmap = normalmap;
-            }
-            if(decaled() && decal!=lastdecal)
-            {
-                glActiveTexture_(GL_TEXTURE4);
-                activetmu = 4;
-                glBindTexture(GL_TEXTURE_2D, decal->id);
-                lastdecal = decal;
-            }
-            if(masked() && masks!=lastmasks)
-            {
-                glActiveTexture_(GL_TEXTURE1);
-                activetmu = 1;
-                glBindTexture(GL_TEXTURE_2D, masks->id);
-                lastmasks = masks;
-            }
-            if(envmapped())
-            {
-                GLuint emtex = envmap ? envmap->id : closestenvmaptex;
-                if(lastenvmaptex!=emtex)
-                {
-                    glActiveTexture_(GL_TEXTURE2);
-                    activetmu = 2;
-                    glBindTexture(GL_TEXTURE_CUBE_MAP, emtex);
-                    lastenvmaptex = emtex;
-                }
-            }
-            if(activetmu != 0) glActiveTexture_(GL_TEXTURE0);
-            setshader(b, as);
-            setshaderparams(b, as);
-        }
+        Shader *loadshader();
+        void cleanup();
+        void preloadBIH();
+        void preloadshader();
+        void setshader(mesh &m, const animstate *as);
+        void bind(mesh &b, const animstate *as);
     };
 
     struct meshgroup;
 
     struct mesh
     {
-        meshgroup *group;
-        char *name;
-        bool cancollide, canrender, noclip;
+        meshgroup *group = nullptr;
+        std::string name;
+        bool cancollide = true;
+        bool canrender = true;
+        bool noclip = false;
 
-        mesh() : group(NULL), name(NULL), cancollide(true), canrender(true), noclip(false)
-        {
-        }
-
-        virtual ~mesh()
-        {
-            DELETEA(name);
-        }
+        mesh() = default;
+        virtual ~mesh() = default;
 
         virtual void calcbb(vec &bbmin, vec &bbmax, const matrix4x3 &m) {}
-
         virtual void genBIH(BIH::mesh &m) {}
-        void genBIH(skin &s, vector<BIH::mesh> &bih, const matrix4x3 &t)
-        {
-            BIH::mesh &m = bih.add();
-            m.xform = t;
-            m.tex = s.tex;
-            if(canrender) m.flags |= BIH::MESH_RENDER;
-            if(cancollide) m.flags |= BIH::MESH_COLLIDE;
-            if(s.alphatested()) m.flags |= BIH::MESH_ALPHA;
-            if(noclip) m.flags |= BIH::MESH_NOCLIP;
-            if(s.cullface > 0) m.flags |= BIH::MESH_CULLFACE;
-            genBIH(m);
-            while(bih.last().numtris > BIH::mesh::MAXTRIS)
-            {
-                BIH::mesh &overflow = bih.dup();
-                overflow.tris += BIH::mesh::MAXTRIS;
-                overflow.numtris -= BIH::mesh::MAXTRIS;
-                bih[bih.length()-2].numtris = BIH::mesh::MAXTRIS;
-            }
-        }
-
         virtual void genshadowmesh(vector<triangle> &tris, const matrix4x3 &m) {}
-
-        virtual void setshader(Shader *s, int row = 0)
-        {
-            if(row) s->setvariant(0, row);
-            else s->set();
-        }
+        void genBIH(skin &s, vector<BIH::mesh> &bih, const matrix4x3 &t);
+        virtual void setshader(Shader *s, int row = 0);
 
         struct smoothdata
         {
-            vec norm;
-            int next;
-
-            smoothdata() : norm(0, 0, 0), next(-1) {}
+            vec norm = {0.0f, 0.0f, 0.0f};
+            int next = -1;
         };
 
         template<class V, class T> void smoothnorms(V *verts, int numverts, T *tris, int numtris, float limit, bool areaweight)
@@ -501,24 +284,14 @@ struct animmodel : model
 
     struct meshgroup
     {
-        meshgroup *next;
-        int shared;
-        char *name;
+        meshgroup *next = nullptr;
+        int shared = 0;
+        std::string name;
         vector<mesh *> meshes;
 
-        meshgroup() : next(NULL), shared(0), name(NULL)
-        {
-        }
-
-        virtual ~meshgroup()
-        {
-            DELETEA(name);
-            meshes.deletecontents();
-            DELETEP(next);
-        }
-
-        virtual int findtag(const char *name) { return -1; }
-        virtual void concattagtransform(part *p, int i, const matrix4x3 &m, matrix4x3 &n) {}
+        virtual ~meshgroup();
+        virtual int findtag(const char *name);
+        virtual void concattagtransform(part *p, int i, const matrix4x3 &m, matrix4x3 &n);
 
         #define looprendermeshes(type, name, body) do { \
             loopv(meshes) \
@@ -528,559 +301,107 @@ struct animmodel : model
             } \
         } while(0)
 
-        void calcbb(vec &bbmin, vec &bbmax, const matrix4x3 &t)
+        template <class T>
+        using forEachMeshIteration = std::function<void(T&)>;
+
+        template <class T>
+        using forEachMeshIterationIndexed = std::function<void(T&, int)>;
+
+        template <class T>
+        void forEachRenderMesh(const forEachMeshIterationIndexed<T>& iteration)
         {
-            looprendermeshes(mesh, m, m.calcbb(bbmin, bbmax, t));
-        }
+            extern int dbgcolmesh;
 
-        void genBIH(vector<skin> &skins, vector<BIH::mesh> &bih, const matrix4x3 &t)
-        {
-            loopv(meshes) meshes[i]->genBIH(skins[i], bih, t);
-        }
-
-        void genshadowmesh(vector<triangle> &tris, const matrix4x3 &t)
-        {
-            looprendermeshes(mesh, m, m.genshadowmesh(tris, t));
-        }
-
-        virtual void *animkey() { return this; }
-        virtual int totalframes() const { return 1; }
-        bool hasframe(int i) const { return i>=0 && i<totalframes(); }
-        bool hasframes(int i, int n) const { return i>=0 && i+n<=totalframes(); }
-        int clipframes(int i, int n) const { return min(n, totalframes() - i); }
-
-        virtual void cleanup() {}
-        virtual void preload(part *p) {}
-        virtual void render(const animstate *as, float pitch, const vec &axis, const vec &forward, entities::classes::BaseDynamicEntity *d, part *p) {}
-        virtual void intersect(const animstate *as, float pitch, const vec &axis, const vec &forward, entities::classes::BaseDynamicEntity *d, part *p, const vec &o, const vec &ray) {}
-
-        void bindpos(GLuint ebuf, GLuint vbuf, void *v, int stride, int type, int size)
-        {
-            if(lastebuf!=ebuf)
+//            for (auto mesh : meshes)
+            for (int i = 0; i < meshes.length(); i++)
             {
-                gle::bindebo(ebuf);
-                lastebuf = ebuf;
-            }
-            if(lastvbuf!=vbuf)
-            {
-                gle::bindvbo(vbuf);
-                if(!lastvbuf) gle::enablevertex();
-                gle::vertexpointer(stride, v, type, size);
-                lastvbuf = vbuf;
-            }
-        }
-        void bindpos(GLuint ebuf, GLuint vbuf, vec *v, int stride) { bindpos(ebuf, vbuf, v, stride, GL_FLOAT, 3); }
-        void bindpos(GLuint ebuf, GLuint vbuf, hvec4 *v, int stride) { bindpos(ebuf, vbuf, v, stride, GL_HALF_FLOAT, 4); }
+                auto& mesh = meshes[i];
 
-        void bindtc(void *v, int stride)
-        {
-            if(!enabletc)
-            {
-                gle::enabletexcoord0();
-                enabletc = true;
-            }
-            if(lasttcbuf!=lastvbuf)
-            {
-                gle::texcoord0pointer(stride, v, GL_HALF_FLOAT);
-                lasttcbuf = lastvbuf;
+                T* meshT = static_cast<T*>(mesh);
+
+                if (meshT->canrender || dbgcolmesh)
+                {
+                    iteration(*meshT, i);
+                }
             }
         }
 
-        void bindtangents(void *v, int stride)
+        template <class T>
+        void forEachRenderMesh(const forEachMeshIteration<T>& iteration)
         {
-            if(!enabletangents)
-            {
-                gle::enabletangent();
-                enabletangents = true;
-            }
-            if(lastxbuf!=lastvbuf)
-            {
-                gle::tangentpointer(stride, v, GL_SHORT);
-                lastxbuf = lastvbuf;
-            }
+            forEachRenderMesh<T>([&](T& t, int){ iteration(t); });
         }
 
-        void bindbones(void *wv, void *bv, int stride)
-        {
-            if(!enablebones)
-            {
-                gle::enableboneweight();
-                gle::enableboneindex();
-                enablebones = true;
-            }
-            if(lastbbuf!=lastvbuf)
-            {
-                gle::boneweightpointer(stride, wv);
-                gle::boneindexpointer(stride, bv);
-                lastbbuf = lastvbuf;
-            }
-        }
+        void calcbb(vec &bbmin, vec &bbmax, const matrix4x3 &t);
+        void genBIH(vector<skin> &skins, vector<BIH::mesh> &bih, const matrix4x3 &t);
+        void genshadowmesh(vector<triangle> &tris, const matrix4x3 &t);
+
+        virtual void *animkey();
+        virtual int totalframes() const;
+        bool hasframe(int i) const;
+        bool hasframes(int i, int n) const;
+        int clipframes(int i, int n) const;
+
+        virtual void cleanup();
+        virtual void preload(part *p);
+        virtual void render(const animstate *as, float pitch, const vec &axis, const vec &forward, MovableEntity *d, part *p);
+        virtual void intersect(const animstate *as, float pitch, const vec &axis, const vec &forward, MovableEntity *d, part *p, const vec &o, const vec &ray);
+
+        void bindpos(GLuint ebuf, GLuint vbuf, void *v, int stride, int type, int size);
+        void bindpos(GLuint ebuf, GLuint vbuf, vec *v, int stride);
+        void bindpos(GLuint ebuf, GLuint vbuf, hvec4 *v, int stride);
+
+        void bindtc(void *v, int stride);
+        void bindtangents(void *v, int stride);
+        void bindbones(void *wv, void *bv, int stride);
     };
 
     static hashnameset<meshgroup *> meshgroups;
 
     struct linkedpart
     {
-        part *p;
-        int tag, anim, basetime;
-        vec translate;
-        vec *pos;
+        part *p = nullptr;
+        int tag = -1, anim = -1, basetime = 0;
+        vec translate = {0.0f, 0.0f, 0.0f};
+        vec *pos = nullptr;
         matrix4 matrix;
-
-        linkedpart() : p(NULL), tag(-1), anim(-1), basetime(0), translate(0, 0, 0), pos(NULL) {}
     };
 
     struct part
     {
-        animmodel *model;
-        int index;
-        meshgroup *meshes;
+        animmodel *model = nullptr;
+        int index = 0;
+        meshgroup *meshes = nullptr;
         vector<linkedpart> links;
         vector<skin> skins;
         vector<animspec> *anims[MAXANIMPARTS];
-        int numanimparts;
-        float pitchscale, pitchoffset, pitchmin, pitchmax;
+        int numanimparts = 1;
+        float pitchscale = 1.0f, pitchoffset = 0.0f, pitchmin = 0.0f, pitchmax = 0.0f;
 
-        part(animmodel *model, int index = 0) : model(model), index(index), meshes(NULL), numanimparts(1), pitchscale(1), pitchoffset(0), pitchmin(0), pitchmax(0)
-        {
-            loopk(MAXANIMPARTS) anims[k] = NULL;
-        }
-        virtual ~part()
-        {
-            loopk(MAXANIMPARTS) DELETEA(anims[k]);
-        }
+        part(animmodel *model, int index = 0);
+        virtual ~part();
 
-        virtual void cleanup()
-        {
-            if(meshes) meshes->cleanup();
-            loopv(skins) skins[i].cleanup();
-        }
-
-        void disablepitch()
-        {
-            pitchscale = pitchoffset = pitchmin = pitchmax = 0;
-        }
-
-        void calcbb(vec &bbmin, vec &bbmax, const matrix4x3 &m)
-        {
-            matrix4x3 t = m;
-            t.scale(model->scale);
-            meshes->calcbb(bbmin, bbmax, t);
-            loopv(links)
-            {
-                matrix4x3 n;
-                meshes->concattagtransform(this, links[i].tag, m, n);
-                n.translate(links[i].translate, model->scale);
-                links[i].p->calcbb(bbmin, bbmax, n);
-            }
-        }
-
-        void genBIH(vector<BIH::mesh> &bih, const matrix4x3 &m)
-        {
-            matrix4x3 t = m;
-            t.scale(model->scale);
-            meshes->genBIH(skins, bih, t);
-            loopv(links)
-            {
-                matrix4x3 n;
-                meshes->concattagtransform(this, links[i].tag, m, n);
-                n.translate(links[i].translate, model->scale);
-                links[i].p->genBIH(bih, n);
-            }
-        }
-
-        void genshadowmesh(vector<triangle> &tris, const matrix4x3 &m)
-        {
-            matrix4x3 t = m;
-            t.scale(model->scale);
-            meshes->genshadowmesh(tris, t);
-            loopv(links)
-            {
-                matrix4x3 n;
-                meshes->concattagtransform(this, links[i].tag, m, n);
-                n.translate(links[i].translate, model->scale);
-                links[i].p->genshadowmesh(tris, n);
-            }
-        }
-
-        bool link(part *p, const char *tag, const vec &translate = vec(0, 0, 0), int anim = -1, int basetime = 0, vec *pos = NULL)
-        {
-            int i = meshes ? meshes->findtag(tag) : -1;
-            if(i<0)
-            {
-                loopv(links) if(links[i].p && links[i].p->link(p, tag, translate, anim, basetime, pos)) return true;
-                return false;
-            }
-            linkedpart &l = links.add();
-            l.p = p;
-            l.tag = i;
-            l.anim = anim;
-            l.basetime = basetime;
-            l.translate = translate;
-            l.pos = pos;
-            return true;
-        }
-
-        bool unlink(part *p)
-        {
-            loopvrev(links) if(links[i].p==p) { links.remove(i, 1); return true; }
-            loopv(links) if(links[i].p && links[i].p->unlink(p)) return true;
-            return false;
-        }
-
-        void initskins(Texture *tex = notexture, Texture *masks = notexture, int limit = 0)
-        {
-            if(!limit)
-            {
-                if(!meshes) return;
-                limit = meshes->meshes.length();
-            }
-            while(skins.length() < limit)
-            {
-                skin &s = skins.add();
-                s.owner = this;
-                s.tex = tex;
-                s.masks = masks;
-            }
-        }
-
-        bool alphatested() const
-        {
-            loopv(skins) if(skins[i].alphatested()) return true;
-            return false;
-        }
-
-        void preloadBIH()
-        {
-            loopv(skins) skins[i].preloadBIH();
-        }
-
-        void preloadshaders()
-        {
-            loopv(skins) skins[i].preloadshader();
-        }
-
-        void preloadmeshes()
-        {
-            if(meshes) meshes->preload(this);
-        }
-
-        virtual void getdefaultanim(animinfo &info, int anim, uint varseed, entities::classes::BaseDynamicEntity *d)
-        {
-            info.frame = 0;
-            info.range = 1;
-        }
-
-        bool calcanim(int animpart, int anim, int basetime, int basetime2, entities::classes::BaseDynamicEntity *d, int interp, animinfo &info, int &aitime)
-        {
-            uint varseed = uint((size_t)d);
-            info.anim = anim;
-            info.basetime = basetime;
-            info.varseed = varseed;
-            info.speed = anim&ANIM_SETSPEED ? basetime2 : 100.0f;
-            if((anim&ANIM_INDEX)==ANIM_ALL)
-            {
-                info.frame = 0;
-                info.range = meshes->totalframes();
-            }
-            else
-            {
-                animspec *spec = NULL;
-                if(anims[animpart])
-                {
-                    vector<animspec> &primary = anims[animpart][anim&ANIM_INDEX];
-                    if(primary.length()) spec = &primary[uint(varseed + basetime)%primary.length()];
-                    if((anim>>ANIM_SECONDARY)&(ANIM_INDEX|ANIM_DIR))
-                    {
-                        vector<animspec> &secondary = anims[animpart][(anim>>ANIM_SECONDARY)&ANIM_INDEX];
-                        if(secondary.length())
-                        {
-                            animspec &spec2 = secondary[uint(varseed + basetime2)%secondary.length()];
-                            if(!spec || spec2.priority > spec->priority)
-                            {
-                                spec = &spec2;
-                                info.anim >>= ANIM_SECONDARY;
-                                info.basetime = basetime2;
-                            }
-                        }
-                    }
-                }
-                if(spec)
-                {
-                    info.frame = spec->frame;
-                    info.range = spec->range;
-                    if(spec->speed>0) info.speed = 1000.0f/spec->speed;
-                }
-                else getdefaultanim(info, anim, uint(varseed + info.basetime), d);
-            }
-
-            info.anim &= (1<<ANIM_SECONDARY)-1;
-            info.anim |= anim&ANIM_FLAGS;
-            if(info.anim&ANIM_LOOP)
-            {
-                info.anim &= ~ANIM_SETTIME;
-                if(!info.basetime) info.basetime = -((int)(size_t)d&0xFFF);
-
-                if(info.anim&ANIM_CLAMP)
-                {
-                    if(info.anim&ANIM_REVERSE) info.frame += info.range-1;
-                    info.range = 1;
-                }
-            }
-
-            if(!meshes->hasframes(info.frame, info.range))
-            {
-                if(!meshes->hasframe(info.frame)) return false;
-                info.range = meshes->clipframes(info.frame, info.range);
-            }
-
-            if(d && interp>=0)
-            {
-                animinterpinfo &ai = d->animinterp[interp];
-                if((info.anim&(ANIM_LOOP|ANIM_CLAMP))==ANIM_CLAMP) aitime = min(aitime, int(info.range*info.speed*0.5e-3f));
-                void *ak = meshes->animkey();
-                if(d->ragdoll && d->ragdoll->millis != lastmillis)
-                {
-                    ai.prev.range = ai.cur.range = 0;
-                    ai.lastswitch = -1;
-                }
-                else if(ai.lastmodel!=ak || ai.lastswitch<0 || lastmillis-d->lastrendered>aitime)
-                {
-                    ai.prev = ai.cur = info;
-                    ai.lastswitch = lastmillis-aitime*2;
-                }
-                else if(ai.cur!=info)
-                {
-                    if(lastmillis-ai.lastswitch>aitime/2) ai.prev = ai.cur;
-                    ai.cur = info;
-                    ai.lastswitch = lastmillis;
-                }
-                else if(info.anim&ANIM_SETTIME) ai.cur.basetime = info.basetime;
-                ai.lastmodel = ak;
-            }
-            return true;
-        }
-
-        void intersect(int anim, int basetime, int basetime2, float pitch, const vec &axis, const vec &forward, entities::classes::BaseDynamicEntity *d, const vec &o, const vec &ray)
-        {
-            animstate as[MAXANIMPARTS];
-            intersect(anim, basetime, basetime2, pitch, axis, forward, d, o, ray, as);
-        }
-
-        void intersect(int anim, int basetime, int basetime2, float pitch, const vec &axis, const vec &forward, entities::classes::BaseDynamicEntity *d, const vec &o, const vec &ray, animstate *as)
-        {
-            if((anim&ANIM_REUSE) != ANIM_REUSE) loopi(numanimparts)
-            {
-                animinfo info;
-                int interp = d && index+numanimparts<=MAXANIMPARTS ? index+i : -1, aitime = animationinterpolationtime;
-                if(!calcanim(i, anim, basetime, basetime2, d, interp, info, aitime)) return;
-                animstate &p = as[i];
-                p.owner = this;
-                p.cur.setframes(info);
-                p.interp = 1;
-                if(interp>=0 && d->animinterp[interp].prev.range>0)
-                {
-                    int diff = lastmillis-d->animinterp[interp].lastswitch;
-                    if(diff<aitime)
-                    {
-                        p.prev.setframes(d->animinterp[interp].prev);
-                        p.interp = diff/float(aitime);
-                    }
-                }
-            }
-
-            float resize = model->scale * sizescale;
-            int oldpos = matrixpos;
-            vec oaxis, oforward, oo, oray;
-            matrixstack[matrixpos].transposedtransformnormal(axis, oaxis);
-            float pitchamount = pitchscale*pitch + pitchoffset;
-            if(pitchmin || pitchmax) pitchamount = clamp(pitchamount, pitchmin, pitchmax);
-            if(as->cur.anim&ANIM_NOPITCH || (as->interp < 1 && as->prev.anim&ANIM_NOPITCH))
-                pitchamount *= (as->cur.anim&ANIM_NOPITCH ? 0 : as->interp) + (as->interp < 1 && as->prev.anim&ANIM_NOPITCH ? 0 : 1-as->interp);
-            if(pitchamount)
-            {
-                ++matrixpos;
-                matrixstack[matrixpos] = matrixstack[matrixpos-1];
-                matrixstack[matrixpos].rotate(pitchamount*RAD, oaxis);
-            }
-            if(this == model->parts[0] && !model->translate.iszero())
-            {
-                if(oldpos == matrixpos)
-                {
-                    ++matrixpos;
-                    matrixstack[matrixpos] = matrixstack[matrixpos-1];
-                }
-                matrixstack[matrixpos].translate(model->translate, resize);
-            }
-            matrixstack[matrixpos].transposedtransformnormal(forward, oforward);
-            matrixstack[matrixpos].transposedtransform(o, oo);
-            oo.div(resize);
-            matrixstack[matrixpos].transposedtransformnormal(ray, oray);
-
-            intersectscale = resize;
-            meshes->intersect(as, pitch, oaxis, oforward, d, this, oo, oray);
-
-            if((anim&ANIM_REUSE) != ANIM_REUSE)
-            {
-                loopv(links)
-                {
-                    linkedpart &link = links[i];
-                    if(!link.p) continue;
-                    link.matrix.translate(link.translate, resize);
-
-                    matrixpos++;
-                    matrixstack[matrixpos].mul(matrixstack[matrixpos-1], link.matrix);
-
-                    int nanim = anim, nbasetime = basetime, nbasetime2 = basetime2;
-                    if(link.anim>=0)
-                    {
-                        nanim = link.anim | (anim&ANIM_FLAGS);
-                        nbasetime = link.basetime;
-                        nbasetime2 = 0;
-                    }
-                    link.p->intersect(nanim, nbasetime, nbasetime2, pitch, axis, forward, d, o, ray);
-
-                    matrixpos--;
-                }
-            }
-
-            matrixpos = oldpos;
-        }
-
-        void render(int anim, int basetime, int basetime2, float pitch, const vec &axis, const vec &forward, entities::classes::BaseDynamicEntity *d)
-        {
-            animstate as[MAXANIMPARTS];
-            render(anim, basetime, basetime2, pitch, axis, forward, d, as);
-        }
-
-        void render(int anim, int basetime, int basetime2, float pitch, const vec &axis, const vec &forward, entities::classes::BaseDynamicEntity *d, animstate *as)
-        {
-            if((anim&ANIM_REUSE) != ANIM_REUSE) loopi(numanimparts)
-            {
-                animinfo info;
-                int interp = d && index+numanimparts<=MAXANIMPARTS ? index+i : -1, aitime = animationinterpolationtime;
-                if(!calcanim(i, anim, basetime, basetime2, d, interp, info, aitime)) return;
-                animstate &p = as[i];
-                p.owner = this;
-                p.cur.setframes(info);
-                p.interp = 1;
-                if(interp>=0 && d->animinterp[interp].prev.range>0)
-                {
-                    int diff = lastmillis-d->animinterp[interp].lastswitch;
-                    if(diff<aitime)
-                    {
-                        p.prev.setframes(d->animinterp[interp].prev);
-                        p.interp = diff/float(aitime);
-                    }
-                }
-            }
-
-            float resize = model->scale * sizescale;
-            int oldpos = matrixpos;
-            vec oaxis, oforward;
-            matrixstack[matrixpos].transposedtransformnormal(axis, oaxis);
-            float pitchamount = pitchscale*pitch + pitchoffset;
-            if(pitchmin || pitchmax) pitchamount = clamp(pitchamount, pitchmin, pitchmax);
-            if(as->cur.anim&ANIM_NOPITCH || (as->interp < 1 && as->prev.anim&ANIM_NOPITCH))
-                pitchamount *= (as->cur.anim&ANIM_NOPITCH ? 0 : as->interp) + (as->interp < 1 && as->prev.anim&ANIM_NOPITCH ? 0 : 1-as->interp);
-            if(pitchamount)
-            {
-                ++matrixpos;
-                matrixstack[matrixpos] = matrixstack[matrixpos-1];
-                matrixstack[matrixpos].rotate(pitchamount*RAD, oaxis);
-            }
-            if(this == model->parts[0] && !model->translate.iszero())
-            {
-                if(oldpos == matrixpos)
-                {
-                    ++matrixpos;
-                    matrixstack[matrixpos] = matrixstack[matrixpos-1];
-                }
-                matrixstack[matrixpos].translate(model->translate, resize);
-            }
-            matrixstack[matrixpos].transposedtransformnormal(forward, oforward);
-
-            if(!(anim&ANIM_NORENDER))
-            {
-                matrix4 modelmatrix;
-                modelmatrix.mul(shadowmapping ? shadowmatrix : camprojmatrix, matrixstack[matrixpos]);
-                if(resize!=1) modelmatrix.scale(resize);
-                GLOBALPARAM(modelmatrix, modelmatrix);
-
-                if(!(anim&ANIM_NOSKIN))
-                {
-                    GLOBALPARAM(modelworld, matrix3(matrixstack[matrixpos]));
-
-                    vec modelcamera;
-                    matrixstack[matrixpos].transposedtransform(camera1->o, modelcamera);
-                    modelcamera.div(resize);
-                    GLOBALPARAM(modelcamera, modelcamera);
-                }
-            }
-
-            meshes->render(as, pitch, oaxis, oforward, d, this);
-
-            if((anim&ANIM_REUSE) != ANIM_REUSE)
-            {
-                loopv(links)
-                {
-                    linkedpart &link = links[i];
-                    link.matrix.translate(link.translate, resize);
-
-                    matrixpos++;
-                    matrixstack[matrixpos].mul(matrixstack[matrixpos-1], link.matrix);
-
-                    if(link.pos) *link.pos = matrixstack[matrixpos].gettranslation();
-
-                    if(!link.p)
-                    {
-                        matrixpos--;
-                        continue;
-                    }
-
-                    int nanim = anim, nbasetime = basetime, nbasetime2 = basetime2;
-                    if(link.anim>=0)
-                    {
-                        nanim = link.anim | (anim&ANIM_FLAGS);
-                        nbasetime = link.basetime;
-                        nbasetime2 = 0;
-                    }
-                    link.p->render(nanim, nbasetime, nbasetime2, pitch, axis, forward, d);
-
-                    matrixpos--;
-                }
-            }
-
-            matrixpos = oldpos;
-        }
-
-        void setanim(int animpart, int num, int frame, int range, float speed, int priority = 0)
-        {
-            if(animpart<0 || animpart>=MAXANIMPARTS || num<0 || num>=game::numanims()) return;
-            if(frame<0 || range<=0 || !meshes || !meshes->hasframes(frame, range))
-            {
-                conoutf("invalid frame %d, range %d in model %s", frame, range, model->name);
-                return;
-            }
-            if(!anims[animpart]) anims[animpart] = new vector<animspec>[game::numanims()];
-            animspec &spec = anims[animpart][num].add();
-            spec.frame = frame;
-            spec.range = range;
-            spec.speed = speed;
-            spec.priority = priority;
-        }
-
-        bool animated() const
-        {
-            loopi(MAXANIMPARTS) if(anims[i]) return true;
-            return false;
-        }
-
-        virtual void loaded()
-        {
-            meshes->shared++;
-            loopv(skins) skins[i].setkey();
-        }
+        virtual void cleanup();
+        void disablepitch();
+        void calcbb(vec &bbmin, vec &bbmax, const matrix4x3 &m);
+        void genBIH(vector<BIH::mesh> &bih, const matrix4x3 &m);
+        void genshadowmesh(vector<triangle> &tris, const matrix4x3 &m);
+        bool link(part *p, const char *tag, const vec &translate = vec(0, 0, 0), int anim = -1, int basetime = 0, vec *pos = nullptr);
+        bool unlink(part *p);
+        void initskins(Texture *tex = notexture, Texture *masks = notexture, int limit = 0);
+        bool alphatested() const;
+        void preloadBIH();
+        void preloadshaders();
+        void preloadmeshes();
+        virtual void getdefaultanim(animinfo &info, int anim, uint varseed, MovableEntity *d);
+        bool calcanim(int animpart, int anim, int basetime, int basetime2, MovableEntity *d, int interp, animinfo &info, int &animinterptime);
+        void intersect(int anim, int basetime, int basetime2, float pitch, const vec &axis, const vec &forward, MovableEntity *d, const vec &o, const vec &ray);
+        void intersect(int anim, int basetime, int basetime2, float pitch, const vec &axis, const vec &forward, MovableEntity *d, const vec &o, const vec &ray, animstate *as);
+        void render(int anim, int basetime, int basetime2, float pitch, const vec &axis, const vec &forward, MovableEntity *d);
+        void render(int anim, int basetime, int basetime2, float pitch, const vec &axis, const vec &forward, MovableEntity *d, animstate *as);
+        void setanim(int animpart, int num, int frame, int range, float speed, int priority = 0);
+        bool animated() const;
+        virtual void loaded();
     };
 
     enum
@@ -1090,532 +411,55 @@ struct animmodel : model
         LINK_REUSE
     };
 
-    virtual int linktype(animmodel *m, part *p) const { return LINK_TAG; }
-
-    void intersect(int anim, int basetime, int basetime2, float pitch, const vec &axis, const vec &forward, entities::classes::BaseDynamicEntity *d, modelattach *a, const vec &o, const vec &ray)
-    {
-        int numtags = 0;
-        if(a)
-        {
-            int index = parts.last()->index + parts.last()->numanimparts;
-            for(int i = 0; a[i].tag; i++)
-            {
-                numtags++;
-
-                animmodel *m = (animmodel *)a[i].m;
-                if(!m) continue;
-                part *p = m->parts[0];
-                switch(linktype(m, p))
-                {
-                    case LINK_TAG:
-                        p->index = link(p, a[i].tag, vec(0, 0, 0), a[i].anim, a[i].basetime, a[i].pos) ? index : -1;
-                        break;
-
-                    case LINK_COOP:
-                        p->index = index;
-                        break;
-
-                    default:
-                        continue;
-                }
-                index += p->numanimparts;
-            }
-        }
-
-        animstate as[MAXANIMPARTS];
-        parts[0]->intersect(anim, basetime, basetime2, pitch, axis, forward, d, o, ray, as);
-
-        for(int i = 1; i < parts.length(); i++)
-        {
-            part *p = parts[i];
-            switch(linktype(this, p))
-            {
-                case LINK_COOP:
-                    p->intersect(anim, basetime, basetime2, pitch, axis, forward, d, o, ray);
-                    break;
-
-                case LINK_REUSE:
-                    p->intersect(anim | ANIM_REUSE, basetime, basetime2, pitch, axis, forward, d, o, ray, as);
-                    break;
-            }
-        }
-
-        if(a) for(int i = numtags-1; i >= 0; i--)
-        {
-            animmodel *m = (animmodel *)a[i].m;
-            if(!m) continue;
-            part *p = m->parts[0];
-            switch(linktype(m, p))
-            {
-                case LINK_TAG:
-                    if(p->index >= 0) unlink(p);
-                    p->index = 0;
-                    break;
-
-                case LINK_COOP:
-                    p->intersect(anim, basetime, basetime2, pitch, axis, forward, d, o, ray);
-                    p->index = 0;
-                    break;
-
-                case LINK_REUSE:
-                    p->intersect(anim | ANIM_REUSE, basetime, basetime2, pitch, axis, forward, d, o, ray, as);
-                    break;
-            }
-        }
-    }
+    virtual int linktype(animmodel *m, part *p) const;
+    void intersect(int anim, int basetime, int basetime2, float pitch, const vec &axis, const vec &forward, MovableEntity *d, modelattach *a, const vec &o, const vec &ray);
 
     static int intersectresult, intersectmode;
     static float intersectdist, intersectscale;
 
-    int intersect(int anim, int basetime, int basetime2, const vec &pos, float yaw, float pitch, float roll, entities::classes::BaseDynamicEntity *d, modelattach *a, float size, const vec &o, const vec &ray, float &dist, int mode)
-    {
-        vec axis(1, 0, 0), forward(0, 1, 0);
-
-        matrixpos = 0;
-        matrixstack[0].identity();
-        if(!d || !d->ragdoll || d->ragdoll->millis == lastmillis)
-        {
-            float secs = lastmillis/1000.0f;
-            yaw += spinyaw*secs;
-            pitch += spinpitch*secs;
-            roll += spinroll*secs;
-
-            matrixstack[0].settranslation(pos);
-            matrixstack[0].rotate_around_z(yaw*RAD);
-            bool usepitch = pitched();
-            if(roll && !usepitch) matrixstack[0].rotate_around_y(-roll*RAD);
-            matrixstack[0].transformnormal(vec(axis), axis);
-            matrixstack[0].transformnormal(vec(forward), forward);
-            if(roll && usepitch) matrixstack[0].rotate_around_y(-roll*RAD);
-            if(offsetyaw) matrixstack[0].rotate_around_z(offsetyaw*RAD);
-            if(offsetpitch) matrixstack[0].rotate_around_x(offsetpitch*RAD);
-            if(offsetroll) matrixstack[0].rotate_around_y(-offsetroll*RAD);
-        }
-        else
-        {
-            matrixstack[0].settranslation(d->ragdoll->center);
-            pitch = 0;
-        }
-
-        sizescale = size;
-        intersectresult = -1;
-        intersectmode = mode;
-        intersectdist = dist;
-
-        intersect(anim, basetime, basetime2, pitch, axis, forward, d, a, o, ray);
-
-        if(intersectresult >= 0) dist = intersectdist;
-        return intersectresult;
-    }
-
-    void render(int anim, int basetime, int basetime2, float pitch, const vec &axis, const vec &forward, entities::classes::BaseDynamicEntity *d, modelattach *a)
-    {
-        int numtags = 0;
-        if(a)
-        {
-            int index = parts.last()->index + parts.last()->numanimparts;
-            for(int i = 0; a[i].tag; i++)
-            {
-                numtags++;
-
-                animmodel *m = (animmodel *)a[i].m;
-                if(!m)
-                {
-                    if(a[i].pos) link(NULL, a[i].tag, vec(0, 0, 0), 0, 0, a[i].pos);
-                    continue;
-                }
-                part *p = m->parts[0];
-                switch(linktype(m, p))
-                {
-                    case LINK_TAG:
-                        p->index = link(p, a[i].tag, vec(0, 0, 0), a[i].anim, a[i].basetime, a[i].pos) ? index : -1;
-                        break;
-
-                    case LINK_COOP:
-                        p->index = index;
-                        break;
-
-                    default:
-                        continue;
-                }
-                index += p->numanimparts;
-            }
-        }
-
-        animstate as[MAXANIMPARTS];
-        parts[0]->render(anim, basetime, basetime2, pitch, axis, forward, d, as);
-
-        for(int i = 1; i < parts.length(); i++)
-        {
-            part *p = parts[i];
-            switch(linktype(this, p))
-            {
-                case LINK_COOP:
-                    p->render(anim, basetime, basetime2, pitch, axis, forward, d);
-                    break;
-
-                case LINK_REUSE:
-                    p->render(anim | ANIM_REUSE, basetime, basetime2, pitch, axis, forward, d, as);
-                    break;
-            }
-        }
-
-        if(a) for(int i = numtags-1; i >= 0; i--)
-        {
-            animmodel *m = (animmodel *)a[i].m;
-            if(!m)
-            {
-                if(a[i].pos) unlink(NULL);
-                continue;
-            }
-            part *p = m->parts[0];
-            switch(linktype(m, p))
-            {
-                case LINK_TAG:
-                    if(p->index >= 0) unlink(p);
-                    p->index = 0;
-                    break;
-
-                case LINK_COOP:
-                    p->render(anim, basetime, basetime2, pitch, axis, forward, d);
-                    p->index = 0;
-                    break;
-
-                case LINK_REUSE:
-                    p->render(anim | ANIM_REUSE, basetime, basetime2, pitch, axis, forward, d, as);
-                    break;
-            }
-        }
-    }
-
-    void render(int anim, int basetime, int basetime2, const vec &o, float yaw, float pitch, float roll, entities::classes::BaseDynamicEntity *d, modelattach *a, float size, const vec4 &color)
-    {
-        vec axis(1, 0, 0), forward(0, 1, 0);
-
-        matrixpos = 0;
-        matrixstack[0].identity();
-        if(!d || !d->ragdoll || d->ragdoll->millis == lastmillis)
-        {
-            float secs = lastmillis/1000.0f;
-            yaw += spinyaw*secs;
-            pitch += spinpitch*secs;
-            roll += spinroll*secs;
-
-            matrixstack[0].settranslation(o);
-            matrixstack[0].rotate_around_z(yaw*RAD);
-            bool usepitch = pitched();
-            if(roll && !usepitch) matrixstack[0].rotate_around_y(-roll*RAD);
-            matrixstack[0].transformnormal(vec(axis), axis);
-            matrixstack[0].transformnormal(vec(forward), forward);
-            if(roll && usepitch) matrixstack[0].rotate_around_y(-roll*RAD);
-            if(offsetyaw) matrixstack[0].rotate_around_z(offsetyaw*RAD);
-            if(offsetpitch) matrixstack[0].rotate_around_x(offsetpitch*RAD);
-            if(offsetroll) matrixstack[0].rotate_around_y(-offsetroll*RAD);
-        }
-        else
-        {
-            matrixstack[0].settranslation(d->ragdoll->center);
-            pitch = 0;
-        }
-
-        sizescale = size;
-
-        if(anim&ANIM_NORENDER)
-        {
-            render(anim, basetime, basetime2, pitch, axis, forward, d, a);
-            if(d) d->lastrendered = lastmillis;
-            return;
-        }
-
-        if(!(anim&ANIM_NOSKIN))
-        {
-            if(colorscale != color)
-            {
-                colorscale = color;
-                shaderparamskey::invalidate();
-            }
-
-            if(envmapped()) closestenvmaptex = lookupenvmap(closestenvmap(o));
-            else if(a) for(int i = 0; a[i].tag; i++) if(a[i].m && a[i].m->envmapped())
-            {
-                closestenvmaptex = lookupenvmap(closestenvmap(o));
-                break;
-            }
-        }
-
-        if(depthoffset && !enabledepthoffset)
-        {
-            enablepolygonoffset(GL_POLYGON_OFFSET_FILL);
-            enabledepthoffset = true;
-        }
-
-        render(anim, basetime, basetime2, pitch, axis, forward, d, a);
-
-        if(d) d->lastrendered = lastmillis;
-    }
+    int intersect(int anim, int basetime, int basetime2, const vec &pos, float yaw, float pitch, float roll, MovableEntity *d, modelattach *a, float size, const vec &o, const vec &ray, float &dist, int mode);
+    void render(int anim, int basetime, int basetime2, float pitch, const vec &axis, const vec &forward, MovableEntity *d, modelattach *a);
+    void render(int anim, int basetime, int basetime2, const vec &o, float yaw, float pitch, float roll, MovableEntity *d, modelattach *a, float size, const vec4 &color);
 
     vector<part *> parts;
 
-    animmodel(const char *name) : model(name)
-    {
-    }
+    animmodel(const char *name);
+    virtual ~animmodel();
+    void cleanup();
+    virtual void flushpart();
+    part &addpart();
+    void initmatrix(matrix4x3 &m);
+    void genBIH(vector<BIH::mesh> &bih);
+    void genshadowmesh(vector<triangle> &tris, const matrix4x3 &orient);
+    void preloadBIH();
+    BIH *setBIH();
+    bool link(part *p, const char *tag, const vec &translate = vec(0, 0, 0), int anim = -1, int basetime = 0, vec *pos = nullptr);
+    bool unlink(part *p);
+    bool envmapped() const;
+    bool animated() const;
+    bool pitched() const;
+    bool alphatested() const;
+    virtual bool flipy() const;
+    virtual bool loadconfig();
+    virtual bool loaddefaultparts();
+    virtual void startload();
+    virtual void endload();
 
-    ~animmodel()
-    {
-        parts.deletecontents();
-    }
-
-    void cleanup()
-    {
-        loopv(parts) parts[i]->cleanup();
-    }
-
-    virtual void flushpart() {}
-
-    part &addpart()
-    {
-        flushpart();
-        part *p = new part(this, parts.length());
-        parts.add(p);
-        return *p;
-    }
-
-    void initmatrix(matrix4x3 &m)
-    {
-        m.identity();
-        if(offsetyaw) m.rotate_around_z(offsetyaw*RAD);
-        if(offsetpitch) m.rotate_around_x(offsetpitch*RAD);
-        if(offsetroll) m.rotate_around_y(-offsetroll*RAD);
-        m.translate(translate, scale);
-    }
-
-    void genBIH(vector<BIH::mesh> &bih)
-    {
-        if(parts.empty()) return;
-        matrix4x3 m;
-        initmatrix(m);
-        parts[0]->genBIH(bih, m);
-        for(int i = 1; i < parts.length(); i++)
-        {
-            part *p = parts[i];
-            switch(linktype(this, p))
-            {
-                case LINK_COOP:
-                case LINK_REUSE:
-                    p->genBIH(bih, m);
-                    break;
-            }
-        }
-    }
-
-    void genshadowmesh(vector<triangle> &tris, const matrix4x3 &orient)
-    {
-        if(parts.empty()) return;
-        matrix4x3 m;
-        initmatrix(m);
-        m.mul(orient, matrix4x3(m));
-        parts[0]->genshadowmesh(tris, m);
-        for(int i = 1; i < parts.length(); i++)
-        {
-            part *p = parts[i];
-            switch(linktype(this, p))
-            {
-                case LINK_COOP:
-                case LINK_REUSE:
-                    p->genshadowmesh(tris, m);
-                    break;
-            }
-        }
-    }
-
-    void preloadBIH()
-    {
-        model::preloadBIH();
-        if(bih) loopv(parts) parts[i]->preloadBIH();
-    }
-
-    BIH *setBIH()
-    {
-        if(bih) return bih;
-        vector<BIH::mesh> meshes;
-        genBIH(meshes);
-        bih = new BIH(meshes);
-        return bih;
-    }
-
-    bool link(part *p, const char *tag, const vec &translate = vec(0, 0, 0), int anim = -1, int basetime = 0, vec *pos = NULL)
-    {
-        if(parts.empty()) return false;
-        return parts[0]->link(p, tag, translate, anim, basetime, pos);
-    }
-
-    bool unlink(part *p)
-    {
-        if(parts.empty()) return false;
-        return parts[0]->unlink(p);
-    }
-
-    bool envmapped() const
-    {
-        loopv(parts) loopvj(parts[i]->skins) if(parts[i]->skins[j].envmapped()) return true;
-        return false;
-    }
-
-    bool animated() const
-    {
-        if(spinyaw || spinpitch || spinroll) return true;
-        loopv(parts) if(parts[i]->animated()) return true;
-        return false;
-    }
-
-    bool pitched() const
-    {
-        return parts[0]->pitchscale != 0;
-    }
-
-    bool alphatested() const
-    {
-        loopv(parts) if(parts[i]->alphatested()) return true;
-        return false;
-    }
-
-    virtual bool flipy() const { return false; }
-    virtual bool loadconfig() { return false; }
-    virtual bool loaddefaultparts() { return false; }
-    virtual void startload() {}
-    virtual void endload() {}
-
-    bool load()
-    {
-        startload();
-        bool success = loadconfig() && parts.length(); // configured model, will call the model commands below
-        if(!success)
-            success = loaddefaultparts(); // model without configuration, try default tris and skin
-        flushpart();
-        endload();
-        if(flipy()) translate.y = -translate.y;
-
-        if(!success) return false;
-        loopv(parts) if(!parts[i]->meshes) return false;
-
-        loaded();
-        return true;
-    }
-
-    void preloadshaders()
-    {
-        loopv(parts) parts[i]->preloadshaders();
-    }
-
-    void preloadmeshes()
-    {
-        loopv(parts) parts[i]->preloadmeshes();
-    }
-
-    void setshader(Shader *shader)
-    {
-        if(parts.empty()) loaddefaultparts();
-        loopv(parts) loopvj(parts[i]->skins) parts[i]->skins[j].shader = shader;
-    }
-
-    void setenvmap(float envmapmin, float envmapmax, Texture *envmap)
-    {
-        if(parts.empty()) loaddefaultparts();
-        loopv(parts) loopvj(parts[i]->skins)
-        {
-            skin &s = parts[i]->skins[j];
-            if(envmapmax)
-            {
-                s.envmapmin = envmapmin;
-                s.envmapmax = envmapmax;
-            }
-            if(envmap) s.envmap = envmap;
-        }
-    }
-
-    void setspec(float spec)
-    {
-        if(parts.empty()) loaddefaultparts();
-        loopv(parts) loopvj(parts[i]->skins) parts[i]->skins[j].spec = spec;
-    }
-
-    void setgloss(int gloss)
-    {
-        if(parts.empty()) loaddefaultparts();
-        loopv(parts) loopvj(parts[i]->skins) parts[i]->skins[j].gloss = gloss;
-    }
-
-    void setglow(float glow, float delta, float pulse)
-    {
-        if(parts.empty()) loaddefaultparts();
-        loopv(parts) loopvj(parts[i]->skins)
-        {
-            skin &s = parts[i]->skins[j];
-            s.glow = glow;
-            s.glowdelta = delta;
-            s.glowpulse = pulse;
-        }
-    }
-
-    void setalphatest(float alphatest)
-    {
-        if(parts.empty()) loaddefaultparts();
-        loopv(parts) loopvj(parts[i]->skins) parts[i]->skins[j].alphatest = alphatest;
-    }
-
-    void setfullbright(float fullbright)
-    {
-        if(parts.empty()) loaddefaultparts();
-        loopv(parts) loopvj(parts[i]->skins) parts[i]->skins[j].fullbright = fullbright;
-    }
-
-    void setcullface(int cullface)
-    {
-        if(parts.empty()) loaddefaultparts();
-        loopv(parts) loopvj(parts[i]->skins) parts[i]->skins[j].cullface = cullface;
-    }
-
-    void setcolor(const vec &color)
-    {
-        if(parts.empty()) loaddefaultparts();
-        loopv(parts) loopvj(parts[i]->skins) parts[i]->skins[j].color = color;
-    }
-
-    void calcbb(vec &center, vec &radius)
-    {
-        if(parts.empty()) return;
-        vec bbmin(1e16f, 1e16f, 1e16f), bbmax(-1e16f, -1e16f, -1e16f);
-        matrix4x3 m;
-        initmatrix(m);
-        parts[0]->calcbb(bbmin, bbmax, m);
-        for(int i = 1; i < parts.length(); i++)
-        {
-            part *p = parts[i];
-            switch(linktype(this, p))
-            {
-                case LINK_COOP:
-                case LINK_REUSE:
-                    p->calcbb(bbmin, bbmax, m);
-                    break;
-            }
-        }
-        radius = bbmax;
-        radius.sub(bbmin);
-        radius.mul(0.5f);
-        center = bbmin;
-        center.add(radius);
-    }
-
-    void calctransform(matrix4x3 &m)
-    {
-        initmatrix(m);
-        m.scale(scale);
-    }
-
-    virtual void loaded()
-    {
-        loopv(parts) parts[i]->loaded();
-    }
+    bool load();
+    void preloadshaders();
+    void preloadmeshes();
+    void setshader(Shader *shader);
+    void setenvmap(float envmapmin, float envmapmax, Texture *envmap);
+    void setspec(float spec);
+    void setgloss(int gloss);
+    void setglow(float glow, float delta, float pulse);
+    void setalphatest(float alphatest);
+    void setfullbright(float fullbright);
+    void setcullface(int cullface);
+    void setcolor(const vec &color);
+    void calcbb(vec &center, vec &radius);
+    void calctransform(matrix4x3 &m);
+    virtual void loaded();
 
     static bool enabletc, enablecullface, enabletangents, enablebones, enabledepthoffset;
     static float sizescale;
@@ -1630,7 +474,7 @@ struct animmodel : model
         enabletc = enabletangents = enablebones = enabledepthoffset = false;
         enablecullface = true;
         lastvbuf = lasttcbuf = lastxbuf = lastbbuf = lastebuf = lastenvmaptex = closestenvmaptex = 0;
-        lasttex = lastdecal = lastmasks = lastnormalmap = NULL;
+        lasttex = lastdecal = lastmasks = lastnormalmap = nullptr;
         shaderparamskey::invalidate();
     }
 
@@ -1675,19 +519,6 @@ struct animmodel : model
     }
 };
 
-hashnameset<animmodel::meshgroup *> animmodel::meshgroups;
-int animmodel::intersectresult = -1, animmodel::intersectmode = 0;
-float animmodel::intersectdist = 0, animmodel::intersectscale = 1;
-bool animmodel::enabletc = false, animmodel::enabletangents = false, animmodel::enablebones = false,
-     animmodel::enablecullface = true, animmodel::enabledepthoffset = false;
-float animmodel::sizescale = 1;
-vec4 animmodel::colorscale(1, 1, 1, 1);
-GLuint animmodel::lastvbuf = 0, animmodel::lasttcbuf = 0, animmodel::lastxbuf = 0, animmodel::lastbbuf = 0, animmodel::lastebuf = 0,
-       animmodel::lastenvmaptex = 0, animmodel::closestenvmaptex = 0;
-Texture *animmodel::lasttex = NULL, *animmodel::lastdecal = NULL, *animmodel::lastmasks = NULL, *animmodel::lastnormalmap = NULL;
-int animmodel::matrixpos = 0;
-matrix4 animmodel::matrixstack[64];
-
 static inline uint hthash(const animmodel::shaderparams &k)
 {
     return memhash(&k, sizeof(k));
@@ -1698,13 +529,10 @@ static inline bool htcmp(const animmodel::shaderparams &x, const animmodel::shad
     return !memcmp(&x, &y, sizeof(animmodel::shaderparams));
 }
 
-hashtable<animmodel::shaderparams, animmodel::shaderparamskey> animmodel::shaderparamskey::keys;
-int animmodel::shaderparamskey::firstversion = 0, animmodel::shaderparamskey::lastversion = 1;
-
 template<class MDL, class BASE> struct modelloader : BASE
 {
     static MDL *loading;
-    static cubestr dir;
+    static std::string dir;
 
     modelloader(const char *name) : BASE(name) {}
 
@@ -1724,18 +552,18 @@ template<class MDL, class BASE> struct modelloader : BASE
 
     bool loadconfig()
     {
-        formatcubestr(dir, "media/model/%s", BASE::name);
-        defformatcubestr(cfgname, "media/model/%s/%s.cfg", BASE::name, MDL::formatname());
+        dir = fmt::format("media/model/{}", BASE::name).c_str();
+        auto cfgname = fmt::format("media/model/{}/{}.cfg", BASE::name, MDL::formatname());
 
         identflags &= ~IDF_PERSIST;
-        bool success = execfile(cfgname, false);
+        bool success = execfile(cfgname.c_str(), false);
         identflags |= IDF_PERSIST;
         return success;
     }
 };
 
-template<class MDL, class BASE> MDL *modelloader<MDL, BASE>::loading = NULL;
-template<class MDL, class BASE> cubestr modelloader<MDL, BASE>::dir = {'\0'}; // crashes clang if "" is used here
+template<class MDL, class BASE> MDL *modelloader<MDL, BASE>::loading = nullptr;
+template<class MDL, class BASE> std::string modelloader<MDL, BASE>::dir;
 
 template<class MDL, class MESH> struct modelcommands
 {
@@ -1744,131 +572,255 @@ template<class MDL, class MESH> struct modelcommands
 
     static void setdir(char *name)
     {
-        if(!MDL::loading) { conoutf("not loading an %s", MDL::formatname()); return; }
-        formatcubestr(MDL::dir, "media/model/%s", name);
+        if(!MDL::loading)
+        {
+            conoutf(CON_ERROR, "model::setdir: not loading an %s", MDL::formatname());
+            return;
+        }
+        MDL::dir = fmt::format("media/model/{}", name);
     }
 
-    #define loopmeshes(meshname, m, body) do { \
-        if(!MDL::loading || MDL::loading->parts.empty()) { conoutf("not loading an %s", MDL::formatname()); return; } \
-        part &mdl = *MDL::loading->parts.last(); \
-        if(!mdl.meshes) return; \
-        loopv(mdl.meshes->meshes) \
-        { \
-            MESH &m = *(MESH *)mdl.meshes->meshes[i]; \
-            if(!strcmp(meshname, "*") || (m.name && !strcmp(m.name, meshname))) \
-            { \
-                body; \
-            } \
-        } \
-    } while(0)
+    static void ForEachMesh(const std::string& meshname, const std::function<void(MESH&)>& forEachCallback)
+    {
+        if (!MDL::loading || MDL::loading->parts.empty())
+        {
+            conoutf(CON_ERROR, "ForEachMesh: not loading an %s", MDL::formatname());
+            return;
+        }
 
-    #define loopskins(meshname, s, body) loopmeshes(meshname, m, { skin &s = mdl.skins[i]; body; })
+        part &mdl = *MDL::loading->parts.last();
+        if(!mdl.meshes) return;
+
+        const bool wildcard = meshname == "*";
+
+        for(int i = 0; i < mdl.meshes->meshes.length(); ++i)
+        {
+            auto& mesh = mdl.meshes->meshes[i];
+            if (wildcard || mesh->name == meshname)
+            {
+                forEachCallback(*static_cast<MESH*>(mesh));
+            }
+        }
+    }
+
+    static void ForEachSkin(const std::string& meshname, const std::function<void(skin&)>& forEachCallback)
+    {
+        if (!MDL::loading || MDL::loading->parts.empty())
+        {
+            conoutf(CON_ERROR, "ForEachSkin: not loading an %s", MDL::formatname());
+            return;
+        }
+
+        part &mdl = *MDL::loading->parts.last();
+        if(!mdl.meshes) return;
+
+        const bool wildcard = meshname == "*";
+
+        for(int i = 0; i < mdl.skins.length() && i < mdl.meshes->meshes.length(); ++i)
+        {
+            auto& skin = mdl.skins[i];
+            auto& mesh = mdl.meshes->meshes[i];
+            if (wildcard || mesh->name == meshname)
+            {
+                forEachCallback(skin);
+            }
+        }
+    }
+
+//    #define loopmeshes(meshname, m, body) do { \
+//        if(!MDL::loading || MDL::loading->parts.empty()) { conoutf(CON_ERROR, "loopmeshes: not loading an %s", MDL::formatname()); return; } \
+//        part &mdl = *MDL::loading->parts.last(); \
+//        if(!mdl.meshes) return; \
+//        loopv(mdl.meshes->meshes) \
+//        { \
+//            MESH &m = *(MESH *)mdl.meshes->meshes[i]; \
+//            if(meshname == "*" || m.name == meshname) \
+//            { \
+//                body; \
+//            } \
+//        } \
+//    } while(0)
+//
+//    #define loopskins(meshname, s, body) loopmeshes(meshname, m, { skin &s = mdl.skins[i]; body; })
 
     static void setskin(char *meshname, char *tex, char *masks, float *envmapmax, float *envmapmin)
     {
-        loopskins(meshname, s,
-            s.tex = textureload(makerelpath(MDL::dir, tex), 0, true, false);
+        ForEachSkin(meshname, [&](skin& s)
+        {
+            s.tex = textureload(makerelpath(MDL::dir.c_str(), tex), 0, true, false);
             if(*masks)
             {
-                s.masks = textureload(makerelpath(MDL::dir, masks), 0, true, false);
+                s.masks = textureload(makerelpath(MDL::dir.c_str(), masks), 0, true, false);
                 s.envmapmax = *envmapmax;
                 s.envmapmin = *envmapmin;
             }
-        );
+        });
     }
 
     static void setspec(char *meshname, float *percent)
     {
         float spec = *percent > 0 ? *percent/100.0f : 0.0f;
-        loopskins(meshname, s, s.spec = spec);
+        ForEachSkin(meshname, [&](skin& s)
+        {
+            s.spec = spec;
+        });
     }
 
     static void setgloss(char *meshname, int *gloss)
     {
-        loopskins(meshname, s, s.gloss = clamp(*gloss, 0, 2));
+        ForEachSkin(meshname, [&](skin& s)
+        {
+            s.gloss = clamp(*gloss, 0, 2);
+        });
     }
 
     static void setglow(char *meshname, float *percent, float *delta, float *pulse)
     {
-        float glow = *percent > 0 ? *percent/100.0f : 0.0f, glowdelta = *delta/100.0f, glowpulse = *pulse > 0 ? *pulse/1000.0f : 0;
+        float glow = *percent > 0 ? *percent/100.0f : 0.0f;
+        float glowdelta = *delta/100.0f;
+        float glowpulse = *pulse > 0 ? *pulse/1000.0f : 0;
         glowdelta -= glow;
-        loopskins(meshname, s, { s.glow = glow; s.glowdelta = glowdelta; s.glowpulse = glowpulse; });
+        ForEachSkin(meshname, [&](skin& s)
+        {
+            s.glow = glow;
+            s.glowdelta = glowdelta;
+            s.glowpulse = glowpulse;
+        });
     }
 
     static void setalphatest(char *meshname, float *cutoff)
     {
-        loopskins(meshname, s, s.alphatest = max(0.0f, min(1.0f, *cutoff)));
+        ForEachSkin(meshname, [&](skin& s)
+        {
+            s.alphatest = max(0.0f, min(1.0f, *cutoff));
+        });
     }
 
     static void setcullface(char *meshname, int *cullface)
     {
-        loopskins(meshname, s, s.cullface = *cullface);
+        ForEachSkin(meshname, [&](skin& s)
+        {
+            s.cullface = *cullface;
+        });
     }
 
     static void setcolor(char *meshname, float *r, float *g, float *b)
     {
-        loopskins(meshname, s, s.color = vec(*r, *g, *b));
+        ForEachSkin(meshname, [&](skin& s)
+        {
+            s.color = vec(*r, *g, *b);
+        });
     }
 
     static void setenvmap(char *meshname, char *envmap)
     {
         Texture *tex = cubemapload(envmap);
-        loopskins(meshname, s, s.envmap = tex);
+        ForEachSkin(meshname, [&](skin& s)
+        {
+            s.envmap = tex;
+        });
     }
 
     static void setbumpmap(char *meshname, char *normalmapfile)
     {
-        Texture *normalmaptex = textureload(makerelpath(MDL::dir, normalmapfile), 0, true, false);
-        loopskins(meshname, s, s.normalmap = normalmaptex);
+        Texture *normalmaptex = textureload(makerelpath(MDL::dir.c_str(), normalmapfile), 0, true, false);
+        ForEachSkin(meshname, [&](skin& s)
+        {
+            s.normalmap = normalmaptex;
+        });
     }
 
     static void setdecal(char *meshname, char *decal)
     {
-        loopskins(meshname, s,
-            s.decal = textureload(makerelpath(MDL::dir, decal), 0, true, false);
-        );
+        ForEachSkin(meshname, [&](skin& s)
+        {
+            s.decal = textureload(makerelpath(MDL::dir.c_str(), decal), 0, true, false);
+        });
     }
 
     static void setfullbright(char *meshname, float *fullbright)
     {
-        loopskins(meshname, s, s.fullbright = *fullbright);
+        ForEachSkin(meshname, [&](skin& s)
+        {
+            s.fullbright = *fullbright;
+        });
     }
 
     static void setshader(char *meshname, char *shader)
     {
-        loopskins(meshname, s, s.shader = lookupshaderbyname(shader));
+        ForEachSkin(meshname, [&](skin& s)
+        {
+            s.shader = lookupshaderbyname(shader);
+        });
     }
 
     static void setscroll(char *meshname, float *scrollu, float *scrollv)
     {
-        loopskins(meshname, s, { s.scrollu = *scrollu; s.scrollv = *scrollv; });
+        ForEachSkin(meshname, [&](skin& s)
+        {
+            s.scrollu = *scrollu;
+            s.scrollv = *scrollv;
+        });
     }
 
     static void setnoclip(char *meshname, int *noclip)
     {
-        loopmeshes(meshname, m, m.noclip = *noclip!=0);
+        ForEachMesh(meshname, [&](MESH& m)
+        {
+            m.noclip = *noclip!=0;
+        });
     }
 
     static void settricollide(char *meshname)
     {
         bool init = true;
-        loopmeshes("*", m, { if(!m.cancollide) init = false; });
-        if(init) loopmeshes("*", m, m.cancollide = false);
-        loopmeshes(meshname, m, { m.cancollide = true; m.canrender = false; });
+        ForEachMesh(meshname, [&](MESH& m)
+        {
+            if(!m.cancollide)
+            {
+                init = false;
+            }
+        });
+
+        if(init)
+        {
+            ForEachMesh("*", [](MESH& m)
+            {
+                m.cancollide = false;
+            });
+        }
+
+        ForEachMesh(meshname, [](MESH& m)
+        {
+            m.cancollide = true;
+            m.canrender = false;
+        });
+
         MDL::loading->collide = COLLIDE_TRI;
     }
 
     static void setlink(int *parent, int *child, char *tagname, float *x, float *y, float *z)
     {
-        if(!MDL::loading) { conoutf("not loading an %s", MDL::formatname()); return; }
-        if(!MDL::loading->parts.inrange(*parent) || !MDL::loading->parts.inrange(*child)) { conoutf("no models loaded to link"); return; }
-        if(!MDL::loading->parts[*parent]->link(MDL::loading->parts[*child], tagname, vec(*x, *y, *z))) conoutf("could not link model %s", MDL::loading->name);
+        if(!MDL::loading)
+        {
+            conoutf(CON_ERROR, "skelmodel: not loading an %s", MDL::formatname());
+            return;
+        }
+        if(!MDL::loading->parts.inrange(*parent) || !MDL::loading->parts.inrange(*child))
+        {
+            conoutf(CON_ERROR, "no models loaded to link");
+            return;
+        }
+        if(!MDL::loading->parts[*parent]->link(MDL::loading->parts[*child], tagname, vec(*x, *y, *z)))
+        {
+            conoutf(CON_ERROR, "could not link model %s", MDL::loading->name.c_str());
+        }
     }
 
     template<class F> void modelcommand(F *fun, const char *suffix, const char *args)
     {
-        defformatcubestr(name, "%s%s", MDL::formatname(), suffix);
-        addcommand(newcubestr(name), (identfun)fun, args);
+        auto name = fmt::format("{}{}", MDL::formatname(), suffix);
+        addcommand(newcubestr(name.c_str()), (identfun)fun, args);
     }
 
     modelcommands()

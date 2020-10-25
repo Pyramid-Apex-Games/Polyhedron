@@ -1,3 +1,7 @@
+struct cube;
+struct surfaceinfo;
+struct vertinfo;
+
 struct PackNode
 {
     PackNode *child1, *child2;
@@ -49,19 +53,19 @@ extern float sunlightyaw, sunlightpitch;
 extern vec sunlightdir;
 extern int fullbright, fullbrightlevel;
 
-extern void clearlights();
-extern void initlights();
-extern void clearlightcache(int id = -1);
-extern void brightencube(cube &c);
-extern void setsurfaces(cube &c, const surfaceinfo *surfs, const vertinfo *verts, int numverts);
-extern void setsurface(cube &c, int orient, const surfaceinfo &surf, const vertinfo *verts, int numverts);
-extern void previewblends(const ivec &bo, const ivec &bs);
+void clearlights();
+void initlights();
+void clearlightcache(int id = -1);
+void brightencube(cube &c);
+void setsurfaces(cube &c, const surfaceinfo *surfs, const vertinfo *verts, int numverts);
+void setsurface(cube &c, int orient, const surfaceinfo &surf, const vertinfo *verts, int numverts);
+void previewblends(const ivec &bo, const ivec &bs);
 
-extern void calcnormals(bool lerptjoints = false);
-extern void clearnormals();
-extern void resetsmoothgroups();
-extern int smoothangle(int id, int angle);
-extern void findnormal(const vec &key, int smooth, const vec &surface, vec &v);
+void calcnormals(bool lerptjoints = false);
+void clearnormals();
+void resetsmoothgroups();
+int smoothangle(int id, int angle);
+void findnormal(const vec &key, int smooth, const vec &surface, vec &v);
 
 #define CHECK_CALCLIGHT_PROGRESS_LOCKED(exit, show_calclight_progress, before, after) \
     if(check_calclight_progress) \
@@ -80,7 +84,7 @@ extern void findnormal(const vec &key, int smooth, const vec &surface, vec &v);
 extern bool calclight_canceled;
 extern volatile bool check_calclight_progress;
 
-extern void check_calclight_canceled();
+void check_calclight_canceled();
 
-extern const vector<int> &checklightcache(int x, int y);
+const vector<int> &checklightcache(int x, int y);
 

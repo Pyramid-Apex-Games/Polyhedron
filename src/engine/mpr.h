@@ -1,5 +1,6 @@
-#include "shared/entities/basephysicalentity.h"
-
+#include "shared/entities/DynamicEntity.h"
+#include "shared/entities/MovableEntity.h"
+#include "engine/octa.h"
 // This code is based off the Minkowski Portal Refinement algorithm by Gary Snethen in XenoCollide & Game Programming Gems 7.
 
 namespace mpr
@@ -48,9 +49,9 @@ namespace mpr
 
     struct Ent
     {
-        entities::classes::BasePhysicalEntity *ent;
+        MovableEntity *ent;
 
-        Ent(entities::classes::BasePhysicalEntity *ent) : ent(ent) {}
+        Ent(MovableEntity *ent) : ent(ent) {}
 
         vec center() const { return vec(ent->o.x, ent->o.y, ent->o.z + (ent->aboveeye - ent->eyeheight)/2); }
     };
@@ -59,9 +60,9 @@ namespace mpr
     {
         matrix3 orient;
 
-        EntOBB(entities::classes::BasePhysicalEntity *ent) : Ent(ent)
+        EntOBB(MovableEntity *ent) : Ent(ent)
         {
-            orient.setyaw(ent->yaw*RAD);
+            orient.setyaw(ent->d.x*RAD);
         }
 
         vec contactface(const vec &wn, const vec &wdir) const
@@ -111,7 +112,7 @@ namespace mpr
 
     struct EntFuzzy : Ent
     {
-        EntFuzzy(entities::classes::BasePhysicalEntity *ent) : Ent(ent) {}
+        EntFuzzy(MovableEntity *ent) : Ent(ent) {}
 
         float left() const { return ent->o.x - ent->radius; }
         float right() const { return ent->o.x + ent->radius; }
@@ -123,7 +124,7 @@ namespace mpr
 
     struct EntCylinder : EntFuzzy
     {
-        EntCylinder(entities::classes::BasePhysicalEntity *ent) : EntFuzzy(ent) {}
+        EntCylinder(MovableEntity *ent) : EntFuzzy(ent) {}
 
         vec contactface(const vec &n, const vec &dir) const
         {
@@ -156,7 +157,7 @@ namespace mpr
 
     struct EntCapsule : EntFuzzy
     {
-        EntCapsule(entities::classes::BasePhysicalEntity *ent) : EntFuzzy(ent) {}
+        EntCapsule(MovableEntity *ent) : EntFuzzy(ent) {}
 
         vec supportpoint(const vec &n) const
         {
@@ -170,7 +171,7 @@ namespace mpr
 
     struct EntEllipsoid : EntFuzzy
     {
-        EntEllipsoid(entities::classes::BasePhysicalEntity *ent) : EntFuzzy(ent) {}
+        EntEllipsoid(MovableEntity *ent) : EntFuzzy(ent) {}
 
         vec supportpoint(const vec &dir) const
         {

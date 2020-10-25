@@ -1,3 +1,6 @@
+//extern from command.h
+extern int identflags;
+
 struct md2;
 
 static const float md2normaltable[256][3] =
@@ -213,25 +216,25 @@ struct md2 : vertloader<md2>
     bool loaddefaultparts()
     {
         part &mdl = addpart();
-        const char *pname = parentdir(name);
-        defformatcubestr(name1, "media/model/%s/tris.md2", name);
-        mdl.meshes = sharemeshes(path(name1));
+        const char *pname = parentdir(name.c_str());
+        auto name1 = fmt::format("media/model/{}/tris.md2", name);
+        mdl.meshes = sharemeshes(path(name1.c_str(), true));
         if(!mdl.meshes)
         {
-            defformatcubestr(name2, "media/model/%s/tris.md2", pname);    // try md2 in parent folder (vert sharing)
-            mdl.meshes = sharemeshes(path(name2));
+            auto name2 = fmt::format("media/model/{}/tris.md2", pname);
+            mdl.meshes = sharemeshes(path(name2.c_str(), true));
             if(!mdl.meshes) return false;
         }
         Texture *tex, *masks;
-        loadskin(name, pname, tex, masks);
+        loadskin(name.c_str(), pname, tex, masks);
         mdl.initskins(tex, masks);
-        if(tex==notexture) conoutf("could not load model skin for %s", name1);
+        if(tex==notexture) conoutf("could not load model skin for %s", name1.c_str());
         identflags &= ~IDF_PERSIST;
-        defformatcubestr(name3, "media/model/%s/md2.cfg", name);
-        if(!execfile(name3, false))
+        auto name3 = fmt::format("media/model/{}/md2.cfg", name);
+        if(!execfile(name3.c_str(), false))
         {
-            formatcubestr(name3, "media/model/%s/md2.cfg", pname);
-            execfile(name3, false);
+            name3 = fmt::format("media/model/{}/md2.cfg", name);
+            execfile(name3.c_str(), false);
         }
         identflags |= IDF_PERSIST;
         return true;

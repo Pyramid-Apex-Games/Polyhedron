@@ -1,7 +1,13 @@
-#include "cube.h"
-#include "engine.h"
-#include "textedit.h"
+#include "shared/cube.h"
 #include "shared/entities/animinfo.h"
+#include "engine/texture.h"
+#include "engine/model.h"
+#include "engine/rendergl.h"
+#include "engine/octaedit.h"
+#include "engine/textedit.h"
+#include "engine/console.h"
+#include "engine/hud.h"
+#include "engine/main/Compatibility.h"
 
 namespace UI
 {
@@ -68,7 +74,9 @@ namespace UI
 
     static void pushclip(float x, float y, float w, float h)
     {
-        if(clipstack.empty()) glEnable(GL_SCISSOR_TEST);
+        if(clipstack.empty()){
+            glCheckError(glEnable(GL_SCISSOR_TEST));
+        }
         ClipArea &c = clipstack.add(ClipArea(x, y, w, h));
         if(clipstack.length() >= 2) c.intersect(clipstack[clipstack.length()-2]);
         c.scissor();
@@ -77,7 +85,10 @@ namespace UI
     static void popclip()
     {
         clipstack.pop();
-        if(clipstack.empty()) glDisable(GL_SCISSOR_TEST);
+        if(clipstack.empty())
+        {
+            glCheckError(glDisable(GL_SCISSOR_TEST));
+        }
         else clipstack.last().scissor();
     }
 
@@ -165,7 +176,7 @@ namespace UI
         if(blendtype != type)
         {
             blendtype = type;
-            glBlendFunc(src, dst);
+            glCheckError(glBlendFunc(src, dst));
         }
     }
 
@@ -648,9 +659,9 @@ namespace UI
             projection();
             hudshader->set();
 
-            glEnable(GL_BLEND);
+            glCheckError(glEnable(GL_BLEND));
             blendtype = BLEND_ALPHA;
-            glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+            glCheckError(glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA));
             gle::colorf(1, 1, 1);
 
             changed = 0;
@@ -660,7 +671,7 @@ namespace UI
 
             stopdrawing();
 
-            glDisable(GL_BLEND);
+            glCheckError(glDisable(GL_BLEND));
 
             window = nullptr;
         }
@@ -737,7 +748,7 @@ namespace UI
     {
         int sx1, sy1, sx2, sy2;
         window->calcscissor(x1, y1, x2, y2, sx1, sy1, sx2, sy2);
-        glScissor(sx1, sy1, sx2-sx1, sy2-sy1);
+        glCheckError(glScissor(sx1, sy1, sx2-sx1, sy2-sy1));
     }
 
     struct World : Object
@@ -1496,7 +1507,7 @@ namespace UI
         void bindtex()
         {
             changedraw();
-            if(lasttex != tex) { if(lasttex) gle::end(); lasttex = tex; glBindTexture(GL_TEXTURE_2D, tex->id); }
+            if(lasttex != tex) { if(lasttex) gle::end(); lasttex = tex; glCheckError(glBindTexture(GL_TEXTURE_2D, tex->id)); }
         }
 
         void draw(float sx, float sy)
@@ -2851,140 +2862,136 @@ namespace UI
     {
         void startdraw()
         {
-            glDisable(GL_BLEND);
+            glCheckError(glDisable(GL_BLEND));
 
-            if(clipstack.length()) glDisable(GL_SCISSOR_TEST);
+            if(clipstack.length()){
+                glCheckError(glDisable(GL_SCISSOR_TEST));
+            }
         }
 
         void enddraw()
         {
-            glEnable(GL_BLEND);
+            glCheckError(glEnable(GL_BLEND));
 
-            if(clipstack.length()) glEnable(GL_SCISSOR_TEST);
-        }
-    };
-
-    struct ModelPreview : Preview
-    {
-        char *name;
-        int anim;
-
-        ModelPreview() : name(NULL) {}
-        ~ModelPreview() { delete[] name; }
-
-        void setup(const char *name_, const char *animspec, float minw_, float minh_)
-        {
-            Preview::setup(minw_, minh_);
-            SETSTR(name, name_);
-
-            anim = ANIM_ALL;
-            if(animspec[0])
-            {
-                if(isdigit(animspec[0]))
-                {
-                    anim = parseint(animspec);
-                    if(anim >= 0) anim %= ANIM_INDEX;
-                    else anim = ANIM_ALL;
-                }
-                else
-                {
-                    vector<int> anims;
-                    game::findanims(animspec, anims);
-                    if(anims.length()) anim = anims[0];
-                }
+            if(clipstack.length()){
+                glCheckError(glEnable(GL_SCISSOR_TEST));
             }
-            anim |= ANIM_LOOP;
-        }
-
-        static const char *typestr() { return "#ModelPreview"; }
-        const char *gettype() const { return typestr(); }
-
-        void draw(float sx, float sy)
-        {
-            Object::draw(sx, sy);
-
-            changedraw(CHANGE_SHADER);
-
-            int sx1, sy1, sx2, sy2;
-            window->calcscissor(sx, sy, sx+w, sy+h, sx1, sy1, sx2, sy2, false);
-            modelpreview::start(sx1, sy1, sx2-sx1, sy2-sy1, false, clipstack.length() > 0);
-            model *m = loadmodel(name);
-            if(m)
-            {
-                vec center, radius;
-                m->boundbox(center, radius);
-                float yaw;
-                vec o = calcmodelpreviewpos(radius, yaw).sub(center);
-                rendermodel(name, anim, o, yaw, 0, 0, 0, NULL, NULL, 0);
-            }
-            if(clipstack.length()) clipstack.last().scissor();
-            modelpreview::end();
         }
     };
 
-    struct PlayerPreview : Preview
-    {
-        int model, color, team, weapon;
-
-        void setup(int model_, int color_, int team_, int weapon_, float minw_, float minh_)
-        {
-            Preview::setup(minw_, minh_);
-            model = model_;
-            color = color_;
-            team = team_;
-            weapon = weapon_;
-        }
-
-        static const char *typestr() { return "#PlayerPreview"; }
-        const char *gettype() const { return typestr(); }
-
-        void draw(float sx, float sy)
-        {
-            Object::draw(sx, sy);
-
-            changedraw(CHANGE_SHADER);
-
-            int sx1, sy1, sx2, sy2;
-            window->calcscissor(sx, sy, sx+w, sy+h, sx1, sy1, sx2, sy2, false);
-            modelpreview::start(sx1, sy1, sx2-sx1, sy2-sy1, false, clipstack.length() > 0);
-            game::renderplayerpreview(model, color, team, weapon);
-            if(clipstack.length()) clipstack.last().scissor();
-            modelpreview::end();
-        }
-    };
-
-    struct PrefabPreview : Preview
-    {
-        char *name;
-        vec color;
-
-        PrefabPreview() : name(NULL) {}
-        ~PrefabPreview() { delete[] name; }
-
-        void setup(const char *name_, int color_, float minw_, float minh_)
-        {
-            Preview::setup(minw_, minh_);
-            SETSTR(name, name_);
-            color = vec::hexcolor(color_);
-        }
-
-        static const char *typestr() { return "#PrefabPreview"; }
-        const char *gettype() const { return typestr(); }
-
-        void draw(float sx, float sy)
-        {
-            Object::draw(sx, sy);
-
-            changedraw(CHANGE_SHADER);
-
-            int sx1, sy1, sx2, sy2;
-            window->calcscissor(sx, sy, sx+w, sy+h, sx1, sy1, sx2, sy2, false);
-            modelpreview::start(sx1, sy1, sx2-sx1, sy2-sy1, false, clipstack.length() > 0);
-            previewprefab(name, color);
-            if(clipstack.length()) clipstack.last().scissor();
-            modelpreview::end();
-        }
-    };
+//    struct ModelPreview : Preview
+//    {
+//        std::string name;
+//        int anim = -1;
+//
+//        void setup(const char *name_, const char *animspec, float minw_, float minh_)
+//        {
+//            Preview::setup(minw_, minh_);
+//
+//            anim = ANIM_ALL;
+//            if(animspec[0])
+//            {
+//                if(isdigit(animspec[0]))
+//                {
+//                    anim = parseint(animspec);
+//                    if(anim >= 0) anim %= ANIM_INDEX;
+//                    else anim = ANIM_ALL;
+//                }
+//                else
+//                {
+//                    vector<int> anims;
+//                    game::findanims(animspec, anims);
+//                    if(anims.length()) anim = anims[0];
+//                }
+//            }
+//            anim |= ANIM_LOOP;
+//        }
+//
+//        static const char *typestr() { return "#ModelPreview"; }
+//        const char *gettype() const { return typestr(); }
+//
+//        void draw(float sx, float sy)
+//        {
+//            Object::draw(sx, sy);
+//
+//            changedraw(CHANGE_SHADER);
+//
+//            int sx1, sy1, sx2, sy2;
+//            window->calcscissor(sx, sy, sx+w, sy+h, sx1, sy1, sx2, sy2, false);
+//            modelpreview::start(sx1, sy1, sx2-sx1, sy2-sy1, false, clipstack.length() > 0);
+//            auto [m, loadedName] = loadmodel(name);
+//            if(m)
+//            {
+//                vec center, radius;
+//                m->boundbox(center, radius);
+//                float yaw;
+//                vec o = calcmodelpreviewpos(radius, yaw).sub(center);
+//                rendermodel(name.c_str(), anim, o, yaw, 0, 0, 0, NULL, NULL, 0);
+//            }
+//            if(clipstack.length()) clipstack.last().scissor();
+//            modelpreview::end();
+//        }
+//    };
+//
+//    struct PlayerPreview : Preview
+//    {
+//        int model, color, team, weapon;
+//
+//        void setup(int model_, int color_, int team_, int weapon_, float minw_, float minh_)
+//        {
+//            Preview::setup(minw_, minh_);
+//            model = model_;
+//            color = color_;
+//            team = team_;
+//            weapon = weapon_;
+//        }
+//
+//        static const char *typestr() { return "#PlayerPreview"; }
+//        const char *gettype() const { return typestr(); }
+//
+//        void draw(float sx, float sy)
+//        {
+//            Object::draw(sx, sy);
+//
+//            changedraw(CHANGE_SHADER);
+//
+//            int sx1, sy1, sx2, sy2;
+//            window->calcscissor(sx, sy, sx+w, sy+h, sx1, sy1, sx2, sy2, false);
+//            modelpreview::start(sx1, sy1, sx2-sx1, sy2-sy1, false, clipstack.length() > 0);
+//            game::renderplayerpreview(model, color, team, weapon);
+//            if(clipstack.length()) clipstack.last().scissor();
+//            modelpreview::end();
+//        }
+//    };
+//
+//    struct PrefabPreview : Preview
+//    {
+//        std::string name;
+//        vec color;
+//
+//        void setup(const char *name_, int color_, float minw_, float minh_)
+//        {
+//            Preview::setup(minw_, minh_);
+//            color = vec::hexcolor(color_);
+//        }
+//
+//        static const char *typestr() { return "#PrefabPreview"; }
+//        const char *gettype() const { return typestr(); }
+//
+//        void draw(float sx, float sy)
+//        {
+//            Object::draw(sx, sy);
+//
+//            changedraw(CHANGE_SHADER);
+//
+//            int sx1, sy1, sx2, sy2;
+//            window->calcscissor(sx, sy, sx+w, sy+h, sx1, sy1, sx2, sy2, false);
+//            modelpreview::start(sx1, sy1, sx2-sx1, sy2-sy1, false, clipstack.length() > 0);
+//            previewprefab(name.c_str(), color);
+//            if(clipstack.length()) clipstack.last().scissor();
+//            modelpreview::end();
+//        }
+//    };
 
     VARP(uislotviewtime, 0, 25, 1000);
     static int lastthumbnail = 0;
@@ -3050,26 +3057,26 @@ namespace UI
             }
             float xt = min(1.0f, t->xs/float(t->ys)), yt = min(1.0f, t->ys/float(t->xs));
             loopk(4) { tc[k].x = tc[k].x/xt - float(xoff)/t->xs; tc[k].y = tc[k].y/yt - float(yoff)/t->ys; }
-            glBindTexture(GL_TEXTURE_2D, t->id);
+            glCheckError(glBindTexture(GL_TEXTURE_2D, t->id));
             if(slot.loaded) gle::color(vslot.colorscale);
             else gle::colorf(1, 1, 1);
             quad(x, y, w, h, tc);
             if(detailtex)
             {
-                glBindTexture(GL_TEXTURE_2D, detailtex->id);
+                glCheckError(glBindTexture(GL_TEXTURE_2D, detailtex->id));
                 quad(x + w/2, y + h/2, w/2, h/2, tc);
             }
             if(glowtex)
             {
-                glBlendFunc(GL_SRC_ALPHA, GL_ONE);
-                glBindTexture(GL_TEXTURE_2D, glowtex->id);
+                glCheckError(glBlendFunc(GL_SRC_ALPHA, GL_ONE));
+                glCheckError(glBindTexture(GL_TEXTURE_2D, glowtex->id));
                 gle::color(vslot.glowcolor);
                 quad(x, y, w, h, tc);
-                glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+                glCheckError(glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA));
             }
             if(layertex)
             {
-                glBindTexture(GL_TEXTURE_2D, layertex->id);
+                glCheckError(glBindTexture(GL_TEXTURE_2D, layertex->id));
                 gle::color(layer->colorscale);
                 quad(x, y, w/2, h/2, tc);
             }
@@ -3619,20 +3626,20 @@ namespace UI
         }, children);
     }
 
-    SCRIPTEXPORT void uimodelpreview(char *model, char *animspec, float *minw, float *minh, CommandTypes::Expression children)
-    {
-        BUILD(ModelPreview, o, o->setup(model, animspec, *minw, *minh), children);
-    }
-
-    SCRIPTEXPORT void uiplayerpreview(int *model, int *color, int *team, int *weapon, float *minw, float *minh, CommandTypes::Expression children)
-    {
-        BUILD(PlayerPreview, o, o->setup(*model, *color, *team, *weapon, *minw, *minh), children);
-    }
-
-    SCRIPTEXPORT void uiprefabpreview(char *prefab, int *color, float *minw, float *minh, CommandTypes::Expression children)
-    {
-        BUILD(PrefabPreview, o, o->setup(prefab, *color, *minw, *minh), children);
-    }
+//    SCRIPTEXPORT void uimodelpreview(char *model, char *animspec, float *minw, float *minh, CommandTypes::Expression children)
+//    {
+//        BUILD(ModelPreview, o, o->setup(model, animspec, *minw, *minh), children);
+//    }
+//
+//    SCRIPTEXPORT void uiplayerpreview(int *model, int *color, int *team, int *weapon, float *minw, float *minh, CommandTypes::Expression children)
+//    {
+//        BUILD(PlayerPreview, o, o->setup(*model, *color, *team, *weapon, *minw, *minh), children);
+//    }
+//
+//    SCRIPTEXPORT void uiprefabpreview(char *prefab, int *color, float *minw, float *minh, CommandTypes::Expression children)
+//    {
+//        BUILD(PrefabPreview, o, o->setup(prefab, *color, *minw, *minh), children);
+//    }
 
     SCRIPTEXPORT void uislotview(int *index, float *minw, float *minh, CommandTypes::Expression children)
     {
@@ -3645,34 +3652,6 @@ namespace UI
     }
 
     FVARP(uisensitivity, 1e-4f, 1, 1e4f);
-
-    bool hascursor()
-    {
-        return world->allowinput();
-    }
-
-    void getcursorpos(float &x, float &y)
-    {
-        if(hascursor())
-        {
-            x = cursorx;
-            y = cursory;
-        }
-        else x = y = 0.5f;
-    }
-
-    void resetcursor()
-    {
-        cursorx = cursory = 0.5f;
-    }
-
-    bool movecursor(int dx, int dy)
-    {
-        if(!hascursor()) return false;
-        cursorx = clamp(cursorx + dx*uisensitivity/hudw, 0.0f, 1.0f);
-        cursory = clamp(cursory + dy*uisensitivity/hudh, 0.0f, 1.0f);
-        return true;
-    }
 
     bool keypress(int code, bool isdown)
     {

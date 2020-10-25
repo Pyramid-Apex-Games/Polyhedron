@@ -1,12 +1,22 @@
 // octarender.cpp: fill vertex arrays with different cube surfaces.
 
-#include "engine.h"
-#include "ents.h"
-#include "shared/entities/decalentity.h"
-
-
-using namespace entities;
-using namespace classes;
+#include "shared/cube.h"
+#include "engine/light.h"
+#include "engine/texture.h"
+#include "engine/rendergl.h"
+#include "engine/octarender.h"
+#include "engine/renderva.h"
+#include "engine/renderlights.h"
+#include "engine/rendersky.h"
+#include "engine/material.h"
+#include "engine/renderparticles.h"
+#include "engine/grass.h"
+#include "engine/blend.h"
+#include "engine/menus.h"
+#include "engine/main/Compatibility.h"
+#include "engine/main/Renderer.h"
+#include "shared/ents.h"
+#include "shared/entities/DecalEntity.h"
 
 struct vboinfo
 {
@@ -338,14 +348,14 @@ struct vacollect : verthash
         GENVERTS(vertex, buf, { *f = v; f->norm.flip(); f->tangent.flip(); });
     }
 
-    void gendecal(const entities::classes::CoreEntity *e, DecalSlot &s, const decalkey &key)
+    void gendecal(const Entity *e, DecalSlot &s, const decalkey &key)
     {
         matrix3 orient;
         orient.identity();
-		if(e->attr2) orient.rotate_around_z(sincosmod360(e->attr2));
-		if(e->attr3) orient.rotate_around_x(sincosmod360(e->attr3));
-		if(e->attr4) orient.rotate_around_y(sincosmod360(-e->attr4));
-		vec size(max(float(e->attr5), 1.0f));
+		if(e->d.x) orient.rotate_around_z(sincosmod360(e->d.x));
+		if(e->d.y) orient.rotate_around_x(sincosmod360(e->d.y));
+		if(e->d.z) orient.rotate_around_y(sincosmod360(-e->d.z));
+		vec size(max(float(e->scale), 1.0f));
         size.y *= s.depth;
         if(!s.sts.empty())
         {
@@ -420,35 +430,35 @@ struct vacollect : verthash
     {
         if(decals.length()) extdecals.put(decals.getbuf(), decals.length());
         if(extdecals.empty()) return;
-        const auto& ents = entities::getents();
+        const auto& ents = getents();
         loopv(extdecals)
         {
             octaentities *oe = extdecals[i];
-            loopvj(oe->decals)
+            for(auto& decal : oe->decals)
             {
-                auto e = dynamic_cast<entities::classes::DecalEntity *>(ents[oe->decals[j]]);
+                auto e = dynamic_cast<DecalEntity *>(ents[decal]);
                 if (!e)
 					continue;
 					
-				if(e->flags & entities::EntityFlags::EF_RENDER) continue;
-				e->flags |= (int)entities::EntityFlags::EF_RENDER;
-				DecalSlot &s = lookupdecalslot(e->attr1, true);
+				if(e->flags & EntityFlags::EF_RENDER) continue;
+				e->flags |= (int)EntityFlags::EF_RENDER;
+				DecalSlot &s = lookupdecalslot(e->m_DecalSlot, true);
                 if(!s.shader) continue;
 				ushort envmap = s.shader->type&SHADER_ENVMAP ? (s.texmask&(1<<TEX_ENVMAP) ? EMID_CUSTOM : closestenvmap(e->o)) : EMID_NONE;
-				decalkey k(e->attr1, envmap);
+				decalkey k(e->m_DecalSlot, envmap);
                 gendecal(e, s, k);
             }
         }
         loopv(extdecals)
         {
             octaentities *oe = extdecals[i];
-            loopvj(oe->decals)
+            for(auto& decal : oe->decals)
             {
-                auto e = dynamic_cast<entities::classes::DecalEntity *>(ents[oe->decals[j]]);
+                auto e = dynamic_cast<DecalEntity *>(ents[decal]);
                 if (!e)
 					continue;
 
-				if(e->flags& entities::EntityFlags::EF_RENDER) e->flags &= (int)~entities::EntityFlags::EF_RENDER;
+				if(e->flags& EntityFlags::EF_RENDER) e->flags &= (int)~EntityFlags::EF_RENDER;
             }
         }
         enumeratekt(decalindices, decalkey, k, sortval, t,
@@ -1440,8 +1450,8 @@ void rendercube(cube &c, const ivec &co, int size, int csi, int &maxlevel) // cr
 
         if(c.ext && c.ext->ents)
         {
-            if(c.ext->ents->mapmodels.length()) vc.mapmodels.add(c.ext->ents);
-            if(c.ext->ents->decals.length()) vc.decals.add(c.ext->ents);
+            if(c.ext->ents->mapmodels.size()) vc.mapmodels.add(c.ext->ents);
+            if(c.ext->ents->decals.size()) vc.decals.add(c.ext->ents);
         }
         return;
     }
@@ -1463,8 +1473,8 @@ void rendercube(cube &c, const ivec &co, int size, int csi, int &maxlevel) // cr
 
     if(c.ext && c.ext->ents)
     {
-        if(c.ext->ents->mapmodels.length()) vc.mapmodels.add(c.ext->ents);
-        if(c.ext->ents->decals.length()) vc.decals.add(c.ext->ents);
+        if(c.ext->ents->mapmodels.size()) vc.mapmodels.add(c.ext->ents);
+        if(c.ext->ents->decals.size()) vc.decals.add(c.ext->ents);
     }
 
     if(csi <= MAXMERGELEVEL && vamerges[csi].length()) addmergedverts(csi, co);
@@ -1502,7 +1512,7 @@ void setva(cube &c, const ivec &co, int size, int csi)
     loopi(entdepth+1)
     {
         octaentities *oe = entstack[i];
-        if(oe->decals.length()) vc.extdecals.add(oe);
+        if(oe->decals.size()) vc.extdecals.add(oe);
     }
 
     int maxlevel = -1;

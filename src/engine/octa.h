@@ -1,4 +1,6 @@
 // 6-directional octree heightfield map format
+#pragma once
+struct vertex;
 
 struct elementset
 {
@@ -90,7 +92,7 @@ struct vtxarray;
 
 struct octaentities
 {
-    vector<int> mapmodels, decals, other;
+    std::vector<int> mapmodels, decals, other;
     occludequery *query;
     octaentities *next, *rnext;
     int distance;
@@ -224,7 +226,7 @@ struct editinfo
     editinfo() : copy(NULL) {}
 };
 
-struct undoent   { int i; entities::classes::CoreEntity* e; };
+struct undoent   { int i; Entity* e; };
 struct undoblock // undo header, all data sits in payload
 {
     undoblock *prev, *next;
@@ -335,3 +337,66 @@ enum
     GENFACEVERTSXY(x0,x1, y0,y1, z0,z1, c0,c1, r0,r1, d0,d1) \
     GENFACEVERTSZ(x0,x1, y0,y1, z0,z1, c0,c1, r0,r1, d0,d1)
 
+// octa
+cube *newcubes(uint face = F_EMPTY, int mat = MAT_AIR);
+cubeext *growcubeext(cubeext *ext, int maxverts);
+void setcubeext(cube &c, cubeext *ext);
+cubeext *newcubeext(cube &c, int maxverts = 0, bool init = true);
+void getcubevector(cube &c, int d, int x, int y, int z, ivec &p);
+void setcubevector(cube &c, int d, int x, int y, int z, const ivec &p);
+int familysize(const cube &c);
+void freeocta(cube *c);
+void discardchildren(cube &c, bool fixtex = false, int depth = 0);
+void optiface(uchar *p, cube &c);
+void validatec(cube *c, int size = 0);
+bool isvalidcube(const cube &c);
+
+extern ivec lu;
+extern int lusize;
+
+cube &lookupcube(const ivec &to, int tsize = 0, ivec &ro = lu, int &rsize = lusize);
+
+extern const cube *neighbourstack[32];
+extern int neighbourdepth;
+
+const cube &neighbourcube(const cube &c, int orient, const ivec &co, int size, ivec &ro = lu, int &rsize = lusize);
+void resetclipplanes();
+int getmippedtexture(const cube &p, int orient);
+void forcemip(cube &c, bool fixtex = true);
+bool subdividecube(cube &c, bool fullcheck=true, bool brighten=true);
+int faceconvexity(const ivec v[4]);
+int faceconvexity(const ivec v[4], int &vis);
+int faceconvexity(const vertinfo *verts, int numverts, int size);
+int faceconvexity(const cube &c, int orient);
+void calcvert(const cube &c, const ivec &co, int size, ivec &vert, int i, bool solid = false);
+void calcvert(const cube &c, const ivec &co, int size, vec &vert, int i, bool solid = false);
+uint faceedges(const cube &c, int orient);
+bool collapsedface(const cube &c, int orient);
+bool touchingface(const cube &c, int orient);
+bool flataxisface(const cube &c, int orient);
+bool collideface(const cube &c, int orient);
+void genclipbounds(const cube &c, const ivec &co, int size, clipplanes &p);
+int genclipplane(const cube &c, int i, vec *v, plane *clip);
+void genclipplanes(const cube &c, const ivec &co, int size, clipplanes &p, bool collide = true, bool noclip = false);
+bool visibleface(const cube &c, int orient, const ivec &co, int size, ushort mat = MAT_AIR, ushort nmat = MAT_AIR, ushort matmask = MATF_VOLUME);
+int classifyface(const cube &c, int orient, const ivec &co, int size);
+int visibletris(const cube &c, int orient, const ivec &co, int size, ushort vmat = MAT_AIR, ushort nmat = MAT_ALPHA, ushort matmask = MAT_ALPHA);
+int visibleorient(const cube &c, int orient);
+void genfaceverts(const cube &c, int orient, ivec v[4]);
+int calcmergedsize(int orient, const ivec &co, int size, const vertinfo *verts, int numverts);
+void invalidatemerges(cube &c, const ivec &co, int size, bool msg);
+void calcmerges();
+int mergefaces(int orient, facebounds *m, int sz);
+void mincubeface(const cube &cu, int orient, const ivec &o, int size, const facebounds &orig, facebounds &cf, ushort nmat = MAT_AIR, ushort matmask = MATF_VOLUME);
+void remip();
+
+static inline cubeext &ext(cube &c)
+{
+    return *(c.ext ? c.ext : newcubeext(c));
+}
+
+extern const ivec cubecoords[8];
+extern const ivec facecoords[6][4];
+extern const uchar fv[6][4];
+extern const uchar fvmasks[64];
+extern const uchar faceedgesidx[6][4];

@@ -1,4 +1,10 @@
 #pragma once
+#include "shared/cube.h"
+#include "world.h"
+#include "octa.h"
+#include "engine/includegl.h"
+#include "shared/geom.h"
+#include <limits.h>
 
 struct GlobalShaderParamState
 {
@@ -227,7 +233,7 @@ struct Shader
         if(variantrows)
         {
             int start = variantrows[row], end = variantrows[row+1];
-            for(col = min(start + col, end-1); col >= start; --col) if(!variants[col]->invalid()) { s = variants[col]; break; }
+            for(col = std::min(start + col, end-1); col >= start; --col) if(!variants[col]->invalid()) { s = variants[col]; break; }
         }
         if(lastshader!=s) s->bindprograms();
     }
@@ -507,7 +513,7 @@ struct ImageData
         if(!ndata) { owner = this; freefunc = NULL; }
     }
 
-    int calclevelsize(int level) const { return ((max(w>>level, 1)+align-1)/align)*((max(h>>level, 1)+align-1)/align)*bpp; }
+    int calclevelsize(int level) const { return ((std::max(w>>level, 1)+align-1)/align)*((std::max(h>>level, 1)+align-1)/align)*bpp; }
 
     int calcsize() const
     {
@@ -825,39 +831,40 @@ extern Texture *notexture;
 extern Shader *nullshader, *hudshader, *hudtextshader, *hudnotextureshader, *nocolorshader, *foggedshader, *foggednotextureshader, *ldrshader, *ldrnotextureshader, *stdworldshader;
 extern int maxvsuniforms, maxfsuniforms;
 
-extern Shader *lookupshaderbyname(const char *name);
-extern Shader *useshaderbyname(const char *name);
-extern Shader *generateshader(const char *name, const char *cmd, ...);
-extern void resetslotshader();
-extern void setslotshader(Slot &s);
-extern void linkslotshader(Slot &s, bool load = true);
-extern void linkvslotshader(VSlot &s, bool load = true);
-extern void linkslotshaders();
-extern const char *getshaderparamname(const char *name, bool insert = true);
-extern bool shouldreuseparams(Slot &s, VSlot &p);
-extern void setupshaders();
-extern void reloadshaders();
-extern void cleanupshaders();
+Shader *lookupshaderbyname(const char *name);
+Shader *useshaderbyname(const char *name);
+Shader *generateshader(const char *name, const char *cmd, ...);
+void resetslotshader();
+void setslotshader(Slot &s);
+void linkslotshader(Slot &s, bool load = true);
+void linkvslotshader(VSlot &s, bool load = true);
+void linkslotshaders();
+const char *getshaderparamname(const char *name, bool insert = true);
+bool shouldreuseparams(Slot &s, VSlot &p);
+void setupshaders();
+void reloadshaders();
+void cleanupshaders();
 
 #define MAXBLURRADIUS 7
 extern float blursigma;
-extern void setupblurkernel(int radius, float *weights, float *offsets);
-extern void setblurshader(int pass, int size, int radius, float *weights, float *offsets, GLenum target = GL_TEXTURE_2D);
 
-extern void savepng(const char *filename, ImageData &image, bool flip = false);
-extern void savetga(const char *filename, ImageData &image, bool flip = false);
-extern bool loaddds(const char *filename, ImageData &image, int force = 0);
-extern bool loadimage(const char *filename, ImageData &image);
+void setupblurkernel(int radius, float *weights, float *offsets);
+void setblurshader(int pass, int size, int radius, float *weights, float *offsets, GLenum target = GL_TEXTURE_2D);
 
-extern MatSlot &lookupmaterialslot(int slot, bool load = true);
-extern Slot &lookupslot(int slot, bool load = true);
-extern VSlot &lookupvslot(int slot, bool load = true);
-extern DecalSlot &lookupdecalslot(int slot, bool load = true);
-extern VSlot *findvslot(Slot &slot, const VSlot &src, const VSlot &delta);
-extern VSlot *editvslot(const VSlot &src, const VSlot &delta);
-extern void mergevslot(VSlot &dst, const VSlot &src, const VSlot &delta);
-extern void packvslot(vector<uchar> &buf, const VSlot &src);
-extern bool unpackvslot(ucharbuf &buf, VSlot &dst, bool delta);
+void savepng(const char *filename, ImageData &image, bool flip = false);
+void savetga(const char *filename, ImageData &image, bool flip = false);
+bool loaddds(const char *filename, ImageData &image, int force = 0);
+bool loadimage(const char *filename, ImageData &image);
+
+MatSlot &lookupmaterialslot(int slot, bool load = true);
+Slot &lookupslot(int slot, bool load = true);
+VSlot &lookupvslot(int slot, bool load = true);
+DecalSlot &lookupdecalslot(int slot, bool load = true);
+VSlot *findvslot(Slot &slot, const VSlot &src, const VSlot &delta);
+VSlot *editvslot(const VSlot &src, const VSlot &delta);
+void mergevslot(VSlot &dst, const VSlot &src, const VSlot &delta);
+void packvslot(vector<uchar> &buf, const VSlot &src);
+bool unpackvslot(ucharbuf &buf, VSlot &dst, bool delta);
 
 extern Slot dummyslot;
 extern VSlot dummyvslot;
@@ -865,3 +872,41 @@ extern DecalSlot dummydecalslot;
 extern vector<Slot *> slots;
 extern vector<VSlot *> vslots;
 
+Texture *textureload(const char *name, int clamp = 0, bool mipit = true, bool msg = true);
+
+bool reloadtexture(Texture &tex);
+bool reloadtexture(const char *name);
+
+extern int hwtexsize, hwcubetexsize, hwmaxaniso, maxtexsize, hwtexunits, hwvtexunits;
+
+int texalign(const void *data, int w, int bpp);
+bool floatformat(GLenum format);
+void cleanuptexture(Texture *t);
+uchar *loadalphamask(Texture *t);
+Texture *cubemapload(const char *name, bool mipit = true, bool msg = true, bool transient = false);
+void drawcubemap(int size, const vec &o, float yaw, float pitch, const cubemapside &side, bool onlysky = false);
+void loadshaders();
+void setuptexparameters(int tnum, const void *pixels, int clamp, int filter, GLenum format = GL_RGB, GLenum target = GL_TEXTURE_2D, bool swizzle = false);
+void createtexture(int tnum, int w, int h, const void *pixels, int clamp, int filter, GLenum component = GL_RGB, GLenum target = GL_TEXTURE_2D, int pw = 0, int ph = 0, int pitch = 0, bool resize = true, GLenum format = GL_FALSE, bool swizzle = false);
+void create3dtexture(int tnum, int w, int h, int d, const void *pixels, int clamp, int filter, GLenum component = GL_RGB, GLenum target = GL_TEXTURE_3D, bool swizzle = false);
+void blurtexture(int n, int bpp, int w, int h, uchar *dst, const uchar *src, int margin = 0);
+void blurnormals(int n, int w, int h, bvec *dst, const bvec *src, int margin = 0);
+GLuint setuppostfx(int w, int h, GLuint outfbo = 0);
+void cleanuppostfx(bool fullclean = false);
+void renderpostfx(GLuint outfbo = 0);
+void initenvmaps();
+void genenvmaps();
+ushort closestenvmap(const vec &o);
+ushort closestenvmap(int orient, const ivec &o, int size);
+GLuint lookupenvmap(ushort emid);
+GLuint lookupenvmap(Slot &slot);
+void setuptexcompress();
+void clearslots();
+void compacteditvslots();
+void compactmruvslots();
+void compactvslots(cube *c, int n = 8);
+void compactvslot(int &index);
+void compactvslot(VSlot &vs);
+int compactvslots(bool cull = false);
+void reloadtextures();
+void cleanuptextures();

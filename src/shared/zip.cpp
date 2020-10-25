@@ -1,4 +1,5 @@
 #include "cube.h"
+#include "shared/stream.h"
 #include "engine/scriptexport.h"
 
 enum

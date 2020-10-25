@@ -3,23 +3,26 @@ import json
 # from ..cppmodel.CxxInclude import CxxInclude
 
 def Generate(cxxRootNode):
+    from ..cppmodel.CxxNode import Generator
     from ..cppmodel.CxxFunction import CxxFunction
-    
+
     template = """#include "shared/cube.h"
 {}"""
     generated_funcs = []
     for node in cxxRootNode.forEachChild():
         if type(node) is CxxFunction:
-            generated_funcs.append(GenerateFunction(node))
-            generated_funcs.append(GenerateFunctionForwardDeclaration(node))
-            generated_funcs.append(GenerateFunctionImplementation(node))
-            generated_funcs.append(GenerateFunctionDebug(node))
+            if node.generateFor & Generator.CubeScript:
+                generated_funcs.append(GenerateFunction(node))
+                generated_funcs.append(GenerateFunctionForwardDeclaration(node))
+                generated_funcs.append(GenerateFunctionImplementation(node))
+                generated_funcs.append(GenerateFunctionDebug(node))
     if len(generated_funcs) == 0:
         return ""
     return template.format("\n".join(generated_funcs))
 
 
 def GenerateWithoutMacros(cxxRootNode):
+    from ..cppmodel.CxxNode import Generator
     from ..cppmodel.CxxFunction import CxxFunction
     
     template = """// === GENERATED FILE, EDITS WILL NOT STICK === //
@@ -37,9 +40,10 @@ def GenerateWithoutMacros(cxxRootNode):
     debugs = []
     for node in cxxRootNode.forEachChild():
         if type(node) is CxxFunction:
-            forwarddecls.append(GenerateFunctionForwardDeclaration(node))
-            implementations.append(GenerateFunctionImplementation(node))
-            debugs.append(GenerateFunctionDebug(node))
+            if node.generateFor & Generator.CubeScript:
+                forwarddecls.append(GenerateFunctionForwardDeclaration(node))
+                implementations.append(GenerateFunctionImplementation(node))
+                debugs.append(GenerateFunctionDebug(node))
     if len(forwarddecls) == 0:
         return ""
     return template.format(

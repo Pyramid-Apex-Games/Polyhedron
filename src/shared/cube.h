@@ -36,16 +36,7 @@
 #endif
 
 #ifndef STANDALONE
-  #ifdef __APPLE__
-    #include "SDL.h"
-    #define GL_GLEXT_LEGACY
-    #define __glext_h_
-    #include <OpenGL/gl.h>
-   #define main SDL_main
-  #else
-    #include <SDL2/SDL.h>
-    #include <SDL2/SDL_opengl.h>
-  #endif
+#include "engine/includegl.h"
 #endif
 
 #include <enet/enet.h>
@@ -68,7 +59,7 @@
 #include "command.h"
 
 #ifndef STANDALONE
-#include "glexts.h"
+//#include "glexts.h"
 #include "glemu.h"
 #endif
 

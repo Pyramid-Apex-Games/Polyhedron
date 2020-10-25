@@ -1,7 +1,12 @@
 // command.cpp: implements the parsing and execution of a tiny script language which
 // is largely backwards compatible with the quake console language.
 
-#include "engine.h"
+#include "shared/cube.h"
+#include "shared/stream.h"
+#include "shared/tools/cubestr.h"
+#include "engine/help.h"
+#include "engine/rendergl.h"
+#include "engine/console.h"
 
 hashnameset<ident> idents; // contains ALL vars/commands/aliases
 vector<ident *> identmap;
@@ -1495,7 +1500,8 @@ static bool compileblocksub(vector<uint> &code, const char *&p, int prevargs)
             case ID_VAR: code.add(CODE_IVAR|(id->index<<8)); goto done;
             case ID_FVAR: code.add(CODE_FVAR|(id->index<<8)); goto done;
             case ID_SVAR: code.add(CODE_SVARM|(id->index<<8)); goto done;
-            case ID_ALIAS: code.add((id->index < MAXARGS ? CODE_LOOKUPMARG : CODE_LOOKUPM)|(id->index<<8)); goto done;
+            case ID_ALIAS:
+				code.add((id->index < MAXARGS ? CODE_LOOKUPMARG : CODE_LOOKUPM)|(id->index<<8)); goto done;
             }
             compilestr(code, lookup, true);
             code.add(CODE_LOOKUPMU);
@@ -4370,10 +4376,3 @@ void clearsleep_(int *clearoverrides)
 
 COMMANDN(clearsleep, clearsleep_, "i", "builtin");
 #endif
-
-
-// >>>>>>>>>> SCRIPTBIND >>>>>>>>>>>>>> //
-#if 0
-#include "/Users/micha/dev/ScMaMike/src/build/binding/..+engine+command.binding.cpp"
-#endif
-// <<<<<<<<<< SCRIPTBIND <<<<<<<<<<<<<< //

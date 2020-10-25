@@ -1,5 +1,15 @@
+#include "../shared/geom/matrix4.h"
+
+#include "engine/texture.h"
+#include "engine/Camera.h"
+
 VARP(softexplosion, 0, 1, 1);
 VARP(softexplosionblend, 1, 16, 64);
+
+extern float ldrscale;
+extern matrix4 camprojmatrix;
+
+bool isfoggedsphere(float rad, const vec &cv);
 
 namespace sphere
 {
@@ -131,24 +141,28 @@ struct fireballrenderer : listrenderer
     void seedemitter(particleemitter &pe, const vec &o, const vec &d, int fade, float size, int gravity)
     {
         pe.maxfade = max(pe.maxfade, fade);
-        pe.extendbb(o, (size+1+pe.ent->attr2)*WOBBLE);
+        pe.extendbb(o, (size+1+pe.ent->radius)*WOBBLE);
     }
 
     void renderpart(listparticle *p, const vec &o, const vec &d, int blend, int ts)
     {
+        const auto& activeCamera = Camera::GetActiveCamera();
+        if (!activeCamera) return;
+
         float pmax = p->val,
               size = p->fade ? float(ts)/p->fade : 1,
               psize = p->size + pmax * size;
 
         if(isfoggedsphere(psize*WOBBLE, p->o)) return;
 
-        vec dir = vec(o).sub(camera1->o), s, t;
+        vec dir = vec(o).sub(activeCamera->o), s, t;
         float dist = dir.magnitude();
         bool inside = dist <= psize*WOBBLE;
+
         if(inside)
         {
-            s = camright;
-            t = camup;
+            s = activeCamera->GetRight();
+            t = activeCamera->GetUp();
         }
         else
         {

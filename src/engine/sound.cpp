@@ -1,13 +1,17 @@
 // sound.cpp: basic positional sound using sdl_mixer
 
-#include "engine.h"
-#include "../game/entities/player.h"
+#include "shared/cube.h"
+#include "shared/stream.h"
+#include "shared/zip.h"
+#include "engine/menus.h"
+#include "engine/SoundConfig.h"
+#include "engine/main/Application.h"
+#include "engine/main/Compatibility.h"
+#include "engine/Camera.h"
+#include "game/entities/SkeletalEntity.h"
 
-#ifdef __APPLE__
-  #include "SDL_mixer.h"
-#else
-  #include <SDL2/SDL_mixer.h>
-#endif
+#include <SDL_mixer.h>
+#include <game/entities/SoundEntity.h>
 
 bool nosound = true;
 
@@ -51,7 +55,7 @@ struct soundchannel
     bool inuse;
     vec loc;
     soundslot *slot;
-    entities::classes::CoreEntity *ent;
+    Entity *ent;
     int radius, volume, pan, flags;
     bool dirty;
 
@@ -76,12 +80,12 @@ struct soundchannel
 vector<soundchannel> channels;
 int maxchannels = 0;
 
-soundchannel &newchannel(int n, soundslot *slot, const vec *loc = NULL, entities::classes::CoreEntity *ent = NULL, int flags = 0, int radius = 0)
+soundchannel &newchannel(int n, soundslot *slot, const vec *loc = NULL, Entity *ent = NULL, int flags = 0, int radius = 0)
 {
     if(ent)
     {
         loc = &ent->o;
-        ent->flags |= entities::EntityFlags::EF_SOUND;
+        ent->flags |= EntityFlags::EF_SOUND;
     }
     while(!channels.inrange(n)) channels.add(channels.length());
     soundchannel &chan = channels[n];
@@ -100,7 +104,7 @@ void freechannel(int n)
     if(!channels.inrange(n) || !channels[n].inuse) return;
     soundchannel &chan = channels[n];
     chan.inuse = false;
-    if(chan.ent) chan.ent->flags &= ~entities::EntityFlags::EF_SOUND;
+    if(chan.ent) chan.ent->flags &= ~EntityFlags::EF_SOUND;
 }
 
 void syncchannel(soundchannel &chan)
@@ -447,7 +451,7 @@ void clearmapsounds()
     mapsounds.clear();
 }
 
-void stopmapsound(entities::classes::CoreEntity *e)
+void stopmapsound(Entity *e)
 {
     loopv(channels)
     {
@@ -462,19 +466,21 @@ void stopmapsound(entities::classes::CoreEntity *e)
 
 void checkmapsounds()
 {
-    const auto& ents = entities::getents();
+    const auto& activeCamera = Camera::GetActiveCamera();
+    if (!activeCamera) return;
+
+    const auto& ents = getents();
     loopv(ents)
     {
-        auto e = dynamic_cast<entities::classes::BaseEntity *>(ents[i]);
+        auto e = dynamic_cast<SoundEntity *>(ents[i]);
         if (!e)
 			continue;
-		if(e->et_type != ET_SOUND)
-			continue;
-		if(camera1->o.dist(e->o) < e->attr2)
+
+		if(activeCamera->o.dist(e->o) < e->radius)
         {
-			if(!(e->flags&entities::EntityFlags::EF_SOUND)) playsound(e->attr1, NULL, e, SND_MAP, -1);
+			if(!(e->flags&EntityFlags::EF_SOUND)) playsound(e->soundIndex, NULL, e, SND_MAP, -1);
         }
-		else if(e->flags&entities::EntityFlags::EF_SOUND) stopmapsound(e);
+		else if(e->flags&EntityFlags::EF_SOUND) stopmapsound(e);
     }
 }
 
@@ -485,26 +491,30 @@ VAR(maxsoundradius, 1, 340, 0);
 bool updatechannel(soundchannel &chan)
 {
     if(!chan.slot) return false;
+    const auto& activeCamera = Camera::GetActiveCamera();
+    if (!activeCamera) return false;
+
     int vol = soundvol, pan = 255/2;
     if(chan.hasloc())
     {
         vec v;
-        float dist = chan.loc.dist(camera1->o, v);
-        int rad = maxsoundradius;
+        float dist = chan.loc.dist(activeCamera->o, v);
+        int rad = 0; // int rad = maxsoundradius;
         if(chan.ent)
         {
-            rad = chan.ent->attr2;
-            if(chan.ent->attr3)
+            rad = chan.ent->soundRadius;
+            if(chan.ent->scale)
             {
-                rad -= chan.ent->attr3;
-                dist -= chan.ent->attr3;
+                rad *= chan.ent->scale / 100.0f;
+                dist *= chan.ent->scale / 100.0f;
             }
         }
+        // else if(chan.radius > 0) rad = chan.radius;
         else if(chan.radius > 0) rad = maxsoundradius ? min(maxsoundradius, chan.radius) : chan.radius;
         if(rad > 0) vol -= int(clamp(dist/rad, 0.0f, 1.0f)*soundvol); // simple mono distance attenuation
         if(stereo && (v.x != 0 || v.y != 0) && dist>0)
         {
-            v.rotate_around_z(-camera1->yaw*RAD);
+            v.rotate_around_z(-activeCamera->d.x*RAD);
             pan = int(255.9f*(0.5f - 0.5f*v.x/v.magnitude2())); // range is from 0 (left) to 255 (right)
         }
     }
@@ -539,7 +549,7 @@ void updatesounds()
 {
     updatemumble();
     if(nosound) return;
-    if(minimized) stopsounds();
+    if(Application::Instance().GetAppState().Minimized) stopsounds();
     else
     {
         reclaimchannels();
@@ -570,30 +580,37 @@ void preloadmapsound(int n)
 
 void preloadmapsounds()
 {
-    const auto& ents = entities::getents();
+    const auto& ents = getents();
     loopv(ents)
     {
-        auto e = dynamic_cast<entities::classes::BaseEntity *>(ents[i]);
+        auto e = dynamic_cast<Entity *>(ents[i]);
         if (!e)
 			continue;
-			
-		if(e->et_type==ET_SOUND) mapsounds.preloadsound(e->attr1);
+
+		if(auto es = dynamic_cast<SoundEntity*>(e); es)
+        {
+		    mapsounds.preloadsound(es->soundIndex);
+        }
     }
 }
 
-int playsound(int n, const vec *loc, entities::classes::CoreEntity *ent, int flags, int loops, int fade, int chanid, int radius, int expire)
+int playsound(int n, const vec *loc, Entity *ent, int flags, int loops, int fade, int chanid, int radius, int expire)
 {
-    if(nosound || !soundvol || minimized) return -1;
+    if(nosound || !soundvol || Application::Instance().GetAppState().Minimized) return -1;
 
     soundtype &sounds = ent || flags&SND_MAP ? mapsounds : gamesounds;
     if(!sounds.configs.inrange(n)) { conoutf(CON_WARN, "unregistered sound: %d", n); return -1; }
     soundconfig &config = sounds.configs[n];
 
-    if(loc && (maxsoundradius || radius > 0))
+    const auto& activeCamera = Camera::GetActiveCamera();
+
+    if(loc && activeCamera)
     {
         // cull sounds that are unlikely to be heard
         int rad = radius > 0 ? (maxsoundradius ? min(maxsoundradius, radius) : radius) : maxsoundradius;
-        if(camera1->o.dist(*loc) > 1.5f*rad)
+        int maxrad = (ent != nullptr ? ent->soundRadius : maxsoundradius);
+        if(radius <= 0 || maxrad < radius) radius = maxrad;
+        if(activeCamera->o.dist(*loc) > 1.5f*radius)
         {
             if(channels.inrange(chanid) && sounds.playing(channels[chanid], config))
             {
@@ -759,6 +776,9 @@ struct MumbleInfo
 static HANDLE mumblelink = NULL;
 static MumbleInfo *mumbleinfo = NULL;
 #define VALID_MUMBLELINK (mumblelink && mumbleinfo)
+#elif defined(ANDROID)
+static int mumblelink = -1;
+static MumbleInfo *mumbleinfo = (MumbleInfo *)-1;
 #elif defined(_POSIX_SHARED_MEMORY_OBJECTS)
 static int mumblelink = -1;
 static MumbleInfo *mumbleinfo = (MumbleInfo *)-1;
@@ -830,8 +850,8 @@ void updatemumble()
     mumbleinfo->timestamp = ++timestamp;
 
     mumbleinfo->pos = mumblevec(player->o, true);
-    mumbleinfo->front = mumblevec(vec(player->yaw*RAD, player->pitch*RAD));
-    mumbleinfo->top = mumblevec(vec(player->yaw*RAD, (player->pitch+90)*RAD));
+    mumbleinfo->front = mumblevec(vec(player->d.x*RAD, player->d.y*RAD));
+    mumbleinfo->top = mumblevec(vec(player->d.x*RAD, (player->d.y+90)*RAD));
 #endif
 }
 

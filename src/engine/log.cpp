@@ -1,5 +1,10 @@
-#include "log.h"
 #include "shared/tools.h"
+#include "shared/stream.h"
+#include "engine/log.h"
+
+#ifdef ANDROID
+#include <android/log.h>
+#endif
 
 #define LOGSTRLEN 512
 
@@ -19,7 +24,7 @@ FILE *getlogfile()
 #ifdef WIN32
     return logfile;
 #else
-    return logfile ? logfile : stdout;
+	return logfile ? logfile : stdout;
 #endif
 }
 
@@ -65,8 +70,12 @@ static void writelogv(FILE *file, const char *fmt, va_list args)
 
 void logoutfv(const char *fmt, va_list args)
 {
+#ifndef ANDROID
     FILE *f = getlogfile();
     if(f) writelogv(f, fmt, args);
+#else
+    __android_log_vprint(ANDROID_LOG_WARN, "POLYHDRN", fmt, args);
+#endif
 }
 
 

@@ -1,5 +1,24 @@
-#include "engine.h"
-#include "shared/entities/basephysicalentity.h"
+#include <game/entities/LightEntity.h>
+#include "shared/cube.h"
+#include "shared/entities/DynamicEntity.h"
+#include "shared/entities/MovableEntity.h"
+#include "engine/light.h"
+#include "engine/texture.h"
+#include "engine/pvs.h"
+#include "engine/rendergl.h"
+#include "engine/renderlights.h"
+#include "engine/aa.h"
+#include "engine/renderva.h"
+#include "engine/material.h"
+#include "engine/rendermodel.h"
+#include "engine/renderparticles.h"
+#include "engine/octarender.h"
+#include "engine/stain.h"
+#include "engine/rendersky.h"
+#include "engine/menus.h"
+#include "engine/GLFeatures.h"
+#include "engine/Camera.h"
+#include "game/game.h"
 
 
 int gw = -1, gh = -1, bloomw = -1, bloomh = -1, lasthdraccum = 0;
@@ -18,12 +37,44 @@ int aow = -1, aoh = -1;
 GLuint aofbo[4] = { 0, 0, 0, 0 }, aotex[4] = { 0, 0, 0, 0 }, aonoisetex = 0;
 matrix4 eyematrix, worldmatrix, linearworldmatrix, screenmatrix;
 
-extern int amd_pf_bug;
+
+template<class T>
+void calctilebounds(float sx1, float sy1, float sx2, float sy2, T &bx1, T &by1, T &bx2, T &by2)
+{
+    int tx1 = max(int(floor(((sx1 + 1)*0.5f*vieww)/lighttilealignw)), 0),
+            ty1 = max(int(floor(((sy1 + 1)*0.5f*viewh)/lighttilealignh)), 0),
+            tx2 = min(int(ceil(((sx2 + 1)*0.5f*vieww)/lighttilealignw)), lighttilevieww),
+            ty2 = min(int(ceil(((sy2 + 1)*0.5f*viewh)/lighttilealignh)), lighttileviewh);
+    bx1 = T((tx1 * lighttilew) / lighttilevieww);
+    by1 = T((ty1 * lighttileh) / lighttileviewh);
+    bx2 = T((tx2 * lighttilew + lighttilevieww - 1) / lighttilevieww);
+    by2 = T((ty2 * lighttileh + lighttileviewh - 1) / lighttileviewh);
+}
+
+void masktiles(uint *tiles, float sx1, float sy1, float sx2, float sy2)
+{
+    int tx1, ty1, tx2, ty2;
+    calctilebounds(sx1, sy1, sx2, sy2, tx1, ty1, tx2, ty2);
+    for(int ty = ty1; ty < ty2; ty++) tiles[ty] |= ((1<<(tx2-tx1))-1)<<tx1;
+}
+
+bool sphereinsidespot(const vec &dir, int spot, const vec &center, float radius)
+{
+    const vec2 &sc = sincos360[spot];
+    float cdist = dir.dot(center), cradius = radius + sc.y*cdist;
+    return sc.x*sc.x*(center.dot(center) - cdist*cdist) <= cradius*cradius;
+}
+
+bool bbinsidespot(const vec &origin, const vec &dir, int spot, const ivec &bbmin, const ivec &bbmax)
+{
+    vec radius = vec(ivec(bbmax).sub(bbmin)).mul(0.5f), center = vec(bbmin).add(radius);
+    return sphereinsidespot(dir, spot, center.sub(origin), radius.magnitude());
+}
 
 int gethdrformat(int prec, int fallback = GL_RGB)
 {
-    if(prec >= 3 && hasTF) return GL_RGB16F;
-    if(prec >= 2 && hasPF && !amd_pf_bug) return GL_R11F_G11F_B10F;
+    if(prec >= 3 && GLFeatures::HasTF()) return GL_RGB16F;
+    if(prec >= 2 && GLFeatures::HasPF() && !amd_pf_bug) return GL_R11F_G11F_B10F;
     if(prec >= 1) return GL_RGB10;
     return fallback;
 }
@@ -64,13 +115,14 @@ void setupbloom(int w, int h)
     {
         glGenBuffers_(1, &bloompbo);
         glBindBuffer_(GL_PIXEL_PACK_BUFFER, bloompbo);
-        glBufferData_(GL_PIXEL_PACK_BUFFER, 4*(hasTF ? sizeof(GLfloat) : sizeof(GLushort))*(hasTRG ? 1 : 3), NULL, GL_DYNAMIC_COPY);
+        glBufferData_(GL_PIXEL_PACK_BUFFER, 4 * (GLFeatures::HasTF() ? sizeof(GLfloat) : sizeof(GLushort)) * (GLFeatures::HasTRG() ? 1 : 3), NULL, GL_DYNAMIC_COPY);
         glBindBuffer_(GL_PIXEL_PACK_BUFFER, 0);
     }
 
     static const uchar gray[12] = { 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32 };
     static const float grayf[12] = { 0.125f, 0.125f, 0.125f, 0.125f, 0.125f, 0.125f, 0.125f, 0.125f, 0.125f, 0.125f, 0.125f, 0.125f };
-    createtexture(bloomtex[4], bloompbo ? 4 : 1, 1, hasTF ? (const void *)grayf : (const void *)gray, 3, 1, hasTF ? (hasTRG ? GL_R16F : GL_RGB16F) : (hasTRG ? GL_R16 : GL_RGB16));
+    createtexture(bloomtex[4], bloompbo ? 4 : 1, 1, GLFeatures::HasTF() ? (const void *)grayf : (const void *)gray, 3, 1,
+                  GLFeatures::HasTF() ? (GLFeatures::HasTRG() ? GL_R16F : GL_RGB16F) : (GLFeatures::HasTRG() ? GL_R16 : GL_RGB16));
 
     loopi(5 + (bloomformat != GL_RGB ? 1 : 0))
     {
@@ -186,7 +238,7 @@ void setupao(int w, int h)
     delete[] noise;
 
     bool upscale = aoreduce && aobilateral && aobilateralupscale;
-    GLenum format = aoprec && hasTRG ? GL_R8 : GL_RGBA8,
+    GLenum format = aoprec && GLFeatures::HasTRG() ? GL_R8 : GL_RGBA8,
            packformat = aobilateral && aopackdepth ? (aodepthformat ? GL_RG16F : GL_RGBA8) : format;
     int packfilter = upscale && aopackdepth && !aodepthformat ? 0 : 1;
     loopi(upscale ? 3 : 2)
@@ -233,7 +285,7 @@ void cleanupao()
     clearbilateralshaders();
 }
 
-VARFP(ao, 0, 1, 1, { cleanupao(); cleardeferredlightshaders(); });
+VARFP(ao, 0, 0, 1, { cleanupao(); cleardeferredlightshaders(); });
 FVARR(aoradius, 0, 5, 256);
 FVAR(aocutoff, 0, 2.0f, 1e3f);
 FVARR(aodark, 1e-3f, 11.0f, 1e3f);
@@ -242,10 +294,10 @@ FVAR(aoprefilterdepth, 0, 1, 1e3f);
 FVARR(aomin, 0, 0.25f, 1);
 VARFR(aosun, 0, 1, 1, cleardeferredlightshaders());
 FVARR(aosunmin, 0, 0.5f, 1);
-VARP(aoblur, 0, 4, 7);
+VARP(aoblur, 0, 0, 7);
 VARP(aoiter, 0, 0, 4);
-VARFP(aoreduce, 0, 1, 2, cleanupao());
-VARF(aoreducedepth, 0, 1, 2, cleanupao());
+VARFP(aoreduce, 0, 0, 2, cleanupao());
+VARF(aoreducedepth, 0, 0, 2, cleanupao());
 VARFP(aofloatdepth, 0, 1, 2, initwarning("AO setup", INIT_LOAD, CHANGE_SHADERS));
 VARFP(aoprec, 0, 1, 1, cleanupao());
 VAR(aodepthformat, 1, 0, 0);
@@ -260,7 +312,7 @@ VAR(debugao, 0, 0, 1);
 
 void initao()
 {
-    aodepthformat = aofloatdepth && hasTRG && hasTF ? aofloatdepth : 0;
+    aodepthformat = aofloatdepth && GLFeatures::HasTRG() && GLFeatures::HasTF() ? aofloatdepth : 0;
 }
 
 void viewao()
@@ -277,6 +329,9 @@ void viewao()
 void renderao()
 {
     if(!ao) return;
+    auto activeCamera = Camera::GetActiveCamera();
+    if (!activeCamera)
+        return;
 
     timer *aotimer = begintimer("ambient obscurance");
 
@@ -312,6 +367,11 @@ void renderao()
     {
         if(msaasamples) glBindTexture(GL_TEXTURE_2D_MULTISAMPLE, msnormaltex);
         else glBindTexture(GL_TEXTURE_RECTANGLE, gnormaltex);
+
+
+
+        auto& cammatrix = activeCamera->GetMatrix();
+
         LOCALPARAM(normalmatrix, matrix3(cammatrix));
     }
     glActiveTexture_(GL_TEXTURE2);
@@ -473,10 +533,12 @@ void checkmsaasamples()
     glGenTextures(1, &tex);
     glBindTexture(GL_TEXTURE_2D_MULTISAMPLE, tex);
 
-    GLint samples;
-    glTexImage2DMultisample_(GL_TEXTURE_2D_MULTISAMPLE, msaaminsamples, GL_RGBA8, 1, 1, GL_TRUE);
+    GLint samples = 0;
+#ifndef OPEN_GL_ES
+	glTexImage2DMultisample_(GL_TEXTURE_2D_MULTISAMPLE, msaaminsamples, GL_RGBA8, 1, 1, GL_TRUE);
     glGetTexLevelParameteriv(GL_TEXTURE_2D_MULTISAMPLE, 0, GL_TEXTURE_SAMPLES, &samples);
-    msaasamples = samples;
+#endif
+	msaasamples = samples;
 
     glDeleteTextures(1, &tex);
 }
@@ -486,7 +548,10 @@ void initgbuffer()
     msaamaxsamples = msaamaxdepthtexsamples = msaamaxcolortexsamples = msaaminsamples = msaasamples = msaalight = 0;
     msaapositions.setsize(0);
 
-    if(hasFBMS && hasFBB && hasTMS)
+//    msaalight = 1;
+//    msaasamples = 1;
+
+    if(GLFeatures::HasFBMS() && GLFeatures::HasFBB() && GLFeatures::HasTMS())
     {
         GLint val;
         glGetIntegerv(GL_MAX_SAMPLES, &val);
@@ -515,18 +580,18 @@ void initgbuffer()
         else if(msaalineardepth >= 0) lineardepth = msaalineardepth;
     }
 
-    if(lineardepth > 1 && (!hasAFBO || !hasTF || !hasTRG)) gdepthformat = 1;
+    if(lineardepth > 1 && (!GLFeatures::HasAFBO() || !GLFeatures::HasTF() || !GLFeatures::HasTRG())) gdepthformat = 1;
     else gdepthformat = lineardepth;
 
     if(msaaminsamples)
     {
-        ghasstencil = (msaadepthstencil > 1 || (msaadepthstencil && gdepthformat)) && hasDS ? 2 : (msaastencil ? 1 : 0);
+        ghasstencil = (msaadepthstencil > 1 || (msaadepthstencil && gdepthformat)) && GLFeatures::HasDS() ? 2 : (msaastencil ? 1 : 0);
 
         checkmsaasamples();
 
-        if(msaapreserve >= 0) msaalight = hasMSS ? 3 : (msaasamples==2 ? 2 : msaapreserve);
+        if(msaapreserve >= 0) msaalight = GLFeatures::HasMSS() ? 3 : (msaasamples == 2 ? 2 : msaapreserve);
     }
-    else ghasstencil = (gdepthstencil > 1 || (gdepthstencil && gdepthformat)) && hasDS ? 2 : (gstencil ? 1 : 0);
+    else ghasstencil = (gdepthstencil > 1 || (gdepthstencil && gdepthformat)) && GLFeatures::HasDS() ? 2 : (gstencil ? 1 : 0);
 
     initao();
 }
@@ -588,6 +653,7 @@ void bindmsdepth()
 
 void setupmsbuffer(int w, int h)
 {
+#ifndef OPEN_GL_ES
     if(!msfbo) glGenFramebuffers_(1, &msfbo);
     
     glBindFramebuffer_(GL_FRAMEBUFFER, msfbo);
@@ -628,7 +694,7 @@ void setupmsbuffer(int w, int h)
     {
         if(!msglowtex) glGenTextures(1, &msglowtex);
         glBindTexture(GL_TEXTURE_2D_MULTISAMPLE, msglowtex);
-        glTexImage2DMultisample_(GL_TEXTURE_2D_MULTISAMPLE, msaasamples, hasAFBO ? hdrformat : GL_RGBA8, w, h, GL_TRUE);
+        glTexImage2DMultisample_(GL_TEXTURE_2D_MULTISAMPLE, msaasamples, GLFeatures::HasAFBO() ? hdrformat : GL_RGBA8, w, h, GL_TRUE);
     }
     
     bindmsdepth();
@@ -639,7 +705,7 @@ void setupmsbuffer(int w, int h)
 
     if(glCheckFramebufferStatus_(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
     {
-        if(msaalight && hasAFBO)
+        if(msaalight && GLFeatures::HasAFBO())
         {
             glBindTexture(GL_TEXTURE_2D_MULTISAMPLE, msglowtex);
             glTexImage2DMultisample_(GL_TEXTURE_2D_MULTISAMPLE, msaasamples, GL_RGBA8, w, h, GL_TRUE);
@@ -718,6 +784,7 @@ void setupmsbuffer(int w, int h)
         useshaderbyname("msaatonemap");
         if(msaalight > 2) useshaderbyname("msaatonemapsample");
     }
+#endif
 }
 
 void bindgdepth()
@@ -799,7 +866,7 @@ void setupgbuffer()
 
         createtexture(gcolortex, gw, gh, NULL, 3, 0, GL_RGBA8, GL_TEXTURE_RECTANGLE);
         createtexture(gnormaltex, gw, gh, NULL, 3, 0, GL_RGBA8, GL_TEXTURE_RECTANGLE);
-        createtexture(gglowtex, gw, gh, NULL, 3, 0, hasAFBO ? hdrformat : GL_RGBA8, GL_TEXTURE_RECTANGLE);
+        createtexture(gglowtex, gw, gh, NULL, 3, 0, GLFeatures::HasAFBO() ? hdrformat : GL_RGBA8, GL_TEXTURE_RECTANGLE);
 
         bindgdepth();
         glFramebufferTexture2D_(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_RECTANGLE, gcolortex, 0);
@@ -809,7 +876,7 @@ void setupgbuffer()
 
         if(glCheckFramebufferStatus_(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
         {
-            if(hasAFBO)
+            if(GLFeatures::HasAFBO())
             {
                 createtexture(gglowtex, gw, gh, NULL, 3, 0, GL_RGBA8, GL_TEXTURE_RECTANGLE);
                 glFramebufferTexture2D_(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT2, GL_TEXTURE_RECTANGLE, gglowtex, 0);
@@ -1036,12 +1103,16 @@ void processhdr(GLuint outfbo, int aa)
             glBindFramebuffer_(GL_DRAW_FRAMEBUFFER, hdrfbo);
             glBlitFramebuffer_(0, 0, vieww, viewh, 0, 0, vieww, viewh, GL_COLOR_BUFFER_BIT, GL_NEAREST);
         }
-        else if(hasFBMSBS && (vieww > bloomw || viewh > bloomh))
+        else if(GLFeatures::HasFBMSBS() && (vieww > bloomw || viewh > bloomh))
         {
             int cw = max(vieww/2, bloomw), ch = max(viewh/2, bloomh);
             glBindFramebuffer_(GL_READ_FRAMEBUFFER, mshdrfbo);
             glBindFramebuffer_(GL_DRAW_FRAMEBUFFER, hdrfbo);
-            glBlitFramebuffer_(0, 0, vieww, viewh, 0, 0, cw, ch, GL_COLOR_BUFFER_BIT, GL_SCALED_RESOLVE_FASTEST_EXT);
+#ifdef OPEN_GL_ES
+            glBlitFramebuffer_(0, 0, vieww, viewh, 0, 0, cw, ch, GL_COLOR_BUFFER_BIT, GL_NEAREST);
+#else
+			glBlitFramebuffer_(0, 0, vieww, viewh, 0, 0, cw, ch, GL_COLOR_BUFFER_BIT, GL_SCALED_RESOLVE_FASTEST);
+#endif
             pw = cw;
             ph = ch;
         }
@@ -1150,7 +1221,7 @@ void processhdr(GLuint outfbo, int aa)
         {
             glBindBuffer_(GL_PIXEL_PACK_BUFFER, bloompbo);
             glPixelStorei(GL_PACK_ALIGNMENT, 1);
-            glReadPixels(0, 0, 4, 1, hasTRG ? GL_RED : GL_RGB, hasTF ? GL_FLOAT : GL_UNSIGNED_SHORT, NULL);
+            glReadPixels(0, 0, 4, 1, GLFeatures::HasTRG() ? GL_RED : GL_RGB, GLFeatures::HasTF() ? GL_FLOAT : GL_UNSIGNED_SHORT, NULL);
             glBindBuffer_(GL_PIXEL_PACK_BUFFER, 0);
         }
 
@@ -1161,7 +1232,8 @@ void processhdr(GLuint outfbo, int aa)
     {
         gle::bindvbo(bloompbo);
         gle::enablecolor();
-        gle::colorpointer(hasTF ? sizeof(GLfloat) : sizeof(GLushort), (const void *)0, hasTF ? GL_FLOAT : GL_UNSIGNED_SHORT, 1);
+        gle::colorpointer(GLFeatures::HasTF() ? sizeof(GLfloat) : sizeof(GLushort), (const void *)0,
+                          GLFeatures::HasTF() ? GL_FLOAT : GL_UNSIGNED_SHORT, 1);
         gle::clearvbo();
     }
 
@@ -1394,7 +1466,7 @@ void clearrhshaders()
 
 void setupradiancehints()
 {
-    GLenum rhformat = hasTF && rhprec >= 1 ? GL_RGBA16F : GL_RGBA8;
+    GLenum rhformat = GLFeatures::HasTF() && rhprec >= 1 ? GL_RGBA16F : GL_RGBA8;
 
     loopi(!rhrect && rhcache ? 8 : 4)
     {
@@ -1421,7 +1493,10 @@ void setupradiancehints()
         glBindRenderbuffer_(GL_RENDERBUFFER, 0);
         glFramebufferRenderbuffer_(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0 + i, GL_RENDERBUFFER, rhrb[i]);
     }
-    else loopi(4) glFramebufferTexture3D_(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0 + i, GL_TEXTURE_3D, rhtex[i], 0, 0);
+    else loopi(4)
+	{
+		glFramebufferTexture3D_(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0 + i, GL_TEXTURE_3D, rhtex[i], 0, 0);
+	}
 
     static const GLenum drawbufs[4] = { GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1, GL_COLOR_ATTACHMENT2, GL_COLOR_ATTACHMENT3 };
     glDrawBuffers_(4, drawbufs);
@@ -1568,23 +1643,24 @@ struct lightinfo
     lightinfo() {}
     lightinfo(const vec &o, const vec &color, float radius, int flags = 0, const vec &dir = vec(0, 0, 0), int spot = 0)
       : ent(-1), shadowmap(-1), flags(flags),
-        o(o), color(color), radius(radius), dist(camera1->o.dist(o)),
+        o(o), color(color), radius(radius), dist(Camera::GetActiveCamera()->o.dist(o)),
         dir(dir), spot(spot), query(NULL)
     {
         if(spot > 0) calcspot();
         calcscissor();
     }
-    lightinfo(int i, const entities::classes::CoreEntity *e)
-	: ent(i), shadowmap(-1), flags(e->attr5),
-	o(e->o), color(vec(e->attr2, e->attr3, e->attr4).max(0)), radius(e->attr1), dist(camera1->o.dist(e->o)),
+    lightinfo(int i, const LightEntity *e)
+	: ent(i), shadowmap(-1), flags(e->scale),
+	o(e->o), color(vec(e->lightColor.x, e->lightColor.y, e->lightColor.z).max(0)), radius(e->scale), dist(Camera::GetActiveCamera()->o.dist(e->o)),
         dir(0, 0, 0), spot(0), query(NULL)
     {
-		if(e->attached && e->attached->et_type == ET_SPOTLIGHT)
-        {
-			dir = vec(e->attached->o).sub(e->o).normalize();
-			spot = clamp(int(e->attached->attr1), 1, 89);
-            calcspot();
-        }
+        //FIXME: attached feature / spotlight feature
+//		if(e->attached && e->attached->et_type == ET_SPOTLIGHT)
+//        {
+//			dir = vec(e->attached->o).sub(e->o).normalize();
+//			spot = clamp(int(e->attached->attr1), 1, 89);
+//            calcspot();
+//        }
         calcscissor();
     }
         
@@ -1719,8 +1795,8 @@ static inline void setsmcomparemode() // use embedded shadow cmp
 }
 
 extern int usetexgather;
-static inline bool usegatherforsm() { return smfilter > 1 && smgather && hasTG && usetexgather; }
-static inline bool usesmcomparemode() { return !usegatherforsm() || (hasTG && hasGPU5 && usetexgather > 1); }
+static inline bool usegatherforsm() { return smfilter > 1 && smgather && GLFeatures::HasTG() && usetexgather; }
+static inline bool usesmcomparemode() { return !usegatherforsm() || (GLFeatures::HasTG() && GLFeatures::HasGPU5() && usetexgather > 1); }
 
 void viewshadowatlas()
 {
@@ -1759,7 +1835,9 @@ void setupshadowatlas()
 
     glBindFramebuffer_(GL_FRAMEBUFFER, shadowatlasfbo);
 
+#ifndef OPEN_GL_ES
     glDrawBuffer(GL_NONE);
+#endif
     glReadBuffer(GL_NONE);
 
     glFramebufferTexture2D_(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, shadowatlastarget, shadowatlastex, 0);
@@ -2029,6 +2107,10 @@ void cascadedshadowmap::getmodelmatrix()
 
 void cascadedshadowmap::getprojmatrix()
 {
+    auto activeCamera = Camera::GetActiveCamera();
+    if (!activeCamera)
+        return;
+
     lightview = vec(sunlightdir).neg();
 
     // compute the split frustums
@@ -2048,7 +2130,7 @@ void cascadedshadowmap::getprojmatrix()
         const shadowmapinfo &sm = shadowmaps[split.idx];
 
         vec c;
-        float radius = calcfrustumboundsphere(split.nearplane, split.farplane, camera1->o, camdir, c);
+        float radius = calcfrustumboundsphere(split.nearplane, split.farplane, activeCamera->o, activeCamera->GetDirection(), c);
 
         // compute the projected bounding box of the sphere
         vec tc;
@@ -2199,6 +2281,9 @@ void reflectiveshadowmap::getmodelmatrix()
 
 void reflectiveshadowmap::getprojmatrix()
 {
+    const auto& activeCamera = Camera::GetActiveCamera();
+    if (!activeCamera) return;
+
     lightview = vec(sunlightdir).neg();
 
     // find z extent
@@ -2208,7 +2293,7 @@ void reflectiveshadowmap::getprojmatrix()
     maxz += zmargin;
 
     vec c;
-    float radius = calcfrustumboundsphere(rhnearplane, rhfarplane, camera1->o, camdir, c);
+    float radius = calcfrustumboundsphere(rhnearplane, rhfarplane, activeCamera->o, activeCamera->GetDirection(), c);
 
     // compute the projected bounding box of the sphere
     vec tc;
@@ -2325,6 +2410,9 @@ void radiancehints::updatesplitdist()
 
 void radiancehints::setup()
 {
+    const auto& activeCamera = Camera::GetActiveCamera();
+    if (!activeCamera) return;
+
     updatesplitdist();
 
     loopi(rhsplits)
@@ -2332,7 +2420,7 @@ void radiancehints::setup()
         splitinfo &split = splits[i];
 
         vec c;
-        float radius = calcfrustumboundsphere(split.nearplane, split.farplane, camera1->o, camdir, c);
+        float radius = calcfrustumboundsphere(split.nearplane, split.farplane, activeCamera->o, activeCamera->GetDirection(), c);
 
         // compute the projected bounding box of the sphere
         const float pradius = ceil(radius * rhpradiustweak), step = (2*pradius) / rhgrid;
@@ -2926,7 +3014,9 @@ static inline void setavatarstencil(int stencilref, bool on)
 
 static void rendersunpass(Shader *s, int stencilref, bool transparent, float bsx1, float bsy1, float bsx2, float bsy2, const uint *tilemask)
 {
-    if(hasDBT && depthtestlights > 1) glDepthBounds_(0, depthtestlightsclamp);
+#ifndef OPEN_GL_ES
+//    if(GLFeatures::HasDBT() && depthtestlights > 1) glDepthBounds_(0, depthtestlightsclamp);
+#endif
 
     int tx1 = max(int(floor((bsx1*0.5f+0.5f)*vieww)), 0), ty1 = max(int(floor((bsy1*0.5f+0.5f)*viewh)), 0),
         tx2 = min(int(ceil((bsx2*0.5f+0.5f)*vieww)), vieww), ty2 = min(int(ceil((bsy2*0.5f+0.5f)*viewh)), viewh);
@@ -2976,9 +3066,12 @@ static void renderlightsnobatch(Shader *s, int stencilref, bool transparent, flo
                 tx2 = int(ceil((sx2*0.5f+0.5f)*vieww)), ty2 = int(ceil((sy2*0.5f+0.5f)*viewh));
             glScissor(tx1, ty1, tx2-tx1, ty2-ty1);
 
-            if(hasDBT && depthtestlights > 1) glDepthBounds_(l.sz1*0.5f + 0.5f, min(l.sz2*0.5f + 0.5f, depthtestlightsclamp));
+#ifndef OPEN_GL_ES
+//            if(GLFeatures::HasDBT() && depthtestlights > 1) glDepthBounds_(l.sz1*0.5f + 0.5f, min(l.sz2*0.5f + 0.5f, depthtestlightsclamp));
+#endif
 
-            if(camera1->o.dist(l.o) <= l.radius*lightradiustweak + nearplane + 1 && depthfaillights)
+            assert(Camera::GetActiveCamera());
+            if(Camera::GetActiveCamera()->o.dist(l.o) <= l.radius*lightradiustweak + nearplane + 1 && depthfaillights)
             {
                 if(outside)
                 {
@@ -3050,7 +3143,9 @@ static void renderlightbatches(Shader *s, int stencilref, bool transparent, floa
 
         lightpassesused++;
 
-        if(hasDBT && depthtestlights > 1) glDepthBounds_(sz1*0.5f + 0.5f, min(sz2*0.5f + 0.5f, depthtestlightsclamp));
+#ifndef OPEN_GL_ES
+//        if(GLFeatures::HasDBT() && depthtestlights > 1) glDepthBounds_(sz1*0.5f + 0.5f, min(sz2*0.5f + 0.5f, depthtestlightsclamp));
+#endif
         gle::begin(GL_QUADS);
         loopvj(batch.rects)
         {
@@ -3096,7 +3191,9 @@ static void renderlightbatches(Shader *s, int stencilref, bool transparent, floa
             if(n) setlightshader(s, n, baselight, shadowmap, spotlight, false, true);
             else s->setvariant(0, 17);
 
-            if(hasDBT && depthtestlights > 1) glDepthBounds_(sz1*0.5f + 0.5f, min(sz2*0.5f + 0.5f, depthtestlightsclamp));
+#ifndef OPEN_GL_ES
+//            if(GLFeatures::HasDBT() && depthtestlights > 1) glDepthBounds_(sz1*0.5f + 0.5f, min(sz2*0.5f + 0.5f, depthtestlightsclamp));
+#endif
             lightquad(sz1, sx1, sy1, sx2, sy2, tilemask);
             lightpassesused++;
         }
@@ -3160,7 +3257,9 @@ void renderlights(float bsx1 = -1, float bsy1 = -1, float bsx2 = 1, float bsy2 =
     glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
     glEnable(GL_BLEND);
 
-    if(hasDBT && depthtestlights > 1) glEnable(GL_DEPTH_BOUNDS_TEST_EXT);
+#ifndef OPEN_GL_ES
+//    if(GLFeatures::HasDBT() && depthtestlights > 1) glEnable(GL_DEPTH_BOUNDS_TEST_EXT);
+#endif
 
     bool sunpass = !lighttilebatch || drawtex == DRAWTEX_MINIMAP || (!sunlight.iszero() && csmshadowmap && batchsunlight <= (gi && giscale && gidist ? 1 : 0));
     if(sunpass)
@@ -3193,11 +3292,18 @@ void renderlights(float bsx1 = -1, float bsy1 = -1, float bsx2 = 1, float bsy2 =
 
     glDisable(GL_BLEND);
 
-    if(!depthtestlights) glEnable(GL_DEPTH_TEST);
+    if(!depthtestlights)
+	{
+#ifndef OPEN_GL_ES
+		glEnable(GL_DEPTH_TEST);
+#endif
+	}
     else
     {
         glDepthMask(GL_TRUE);
-        if(hasDBT && depthtestlights > 1) glDisable(GL_DEPTH_BOUNDS_TEST_EXT);
+#ifndef OPEN_GL_ES
+//        if(GLFeatures::HasDBT() && depthtestlights > 1) glDisable(GL_DEPTH_BOUNDS_TEST_EXT);
+#endif
     }
 }
 
@@ -3301,7 +3407,8 @@ void rendervolumetric()
             tx2 = int(ceil((l.sx2*0.5f+0.5f)*volw)), ty2 = int(ceil((l.sy2*0.5f+0.5f)*volh));
         glScissor(tx1, ty1, tx2-tx1, ty2-ty1);
 
-        if(camera1->o.dist(l.o) <= l.radius*lightradiustweak + nearplane + 1 && depthfaillights)
+        assert(Camera::GetActiveCamera());
+        if(Camera::GetActiveCamera()->o.dist(l.o) <= l.radius*lightradiustweak + nearplane + 1 && depthfaillights)
         {
             if(outside)
             {
@@ -3421,14 +3528,14 @@ VAR(debuglightscissor, 0, 0, 1);
 
 void viewlightscissor()
 {
-    auto &ents = entities::getents();
+    auto &ents = getents();
     gle::defvertex(2);
     loopv(entgroup)
     {
         int idx = entgroup[i];
-        if(ents.inrange(idx) && ents[idx]->et_type == ET_LIGHT)
+        if(ents.inrange(idx) && dynamic_cast<LightEntity*>(ents[idx]))
         {
-            auto e = dynamic_cast<entities::classes::BaseEntity *>(ents[idx]);
+            auto e = ents[idx];
 			loopvj(lights) if(lights[j].o == e->o)
             {
                 lightinfo &l = lights[j];
@@ -3452,16 +3559,16 @@ void collectlights()
     if(lights.length()) return;
 
     // point lights processed here
-    const auto &ents = entities::getents();
+    const auto &ents = getents();
     if(!editmode || !fullbright) loopv(ents)
     {
-        const auto e = dynamic_cast<entities::classes::BaseEntity *>(ents[i]);
-        if(!e || e->et_type != ET_LIGHT || e->attr1 <= 0) continue;
+        const auto e = dynamic_cast<LightEntity *>(ents[i]);
+        if(!e || e->radius <= 0) continue;
 
         if(smviscull)
         {
-            if(isfoggedsphere(e->attr1, e->o)) continue;
-            if(pvsoccludedsphere(e->o, e->attr1)) continue;
+            if(isfoggedsphere(e->radius, e->o)) continue;
+            if(pvsoccludedsphere(e->o, e->radius)) continue;
         }
 
 		lightinfo &l = lights.add(lightinfo(i, e));
@@ -3495,7 +3602,8 @@ void collectlights()
         if((l.noshadow() && (!oqvol || !l.volumetric())) || l.radius >= worldsize) continue;
         vec bbmin, bbmax;
         l.calcbb(bbmin, bbmax);
-        if(!camera1->o.insidebb(bbmin, bbmax, 2))
+        assert(Camera::GetActiveCamera());
+        if(!Camera::GetActiveCamera()->o.insidebb(bbmin, bbmax, 2))
         {
             l.query = newquery(&l);
             if(l.query)
@@ -3914,7 +4022,7 @@ void radiancehints::renderslices()
             dmax[k] = max(dmax[k], (float)ceil((dynmax[k] + gidist + cellradius - (split.center[k] - split.bounds))/step)*step + split.center[k] - split.bounds);
         }
 
-        if((rhrect || !rhcache || hasCI) && split.cached == split.center && (!rhborder || prevcached) && !rhforce &&
+        if((rhrect || !rhcache || GLFeatures::HasCI()) && split.cached == split.center && (!rhborder || prevcached) && !rhforce &&
            (dmin.x > split.center.x + split.bounds || dmax.x < split.center.x - split.bounds ||
             dmin.y > split.center.y + split.bounds || dmax.y < split.center.y - split.bounds ||
             dmin.z > split.center.z + split.bounds || dmax.z < split.center.z - split.bounds))
@@ -4293,24 +4401,24 @@ void rendercsmshadowmaps()
     }
 }
 
-int calcshadowinfo(const entities::classes::CoreEntity *e, vec &origin, float &radius, vec &spotloc, int &spotangle, float &bias)
+int calcshadowinfo(const Entity *e, vec &origin, float &radius, vec &spotloc, int &spotangle, float &bias)
 {
-	if(e->attr5&L_NOSHADOW || e->attr1 <= smminradius) return SM_NONE;
+	if(e->flags&L_NOSHADOW || e->radius <= smminradius) return SM_NONE;
 
 	origin = e->o;
-	radius = e->attr1;
+	radius = e->radius;
     int type, w, border;
     float lod;
-	if(e->attached && e->attached->et_type == ET_SPOTLIGHT)
-    {
-        type = SM_SPOT;
-        w = 1;
-        border = 0;
-        lod = smspotprec;
-		spotloc = e->attached->o;
-		spotangle = clamp(int(e->attached->attr1), 1, 89);
-    }
-    else
+//	if(e->attached && e->attached->et_type == ET_SPOTLIGHT)
+//    {
+//        type = SM_SPOT;
+//        w = 1;
+//        border = 0;
+//        lod = smspotprec;
+//		spotloc = e->attached->o;
+//		spotangle = clamp(int(e->attached->attr1), 1, 89);
+//    }
+//    else
     {
         type = SM_CUBEMAP;
         w = 3;
@@ -4352,7 +4460,7 @@ void rendershadowmaps(int offset = 0)
 
     glEnable(GL_SCISSOR_TEST);
 
-    const auto &ents = entities::getents();
+    const auto &ents = getents();
     for(int i = offset; i < shadowmaps.length(); i++)
     {
         shadowmapinfo &sm = shadowmaps[i];
@@ -4495,9 +4603,9 @@ void rendershadowatlas()
 
     if(debugshadowatlas)
     {
-        glClearDepth(0);
+        glClearDepth_(0);
         glClear(GL_DEPTH_BUFFER_BIT);
-        glClearDepth(1);
+        glClearDepth_(1);
     }
 
     // sun light
@@ -4523,7 +4631,7 @@ void workinoq()
     if(drawtex) return;
 
     // Todo:: REMOVE?
-    game::RenderGameEntities();
+//    game::rendergame(true);
 
     if(shouldworkinoq())
     {
@@ -4552,6 +4660,12 @@ void rendertransparent()
         if(!editmode) renderparticles();
         return;
     }
+
+    auto activeCamera = Camera::GetActiveCamera();
+    if (!activeCamera)
+        return;
+
+
 
     if(!editmode && particlelayers && ghasstencil) renderparticles(PL_UNDER);
 
@@ -4599,6 +4713,7 @@ void rendertransparent()
 
     if(ghasstencil) glEnable(GL_STENCIL_TEST);
 
+    auto& cammatrix = activeCamera->GetMatrix();
     matrix4 raymatrix(vec(-0.5f*vieww*projmatrix.a.x, 0, 0.5f*vieww - 0.5f*vieww*projmatrix.c.x),
                       vec(0, -0.5f*viewh*projmatrix.b.y, 0.5f*viewh - 0.5f*viewh*projmatrix.c.y));
     raymatrix.muld(cammatrix);
@@ -4678,7 +4793,9 @@ void rendertransparent()
         }
         maskgbuffer("cndg");
 
+#ifndef OPEN_GL_ES
         if(wireframe && editmode) glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+#endif
 
         switch(layer)
         {
@@ -4698,7 +4815,9 @@ void rendertransparent()
             break;
         }
 
+#ifndef OPEN_GL_ES
         if(wireframe && editmode) glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+#endif
 
         if(msaalight)
         {
@@ -4820,7 +4939,8 @@ void preparegbuffer(bool depthclear)
 
     GLOBALPARAMF(ldrscale, ldrscale);
     GLOBALPARAMF(hdrgamma, hdrgamma, 1.0f/hdrgamma);
-    GLOBALPARAM(camera, camera1->o);
+    assert(Camera::GetActiveCamera());
+    GLOBALPARAM(camera, Camera::GetActiveCamera()->o);
     GLOBALPARAMF(millis, lastmillis/1000.0f);
 
     GLERROR;
@@ -4847,6 +4967,8 @@ void rendergbuffer(bool depthclear)
     renderdecals();
     GLERROR;
     rendermapmodels();
+    GLERROR;
+    game::rendergame(game::RenderPass::Main);
     GLERROR;
 
     if(drawtex == DRAWTEX_MINIMAP)

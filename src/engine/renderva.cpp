@@ -1,13 +1,27 @@
 // renderva.cpp: handles the occlusion and rendering of vertex arrays
 
-#include "engine.h"
+#include <game/entities/LightEntity.h>
+#include "shared/cube.h"
+#include "engine/texture.h"
+#include "engine/model.h"
+#include "engine/pvs.h"
+#include "engine/rendergl.h"
+#include "engine/renderlights.h"
+#include "engine/rendersky.h"
+#include "engine/renderva.h"
+#include "engine/grass.h"
+#include "engine/octarender.h"
+#include "engine/blend.h"
+#include "engine/main/Compatibility.h"
 
 // Included especially for base and animated map models.
-#include "../game/entities/basemapmodel.h"
+#include "game/entities/ModelEntity.h"
+#include "engine/GLFeatures.h"
+#include "engine/Camera.h"
 
 static inline void drawtris(GLsizei numindices, const GLvoid *indices, ushort minvert, ushort maxvert)
 {
-    glDrawRangeElements_(GL_TRIANGLES, minvert, maxvert, numindices, GL_UNSIGNED_SHORT, indices);
+    glCheckError(glDrawRangeElements_(GL_TRIANGLES, minvert, maxvert, numindices, GL_UNSIGNED_SHORT, indices));
     glde++;
 }
 
@@ -119,8 +133,10 @@ static vtxarray *vasort[VASORTSIZE];
 
 static inline void addvisibleva(vtxarray *va)
 {
-    float dist = vadist(va, camera1->o);
-    va->distance = int(dist); /*cv.dist(camera1->o) - va->size*SQRT3/2*/
+    assert(Camera::GetActiveCamera());
+
+    float dist = vadist(va, Camera::GetActiveCamera()->o);
+    va->distance = int(dist); /*cv.dist(activeCamera->o) - va->size*SQRT3/2*/
 
     int hash = clamp(int(dist*VASORTSIZE/worldsize), 0, VASORTSIZE-1);
     vtxarray **prev = &vasort[hash], *cur = vasort[hash];
@@ -276,7 +292,7 @@ struct queryframe
         {
             queries[max].owner = NULL;
             queries[max].fragments = -1;
-            glGenQueries_(1, &queries[max++].id);
+            glCheckError(glGenQueries_(1, &queries[max++].id));
         }
         cur = defer = 0;
     }
@@ -291,7 +307,7 @@ struct queryframe
                 if(max + defer < MAXQUERY) defer++;
                 return NULL;
             }
-            glGenQueries_(1, &queries[max++].id);
+            glCheckError(glGenQueries_(1, &queries[max++].id));
         }
         occludequery *query = &queries[cur++];
         query->owner = owner;
@@ -305,7 +321,7 @@ struct queryframe
     {
         loopi(max)
         {
-            glDeleteQueries_(1, &queries[i].id);
+            glCheckError(glDeleteQueries_(1, &queries[i].id));
             queries[i].owner = NULL;
         }
         cur = max = defer = 0;
@@ -347,33 +363,45 @@ VAR(oqwait, 0, 1, 1);
 
 static inline GLenum querytarget()
 {
-    return oqany && hasOQ2 ? (oqany > 1 && hasES3 ? GL_ANY_SAMPLES_PASSED_CONSERVATIVE : GL_ANY_SAMPLES_PASSED) : GL_SAMPLES_PASSED;
+    return oqany && GLFeatures::HasOQ2() ? (oqany > 1 && GLFeatures::HasES3() ? GL_ANY_SAMPLES_PASSED_CONSERVATIVE : GL_ANY_SAMPLES_PASSED) :
+           #ifdef OPEN_GL_ES
+	GL_ANY_SAMPLES_PASSED
+#else
+           GL_SAMPLES_PASSED
+#endif
+    ;
 }
 
 void startquery(occludequery *query)
 {
-    glBeginQuery_(querytarget(), query->id);
+    glCheckError(glBeginQuery_(querytarget(), query->id));
 }
 
 void endquery(occludequery *query)
 {
-    glEndQuery_(querytarget());
+    glCheckError(glEndQuery_(querytarget()));
 }
 
 bool checkquery(occludequery *query, bool nowait)
 {
     if(query->fragments < 0)
     {
+#ifndef OPEN_GL_ES
         if(nowait || !oqwait)
         {
             GLint avail;
-            glGetQueryObjectiv_(query->id, GL_QUERY_RESULT_AVAILABLE, &avail);
+            glCheckError(glGetQueryObjectiv_(query->id, GL_QUERY_RESULT_AVAILABLE, &avail));
             if(!avail) return false;
         }
+#endif
      
-        GLuint fragments;   
-        glGetQueryObjectuiv_(query->id, GL_QUERY_RESULT, &fragments);
+        GLuint fragments;
+        glCheckError(glGetQueryObjectuiv_(query->id, GL_QUERY_RESULT, &fragments));
+#ifdef OPEN_GL_ES
+        query->fragments = querytarget() == GL_ANY_SAMPLES_PASSED || !fragments ? int(fragments) : oqfrags;
+#else
         query->fragments = querytarget() == GL_SAMPLES_PASSED || !fragments ? int(fragments) : oqfrags;
+#endif
     }
     return query->fragments < oqfrags;
 }
@@ -384,16 +412,16 @@ static void setupbb()
 {
     if(!bbvbo)
     {
-        glGenBuffers_(1, &bbvbo);
+        glCheckError(glGenBuffers_(1, &bbvbo));
         gle::bindvbo(bbvbo);
         vec verts[8];
         loopi(8) verts[i] = vec(i&1, (i>>1)&1, (i>>2)&1);
-        glBufferData_(GL_ARRAY_BUFFER, sizeof(verts), verts, GL_STATIC_DRAW);
+        glCheckError(glBufferData_(GL_ARRAY_BUFFER, sizeof(verts), verts, GL_STATIC_DRAW));
         gle::clearvbo();
     }
     if(!bbebo)
     {
-        glGenBuffers_(1, &bbebo);
+        glCheckError(glGenBuffers_(1, &bbebo));
         gle::bindebo(bbebo);
         GLushort tris[3*2*6];
         #define GENFACEORIENT(orient, v0, v1, v2, v3) do { \
@@ -409,15 +437,15 @@ static void setupbb()
         GENFACEVERTS(0, 1, 0, 2, 0, 4, , , , , , )
         #undef GENFACEORIENT
         #undef GENFACEVERT
-        glBufferData_(GL_ELEMENT_ARRAY_BUFFER, sizeof(tris), tris, GL_STATIC_DRAW);
+        glCheckError(glBufferData_(GL_ELEMENT_ARRAY_BUFFER, sizeof(tris), tris, GL_STATIC_DRAW));
         gle::clearebo();
     }
 }
 
 static void cleanupbb()
 {
-    if(bbvbo) { glDeleteBuffers_(1, &bbvbo); bbvbo = 0; }
-    if(bbebo) { glDeleteBuffers_(1, &bbebo); bbebo = 0; }
+    if(bbvbo) { glCheckError(glDeleteBuffers_(1, &bbvbo)); bbvbo = 0; }
+    if(bbebo) { glCheckError(glDeleteBuffers_(1, &bbebo)); bbebo = 0; }
 }
 
 void startbb(bool mask)
@@ -451,7 +479,7 @@ void drawbb(const ivec &bo, const ivec &br)
 {
     LOCALPARAMF(bborigin, bo.x, bo.y, bo.z);
     LOCALPARAMF(bbsize, br.x, br.y, br.z);
-    glDrawRangeElements_(GL_TRIANGLES, 0, 8-1, 3*2*6, GL_UNSIGNED_SHORT, (ushort *)0);
+    glCheckError(glDrawRangeElements_(GL_TRIANGLES, 0, 8-1, 3*2*6, GL_UNSIGNED_SHORT, (ushort *)0));
     xtraverts += 8;
 }
 
@@ -459,7 +487,7 @@ extern int octaentsize;
 
 static octaentities *visiblemms, **lastvisiblemms;
 
-void findvisiblemms(const vector<entities::classes::CoreEntity *> &ents, bool doquery)
+void findvisiblemms(const vector<Entity *> &ents, bool doquery)
 {
     visiblemms = NULL;
     lastvisiblemms = &visiblemms;
@@ -480,19 +508,20 @@ void findvisiblemms(const vector<entities::classes::CoreEntity *> &ents, bool do
         else
         {
             int visible = 0;
-            loopv(oe->mapmodels)
+            for(auto& modelIdx : oe->mapmodels)
             {
-                auto e = dynamic_cast<entities::classes::BaseEntity *>(ents[oe->mapmodels[i]]);
+                auto e = dynamic_cast<ModelEntity *>(ents[modelIdx]);
                 if (!e)
 					continue;
-				if(e->flags&entities::EntityFlags::EF_NOVIS)
+				if(e->flags&EntityFlags::EF_NOVIS)
 					continue;
-				e->flags |= entities::EntityFlags::EF_RENDER;
+				e->flags |= EntityFlags::EF_RENDER;
                 ++visible;
             }
             if(!visible) continue;
 
-            oe->distance = int(camera1->o.dist_to_bb(oe->o, oe->size));
+            assert(Camera::GetActiveCamera());
+            oe->distance = int(Camera::GetActiveCamera()->o.dist_to_bb(oe->o, oe->size));
 
             octaentities **prev = &visiblemms, *cur = visiblemms;
             while(cur && cur->distance >= 0 && oe->distance > cur->distance)
@@ -510,34 +539,35 @@ void findvisiblemms(const vector<entities::classes::CoreEntity *> &ents, bool do
 
 VAR(oqmm, 0, 4, 8);
 
-static inline void rendermapmodel(entities::classes::CoreEntity *e)
+static inline void rendermapmodel(Entity *ee)
 {
-	if (e->et_type != ET_MAPMODEL)
+    auto* e = dynamic_cast<ModelEntity*>(ee);
+	if (!e)
         return;
 
     int anim = ANIM_MAPMODEL|ANIM_LOOP, basetime = 0;
-    if(e->flags&entities::EntityFlags::EF_ANIM) ((entities::classes::BaseMapModel*)e)->onAnimate(anim, basetime);
-	rendermapmodel(e->model_idx, anim, e->o, e->attr2, e->attr3, e->attr4, MDL_CULL_VFC | MDL_CULL_DIST, basetime, e->attr5 > 0 ? e->attr5/100.0f : 1.0f);
+    if(e->flags&EntityFlags::EF_ANIM) ((ModelEntity*)e)->onAnimate(anim, basetime);
+	rendermapmodel(e->model_idx, anim, e->o, e->d.x, e->d.y, e->d.z, MDL_CULL_VFC | MDL_CULL_DIST, basetime, e->scale > 0 ? e->scale/100.0f : 1.0f);
 }
 
 void rendermapmodels()
 {
     static int skipoq = 0;
     bool doquery = !drawtex && oqfrags && oqmm;
-    const auto& ents = entities::getents();
+    const auto& ents = getents();
     findvisiblemms(ents, doquery);
 
     for(octaentities *oe = visiblemms; oe; oe = oe->next) if(oe->distance>=0)
     {
         bool rendered = false;
-        loopv(oe->mapmodels)
+        for(auto& modelIdx : oe->mapmodels)
         {
-            auto e = dynamic_cast<entities::classes::BaseEntity *>(ents[oe->mapmodels[i]]);
+            auto e = dynamic_cast<ModelEntity *>(ents[modelIdx]);
             if (!e)
 				continue;
 				
             //conoutf("oe mapmodel: %d (%s)", oe->mapmodels[i], e.flags&EF_RENDER ? "render" : "no render");
-			if(!(e->flags&entities::EntityFlags::EF_RENDER)) continue;
+			if(!(e->flags&EntityFlags::EF_RENDER)) continue;
             if(!rendered)
             {
                 rendered = true;
@@ -545,17 +575,19 @@ void rendermapmodels()
                 if(oe->query) startmodelquery(oe->query);
             }
 			rendermapmodel(e);
-			e->flags &= ~entities::EntityFlags::EF_RENDER;
+			e->flags &= ~EntityFlags::EF_RENDER;
         }
         if(rendered && oe->query) endmodelquery();
     }
     rendermapmodelbatches();
     clearbatchedmapmodels();
 
+    assert(Camera::GetActiveCamera());
+    const auto& cameraPos = Camera::GetActiveCamera()->o;
     bool queried = false;
     for(octaentities *oe = visiblemms; oe; oe = oe->next) if(oe->distance<0)
     {
-        oe->query = doquery && !camera1->o.insidebb(oe->bbmin, oe->bbmax, 1) ? newquery(oe) : NULL;
+        oe->query = doquery && !cameraPos.insidebb(oe->bbmin, oe->bbmax, 1) ? newquery(oe) : NULL;
         if(!oe->query) continue;
         if(!queried)
         {
@@ -631,7 +663,9 @@ void renderoutline()
 
     gle::enablevertex();
 
+#ifndef OPEN_GL_ES
     glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+#endif
     gle::color(outlinecolour);
 
     enablepolygonoffset(GL_POLYGON_OFFSET_LINE);
@@ -669,7 +703,9 @@ void renderoutline()
 
     disablepolygonoffset(GL_POLYGON_OFFSET_LINE);
 
-    glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+#ifndef OPEN_GL_ES
+    glCheckError(glPolygonMode(GL_FRONT_AND_BACK, GL_FILL));
+#endif
 
     gle::clearvbo();
     gle::clearebo();
@@ -684,12 +720,12 @@ void renderblendbrush(GLuint tex, float x, float y, float w, float h)
 
     gle::enablevertex();
 
-    glDepthFunc(GL_LEQUAL);
+    glCheckError(glDepthFunc(GL_LEQUAL));
 
-    glEnable(GL_BLEND);
-    glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
+    glCheckError(glEnable(GL_BLEND));
+    glCheckError(glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA));
 
-    glBindTexture(GL_TEXTURE_2D, tex);
+    glCheckError(glBindTexture(GL_TEXTURE_2D, tex));
     gle::color(blendbrushcolour, 0x40);
 
     LOCALPARAMF(texgenS, 1.0f/w, 0, 0, -x/w);
@@ -714,9 +750,9 @@ void renderblendbrush(GLuint tex, float x, float y, float w, float h)
         prev = va;
     }
 
-    glDisable(GL_BLEND);
+    glCheckError(glDisable(GL_BLEND));
 
-    glDepthFunc(GL_LESS);
+    glCheckError(glDepthFunc(GL_LESS));
 
     gle::clearvbo();
     gle::clearebo();
@@ -857,7 +893,8 @@ int cullfrustumsides(const vec &lightpos, float lightradius, float size, float b
     // this next test usually clips off more sides than the former, but occasionally clips fewer/different ones, so do both and combine results
     // check if frustum corners/origin cross plane sides
     // infinite version, assumes frustum corners merely give direction and extend to infinite distance
-    vec p = vec(camera1->o).sub(lightpos).div(lightradius);
+    assert(Camera::GetActiveCamera());
+    vec p = vec(Camera::GetActiveCamera()->o).sub(lightpos).div(lightradius);
     float dp = p.x + p.y, dn = p.x - p.y, ap = fabs(dp), an = fabs(dn);
     masks[0] |= ap <= bias*an ? 0x3F : (dp >= 0 ? (1<<0)|(1<<2) : (2<<0)|(2<<2));
     masks[1] |= an <= bias*ap ? 0x3F : (dn >= 0 ? (1<<0)|(2<<2) : (2<<0)|(1<<2));
@@ -1098,23 +1135,23 @@ void findshadowmms()
 void batchshadowmapmodels(bool skipmesh)
 {
     if(!shadowmms) return;
-    int nflags = entities::EntityFlags::EF_NOVIS|entities::EntityFlags::EF_NOSHADOW;
-    if(skipmesh) nflags |= entities::EntityFlags::EF_SHADOWMESH;
-    const auto &ents = entities::getents();
-    for(octaentities *oe = shadowmms; oe; oe = oe->rnext) loopvk(oe->mapmodels)
+    int nflags = EntityFlags::EF_NOVIS|EntityFlags::EF_NOSHADOW;
+    if(skipmesh) nflags |= EntityFlags::EF_SHADOWMESH;
+    const auto &ents = getents();
+    for(octaentities *oe = shadowmms; oe; oe = oe->rnext) for(auto& modelIdx :oe->mapmodels)
     {
-        auto e = dynamic_cast<entities::classes::BaseEntity *>(ents[oe->mapmodels[k]]);
+        auto e = dynamic_cast<ModelEntity *>(ents[modelIdx]);
         if (!e) continue;
 		if(e->flags&nflags) continue;
-		e->flags |= entities::EntityFlags::EF_RENDER;
+		e->flags |= EntityFlags::EF_RENDER;
     }
-    for(octaentities *oe = shadowmms; oe; oe = oe->rnext) loopvj(oe->mapmodels)
+    for(octaentities *oe = shadowmms; oe; oe = oe->rnext) for(auto& modelIdx :oe->mapmodels)
     {
-        auto e = dynamic_cast<entities::classes::BaseEntity *>(ents[oe->mapmodels[j]]);
+        auto e = dynamic_cast<ModelEntity *>(ents[modelIdx]);
         if (!e) continue;
-		if(!(e->flags&entities::EntityFlags::EF_RENDER)) continue;
+		if(!(e->flags&EntityFlags::EF_RENDER)) continue;
 		rendermapmodel(e);
-		e->flags &= ~entities::EntityFlags::EF_RENDER;
+		e->flags &= ~EntityFlags::EF_RENDER;
     }
 }
 
@@ -1154,8 +1191,8 @@ static inline void disablevbuf(renderstate &cur)
 
 static inline void enablevquery(renderstate &cur)
 {
-    if(cur.colormask) { cur.colormask = false; glColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE); }
-    if(cur.depthmask) { cur.depthmask = false; glDepthMask(GL_FALSE); }
+    if(cur.colormask) { cur.colormask = false; glCheckError(glColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE)); }
+    if(cur.depthmask) { cur.depthmask = false; glCheckError(glDepthMask(GL_FALSE)); }
     startbb(false);
     cur.vquery = true;
 }
@@ -1358,8 +1395,8 @@ static void changebatchtmus(renderstate &cur, int pass, geombatch &b)
         if(cur.textures[TEX_ENVMAP]!=emtex)
         {
             cur.tmu = TEX_ENVMAP;
-            glActiveTexture_(GL_TEXTURE0 + TEX_ENVMAP);
-            glBindTexture(GL_TEXTURE_CUBE_MAP, cur.textures[TEX_ENVMAP] = emtex);
+            glCheckError(glActiveTexture_(GL_TEXTURE0 + TEX_ENVMAP));
+            glCheckError(glBindTexture(GL_TEXTURE_CUBE_MAP, cur.textures[TEX_ENVMAP] = emtex));
         }
     }
 
@@ -1373,7 +1410,7 @@ static void changebatchtmus(renderstate &cur, int pass, geombatch &b)
         if((cur.blendx != (b.va->o.x&~0xFFF) || cur.blendy != (b.va->o.y&~0xFFF)))
         {
             cur.tmu = 7;
-            glActiveTexture_(GL_TEXTURE7);
+            glCheckError(glActiveTexture_(GL_TEXTURE7));
             bindblendtexture(b.va->o);
             cur.blendx = b.va->o.x&~0xFFF;
             cur.blendy = b.va->o.y&~0xFFF;
@@ -1388,7 +1425,7 @@ static void changebatchtmus(renderstate &cur, int pass, geombatch &b)
     if(cur.tmu != 0)
     {
         cur.tmu = 0;
-        glActiveTexture_(GL_TEXTURE0);
+        glCheckError(glActiveTexture_(GL_TEXTURE0));
     }
 }
 
@@ -1399,9 +1436,9 @@ static inline void bindslottex(renderstate &cur, int type, Texture *tex, GLenum 
         if(cur.tmu != type)
         {
             cur.tmu = type;
-            glActiveTexture_(GL_TEXTURE0 + type);
+            glCheckError(glActiveTexture_(GL_TEXTURE0 + type));
         }
-        glBindTexture(target, cur.textures[type] = tex->id);
+        glCheckError(glBindTexture(target, cur.textures[type] = tex->id));
     }
 }
 
@@ -1493,7 +1530,7 @@ static void changeslottmus(renderstate &cur, int pass, Slot &slot, VSlot &vslot)
     if(cur.tmu != 0)
     {
         cur.tmu = 0;
-        glActiveTexture_(GL_TEXTURE0);
+        glCheckError(glActiveTexture_(GL_TEXTURE0));
     }
 
     cur.slot = &slot;
@@ -1589,8 +1626,8 @@ static void renderbatches(renderstate &cur, int pass)
     int curbatch = firstbatch;
     if(curbatch >= 0)
     {
-        if(!cur.depthmask) { cur.depthmask = true; glDepthMask(GL_TRUE); }
-        if(!cur.colormask) { cur.colormask = true; glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE); }
+        if(!cur.depthmask) { cur.depthmask = true; glCheckError(glDepthMask(GL_TRUE)); }
+        if(!cur.colormask) { cur.colormask = true; glCheckError(glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE)); }
         if(!cur.vattribs)
         {
             if(cur.vquery) disablevquery(cur);
@@ -1630,8 +1667,8 @@ void renderzpass(renderstate &cur, vtxarray *va)
         enablevattribs(cur, false);
     }
     if(cur.vbuf!=va->vbuf) changevbuf(cur, RENDERPASS_Z, va);
-    if(!cur.depthmask) { cur.depthmask = true; glDepthMask(GL_TRUE); }
-    if(cur.colormask) { cur.colormask = false; glColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE); }
+    if(!cur.depthmask) { cur.depthmask = true; glCheckError(glDepthMask(GL_TRUE)); }
+    if(cur.colormask) { cur.colormask = false; glCheckError(glColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE)); }
 
     int firsttex = 0, numtris = va->tris, offset = 0;
     if(cur.alphaing)
@@ -1721,7 +1758,7 @@ void cleanupva()
 
 void setupgeom(renderstate &cur)
 {
-    glActiveTexture_(GL_TEXTURE0);
+    glCheckError(glActiveTexture_(GL_TEXTURE0));
     GLOBALPARAMF(colorparams, 1, 1, 1, 1);
     GLOBALPARAMF(blendlayer, 1.0f);
 }
@@ -1740,11 +1777,13 @@ void rendergeom()
     renderstate cur;
 
     int blends = 0;
+    assert(Camera::GetActiveCamera());
+    const auto& cameraPos = Camera::GetActiveCamera()->o;
     if(doOQ)
     {
         for(vtxarray *va = visibleva; va; va = va->next) if(va->texs)
         {
-            if(!camera1->o.insidebb(va->o, va->size, 2))
+            if(!cameraPos.insidebb(va->o, va->size, 2))
             {
                 if(va->parent && va->parent->occluded >= OCCLUDE_BB)
                 {
@@ -1781,14 +1820,14 @@ void rendergeom()
         if(cur.vattribs) disablevattribs(cur, false);
         if(cur.vbuf) disablevbuf(cur);
 
-        glFlush();
-        if(cur.colormask) { cur.colormask = false; glColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE); }
-        if(cur.depthmask) { cur.depthmask = false; glDepthMask(GL_FALSE); }
+        glCheckError(glFlush());
+        if(cur.colormask) { cur.colormask = false; glCheckError(glColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE)); }
+        if(cur.depthmask) { cur.depthmask = false; glCheckError(glDepthMask(GL_FALSE)); }
         workinoq();
-        if(!cur.colormask) { cur.colormask = true; glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE); }
-        if(!cur.depthmask) { cur.depthmask = true; glDepthMask(GL_TRUE); }
+        if(!cur.colormask) { cur.colormask = true; glCheckError(glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE)); }
+        if(!cur.depthmask) { cur.depthmask = true; glCheckError(glDepthMask(GL_TRUE)); }
 
-        if(!multipassing) { multipassing = true; glDepthFunc(GL_LEQUAL); }
+        if(!multipassing) { multipassing = true; glCheckError(glDepthFunc(GL_LEQUAL)); }
         cur.texgenorient = -1;
         setupgeom(cur);
         resetbatches();
@@ -1798,7 +1837,7 @@ void rendergeom()
             blends += va->blends;
             renderva(cur, va, RENDERPASS_GBUFFER);
         }
-        if(geombatches.length()) { renderbatches(cur, RENDERPASS_GBUFFER); glFlush(); }
+        if(geombatches.length()) { renderbatches(cur, RENDERPASS_GBUFFER); glCheckError(glFlush()); }
         for(vtxarray *va = visibleva; va; va = va->next) if(va->texs && va->occluded >= OCCLUDE_GEOM)
         {
             if((va->parent && va->parent->occluded >= OCCLUDE_BB) || (va->query && checkquery(va->query)))
@@ -1836,10 +1875,10 @@ void rendergeom()
     {
         if(cur.vbuf) disablevbuf(cur);
 
-        if(!multipassing) { multipassing = true; glDepthFunc(GL_LEQUAL); }
-        glDepthMask(GL_FALSE);
-        glEnable(GL_BLEND);
-        glBlendFunc(GL_ONE, GL_ONE);
+        if(!multipassing) { multipassing = true; glCheckError(glDepthFunc(GL_LEQUAL)); }
+        glCheckError(glDepthMask(GL_FALSE));
+        glCheckError(glEnable(GL_BLEND));
+        glCheckError(glBlendFunc(GL_ONE, GL_ONE));
         maskgbuffer("cn");
 
         GLOBALPARAMF(blendlayer, 0.0f);
@@ -1851,22 +1890,22 @@ void rendergeom()
         if(geombatches.length()) renderbatches(cur, RENDERPASS_GBUFFER);
 
         maskgbuffer("cnd");
-        glDisable(GL_BLEND);
-        glDepthMask(GL_TRUE);
+        glCheckError(glDisable(GL_BLEND));
+        glCheckError(glDepthMask(GL_TRUE));
     }
 
-    if(multipassing) glDepthFunc(GL_LESS);
+    if(multipassing) glCheckError(glDepthFunc(GL_LESS));
 
     cleanupgeom(cur);
 
     if(!doOQ)
     {
-        glFlush();
-        if(cur.colormask) { cur.colormask = false; glColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE); }
-        if(cur.depthmask) { cur.depthmask = false; glDepthMask(GL_FALSE); }
+        glCheckError(glFlush());
+        if(cur.colormask) { cur.colormask = false; glCheckError(glColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE)); }
+        if(cur.depthmask) { cur.depthmask = false; glCheckError(glDepthMask(GL_FALSE)); }
         workinoq();
-        if(!cur.colormask) { cur.colormask = true; glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE); }
-        if(!cur.depthmask) { cur.depthmask = true; glDepthMask(GL_TRUE); }
+        if(!cur.colormask) { cur.colormask = true; glCheckError(glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE)); }
+        if(!cur.depthmask) { cur.depthmask = true; glCheckError(glDepthMask(GL_TRUE)); }
     }
 }
 
@@ -1929,10 +1968,10 @@ void renderrsmgeom(bool dyntex)
     {
         if(cur.vbuf) disablevbuf(cur);
 
-        if(!multipassing) { multipassing = true; glDepthFunc(GL_LEQUAL); }
-        glDepthMask(GL_FALSE);
-        glEnable(GL_BLEND);
-        glBlendFunc(GL_ONE, GL_ONE);
+        if(!multipassing) { multipassing = true; glCheckError(glDepthFunc(GL_LEQUAL)); }
+        glCheckError(glDepthMask(GL_FALSE));
+        glCheckError(glEnable(GL_BLEND));
+        glCheckError(glBlendFunc(GL_ONE, GL_ONE));
 
         GLOBALPARAMF(blendlayer, 0.0f);
         cur.texgenorient = -1;
@@ -1942,11 +1981,11 @@ void renderrsmgeom(bool dyntex)
         }
         if(geombatches.length()) renderbatches(cur, RENDERPASS_RSM);
 
-        glDisable(GL_BLEND);
-        glDepthMask(GL_TRUE);
+        glCheckError(glDisable(GL_BLEND));
+        glCheckError(glDepthMask(GL_TRUE));
     }
 
-    if(multipassing) glDepthFunc(GL_LESS);
+    if(multipassing) glCheckError(glDepthFunc(GL_LESS));
 
     cleanupgeom(cur);
 }
@@ -2045,10 +2084,10 @@ void renderalphageom(int side)
     }
     else
     {
-        glCullFace(GL_FRONT);
+        glCheckError(glCullFace(GL_FRONT));
         loopv(alphavas) if(alphavas[i]->alphabacktris) renderva(cur, alphavas[i], RENDERPASS_GBUFFER);
         if(geombatches.length()) renderbatches(cur, RENDERPASS_GBUFFER);
-        glCullFace(GL_BACK);
+        glCheckError(glCullFace(GL_BACK));
     }
 
     cleanupgeom(cur);
@@ -2058,10 +2097,13 @@ CVARP(explicitskycolour, 0x800080);
 
 bool renderexplicitsky(bool outline)
 {
+    const auto& activeCamera = Camera::GetActiveCamera();
+    assert(activeCamera);
+
     vtxarray *prev = NULL;
     for(vtxarray *va = visibleva; va; va = va->next) if(va->sky && va->occluded < OCCLUDE_BB &&
         ((va->skymax.x >= 0 && isvisiblebb(va->skymin, ivec(va->skymax).sub(va->skymin)) != VFC_NOT_VISIBLE) ||
-         !insideworld(camera1->o)))
+         !insideworld(activeCamera->o)))
     {
         if(!prev || va->vbuf != prev->vbuf)
         {
@@ -2072,9 +2114,11 @@ bool renderexplicitsky(bool outline)
                 {
                     ldrnotextureshader->set();
                     gle::color(explicitskycolour);
-                    glDepthMask(GL_FALSE);
+                    glCheckError(glDepthMask(GL_FALSE));
                     enablepolygonoffset(GL_POLYGON_OFFSET_LINE);
-                    glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+#ifndef OPEN_GL_ES
+                    glCheckError(glPolygonMode(GL_FRONT_AND_BACK, GL_LINE));
+#endif
                 }
                 else if(editmode)
                 {
@@ -2084,7 +2128,7 @@ bool renderexplicitsky(bool outline)
                 else
                 {
                     nocolorshader->set();
-                    glColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE);
+                    glCheckError(glColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE));
                 }
             }
             gle::bindvbo(va->vbuf);
@@ -2099,9 +2143,11 @@ bool renderexplicitsky(bool outline)
     if(!prev) return false;
     if(outline)
     {
-        glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+#ifndef OPEN_GL_ES
+        glCheckError(glPolygonMode(GL_FRONT_AND_BACK, GL_FILL));
+#endif
         disablepolygonoffset(GL_POLYGON_OFFSET_LINE);
-        glDepthMask(GL_TRUE);
+        glCheckError(glDepthMask(GL_TRUE));
     }
     else if(editmode)
     {
@@ -2109,7 +2155,7 @@ bool renderexplicitsky(bool outline)
     }
     else
     {
-        glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
+        glCheckError(glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE));
     }
     gle::disablevertex();
     gle::clearvbo();
@@ -2258,14 +2304,14 @@ static void changebatchtmus(decalrenderer &cur, int pass, decalbatch &b)
         if(cur.textures[TEX_ENVMAP]!=emtex)
         {
             cur.tmu = TEX_ENVMAP;
-            glActiveTexture_(GL_TEXTURE0 + TEX_ENVMAP);
-            glBindTexture(GL_TEXTURE_CUBE_MAP, cur.textures[TEX_ENVMAP] = emtex);
+            glCheckError(glActiveTexture_(GL_TEXTURE0 + TEX_ENVMAP));
+            glCheckError(glBindTexture(GL_TEXTURE_CUBE_MAP, cur.textures[TEX_ENVMAP] = emtex));
         }
     }
     if(cur.tmu != 0)
     {
         cur.tmu = 0;
-        glActiveTexture_(GL_TEXTURE0);
+        glCheckError(glActiveTexture_(GL_TEXTURE0));
     }
 }
 
@@ -2276,9 +2322,9 @@ static inline void bindslottex(decalrenderer &cur, int type, Texture *tex, GLenu
         if(cur.tmu != type)
         {
             cur.tmu = type;
-            glActiveTexture_(GL_TEXTURE0 + type);
+            glCheckError(glActiveTexture_(GL_TEXTURE0 + type));
         }
-        glBindTexture(target, cur.textures[type] = tex->id);
+        glCheckError(glBindTexture(target, cur.textures[type] = tex->id));
     }
 }
 
@@ -2307,7 +2353,7 @@ static void changeslottmus(decalrenderer &cur, int pass, DecalSlot &slot)
     if(cur.tmu != 0)
     {
         cur.tmu = 0;
-        glActiveTexture_(GL_TEXTURE0);
+        glCheckError(glActiveTexture_(GL_TEXTURE0));
     }
 
     if(cur.colorscale != slot.colorscale)
@@ -2384,8 +2430,8 @@ void setupdecals(decalrenderer &cur)
     gle::enabletexcoord0();
     gle::enabletangent();
 
-    glDepthMask(GL_FALSE);
-    glEnable(GL_BLEND);
+    glCheckError(glDepthMask(GL_FALSE));
+    glCheckError(glEnable(GL_BLEND));
     enablepolygonoffset(GL_POLYGON_OFFSET_FILL);
 
     GLOBALPARAMF(colorparams, 1, 1, 1, 1);
@@ -2394,10 +2440,10 @@ void setupdecals(decalrenderer &cur)
 void cleanupdecals(decalrenderer &cur)
 {
     disablepolygonoffset(GL_POLYGON_OFFSET_FILL);
-    glDisable(GL_BLEND);
-    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-    glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
-    glDepthMask(GL_TRUE);
+    glCheckError(glDisable(GL_BLEND));
+    glCheckError(glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA));
+    glCheckError(glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE));
+    glCheckError(glDepthMask(GL_TRUE));
     maskgbuffer("cnd");
 
     gle::disablevertex();
@@ -2424,7 +2470,7 @@ void renderdecals()
 
     if(maxdualdrawbufs)
     {
-        glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC1_ALPHA);
+        glCheckError(glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC1_ALPHA));
         maskgbuffer("c");
         for(vtxarray *va = decalva; va; va = va->next) if(va->decaltris && va->occluded < OCCLUDE_BB)
         {
@@ -2435,10 +2481,13 @@ void renderdecals()
 
         if(usepacknorm())
         {
-            glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-            glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_FALSE);
+            glCheckError(glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA));
+            glCheckError(glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_FALSE));
         }
-        else glBlendFunc(GL_SRC1_ALPHA, GL_ONE_MINUS_SRC1_ALPHA);
+        else
+        {
+            glCheckError(glBlendFunc(GL_SRC1_ALPHA, GL_ONE_MINUS_SRC1_ALPHA));
+        }
         maskgbuffer("n");
         cur.vbuf = 0;
         for(vtxarray *va = decalva; va; va = va->next) if(va->decaltris && va->occluded < OCCLUDE_BB)
@@ -2450,8 +2499,8 @@ void renderdecals()
     }
     else
     {
-        glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
-        glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_FALSE);
+        glCheckError(glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA));
+        glCheckError(glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_FALSE));
         maskgbuffer("cn");
         for(vtxarray *va = decalva; va; va = va->next) if(va->decaltris && va->occluded < OCCLUDE_BB)
         {
@@ -2529,8 +2578,8 @@ static void flushshadowmeshdraws(shadowmesh &m, int sides, shadowdrawinfo draws[
     if(!numindexes) return;
 
     GLuint ebuf = 0, vbuf = 0;
-    glGenBuffers_(1, &ebuf);
-    glGenBuffers_(1, &vbuf);
+    glCheckError(glGenBuffers_(1, &ebuf));
+    glCheckError(glGenBuffers_(1, &vbuf));
     ushort *indexes = new ushort[numindexes];
     int offset = 0;
     loopi(sides) if(shadowtris[i].length())
@@ -2556,12 +2605,12 @@ static void flushshadowmeshdraws(shadowmesh &m, int sides, shadowdrawinfo draws[
     }
 
     gle::bindebo(ebuf);
-    glBufferData_(GL_ELEMENT_ARRAY_BUFFER, numindexes*sizeof(ushort), indexes, GL_STATIC_DRAW);
+    glCheckError(glBufferData_(GL_ELEMENT_ARRAY_BUFFER, numindexes*sizeof(ushort), indexes, GL_STATIC_DRAW));
     gle::clearebo();
     delete[] indexes;
 
     gle::bindvbo(vbuf);
-    glBufferData_(GL_ARRAY_BUFFER, shadowverts.verts.length()*sizeof(vec), shadowverts.verts.getbuf(), GL_STATIC_DRAW);
+    glCheckError(glBufferData_(GL_ARRAY_BUFFER, shadowverts.verts.length()*sizeof(vec), shadowverts.verts.getbuf(), GL_STATIC_DRAW));
     gle::clearvbo();
     shadowverts.clear();
 
@@ -2606,21 +2655,21 @@ static void genshadowmeshtris(shadowmesh &m, int sides, shadowdrawinfo draws[6],
 
 static void genshadowmeshmapmodels(shadowmesh &m, int sides, shadowdrawinfo draws[6])
 {
-    const auto &ents = entities::getents();
-    for(octaentities *oe = shadowmms; oe; oe = oe->rnext) loopvk(oe->mapmodels)
+    const auto &ents = getents();
+    for(octaentities *oe = shadowmms; oe; oe = oe->rnext) for(auto& modelIdx : oe->mapmodels)
     {
-        auto e = dynamic_cast<entities::classes::BaseEntity *>(ents[oe->mapmodels[k]]);
+        auto e = dynamic_cast<ModelEntity *>(ents[modelIdx]);
         if (!e) continue;
-		if(e->flags&(entities::EntityFlags::EF_NOVIS|entities::EntityFlags::EF_NOSHADOW)) continue;
-		e->flags |= entities::EntityFlags::EF_RENDER;
+		if(e->flags&(EntityFlags::EF_NOVIS|EntityFlags::EF_NOSHADOW)) continue;
+		e->flags |= EntityFlags::EF_RENDER;
     }
     vector<triangle> tris;
-    for(octaentities *oe = shadowmms; oe; oe = oe->rnext) loopvj(oe->mapmodels)
+    for(octaentities *oe = shadowmms; oe; oe = oe->rnext) for(auto& modelIdx : oe->mapmodels)
     {
-        auto e = dynamic_cast<entities::classes::BaseEntity *>(ents[oe->mapmodels[j]]);
+        auto e = dynamic_cast<ModelEntity *>(ents[modelIdx]);
         if (!e) continue;
-		if(!(e->flags&entities::EntityFlags::EF_RENDER)) continue;
-		e->flags &= ~entities::EntityFlags::EF_RENDER;
+		if(!(e->flags&EntityFlags::EF_RENDER)) continue;
+		e->flags &= ~EntityFlags::EF_RENDER;
 
 
 		model *mm = loadmapmodel(e->model_idx);
@@ -2628,10 +2677,10 @@ static void genshadowmeshmapmodels(shadowmesh &m, int sides, shadowdrawinfo draw
 
         matrix4x3 orient;
         orient.identity();
-		if(e->attr2) orient.rotate_around_z(sincosmod360(e->attr2));
-		if(e->attr3) orient.rotate_around_x(sincosmod360(e->attr3));
-		if(e->attr4) orient.rotate_around_y(sincosmod360(-e->attr4));
-		if(e->attr5 > 0) orient.scale(e->attr5/100.0f);
+		if(e->d.x) orient.rotate_around_z(sincosmod360(e->d.x));
+		if(e->d.y) orient.rotate_around_x(sincosmod360(e->d.y));
+		if(e->d.z) orient.rotate_around_y(sincosmod360(-e->d.z));
+		if(e->scale > 0) orient.scale(e->scale/100.0f);
 		orient.settranslation(e->o);
         tris.setsize(0);
         mm->genshadowmesh(tris, orient);
@@ -2642,11 +2691,11 @@ static void genshadowmeshmapmodels(shadowmesh &m, int sides, shadowdrawinfo draw
             addshadowmeshtri(m, sides, draws, t.a, t.b, t.c);
         }
 
-		e->flags |= entities::EntityFlags::EF_SHADOWMESH;
+		e->flags |= EntityFlags::EF_SHADOWMESH;
     }
 }
 
-static void genshadowmesh(int idx, entities::classes::CoreEntity *e)
+static void genshadowmesh(int idx, Entity *e)
 {
     shadowmesh m;
     m.type = calcshadowinfo(e, m.origin, m.radius, m.spotloc, m.spotangle, shadowbias);
@@ -2679,15 +2728,15 @@ static void genshadowmesh(int idx, entities::classes::CoreEntity *e)
 
 void clearshadowmeshes()
 {
-    if(shadowvbos.length()) { glDeleteBuffers_(shadowvbos.length(), shadowvbos.getbuf()); shadowvbos.setsize(0); }
+    if(shadowvbos.length()) { glCheckError(glDeleteBuffers_(shadowvbos.length(), shadowvbos.getbuf()); shadowvbos.setsize(0)); }
     if(shadowmeshes.numelems)
     {
-        auto &ents = entities::getents();
+        auto &ents = getents();
         loopv(ents)
         {
-            auto e = dynamic_cast<entities::classes::BaseEntity *>(ents[i]);
+            auto e = dynamic_cast<ModelEntity *>(ents[i]);
             if (!e) continue;
-			if(e->flags&entities::EntityFlags::EF_SHADOWMESH) e->flags &= ~entities::EntityFlags::EF_SHADOWMESH;
+			if(e->flags&EntityFlags::EF_SHADOWMESH) e->flags &= ~EntityFlags::EF_SHADOWMESH;
         }
     }
     shadowmeshes.clear();
@@ -2704,26 +2753,27 @@ void genshadowmeshes()
 
     renderprogress(0, "generating shadow meshes..");
 
-    auto &ents = entities::getents();
+    auto &ents = getents();
     loopv(ents)
     {
-        auto e = dynamic_cast<entities::classes::BaseEntity *>(ents[i]);
+        auto e = dynamic_cast<ModelEntity *>(ents[i]);
         if (!e) continue;
-		if(e->et_type != ET_LIGHT) continue;
+		if(!dynamic_cast<LightEntity*>(e)) continue;
 		genshadowmesh(i, e);
     }
 }
 
-shadowmesh *findshadowmesh(int idx, entities::classes::CoreEntity *e)
+shadowmesh *findshadowmesh(int idx, Entity *e)
 {
     shadowmesh *m = shadowmeshes.access(idx);
     if(!m || m->type != shadowmapping || m->origin != shadoworigin || m->radius < shadowradius) return NULL;
     switch(m->type)
     {
-        case SM_SPOT:
-			if(!e->attached || e->attached->et_type != ET_SPOTLIGHT || m->spotloc != e->attached->o || m->spotangle < clamp(int(e->attached->attr1), 1, 89))
-                return NULL;
-            break;
+        //FIXME: Attachement feature
+//        case SM_SPOT:
+//			if(!e->attached || e->attached->et_type != ET_SPOTLIGHT || m->spotloc != e->attached->o || m->spotangle < clamp(int(e->attached->attr1), 1, 89))
+//                return NULL;
+//            break;
     }
     return m;
 }
@@ -2752,7 +2802,3 @@ void rendershadowmesh(shadowmesh *m)
     gle::clearebo();
     gle::clearvbo();
 }
-
-
-// >>>>>>>>>> SCRIPTBIND >>>>>>>>>>>>>> //
-// <<<<<<<<<< SCRIPTBIND <<<<<<<<<<<<<< //

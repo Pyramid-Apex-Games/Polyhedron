@@ -1,4 +1,5 @@
 #include "cube.h"
+#include "zip.h"
 
 ///////////////////////// character conversion ///////////////
 
@@ -237,6 +238,7 @@ struct packagedir
 {
     char *dir, *filter;
     size_t dirlen, filterlen;
+    bool writable;
 };
 vector<packagedir> packagedirs;
 
@@ -265,30 +267,42 @@ char *makerelpath(const char *dir, const char *file, const char *prefix, const c
     return tmp;
 }
 
-
 char *path(char *s)
 {
     for(char *curpart = s;;)
     {
+    	//Make "&" a \0, so strlen gives us the length up to this char
         char *endpart = strchr(curpart, '&');
         if(endpart) *endpart = '\0';
+
+        //Ignore <.*?> from the front
         if(curpart[0]=='<')
         {
             char *file = strrchr(curpart, '>');
             if(!file) return s;
             curpart = file+1;
         }
+
+        //Normalize directory delimiters
         for(char *t = curpart; (t = strpbrk(t, "/\\")); *t++ = PATHDIV);
+
+        //For each directory
         for(char *prevdir = NULL, *curdir = curpart;;)
         {
+        	//If current directory start with delimiter, jump past the delimiter
             prevdir = curdir[0]==PATHDIV ? curdir+1 : curdir;
+
+            //Grab until next delimiter, curdir contains a dir
             curdir = strchr(prevdir, PATHDIV);
-            if(!curdir) break;
+            if(!curdir) break; //No more dir segments, break out of loop
+
+			//Normalize "/./"
             if(prevdir+1==curdir && prevdir[0]=='.')
             {
                 memmove(prevdir, curdir+1, strlen(curdir+1)+1);
                 curdir = prevdir;
             }
+            //Normalize path "/../"
             else if(curdir[1]=='.' && curdir[2]=='.' && curdir[3]==PATHDIV)
             {
                 if(prevdir+2==curdir && prevdir[0]=='.' && prevdir[1]=='.') continue;
@@ -301,6 +315,8 @@ char *path(char *s)
                 curdir = prevdir;
             }
         }
+
+        //Restore '&'
         if(endpart)
         {
             *endpart = '&';
@@ -585,11 +601,28 @@ bool stream::getline(char *str, size_t len)
 {
     loopi(len-1)
     {
-        if(read(&str[i], 1) != 1) { str[i] = '\0'; return i > 0; }
-        else if(str[i] == '\n') { str[i+1] = '\0'; return true; }
+        if(read(&str[i], 1) != 1)
+        {
+            str[i] = '\0';
+            return i > 0;
+        }
+        else if(str[i] == '\n')
+        {
+            str[i+1] = '\0';
+            return true;
+        }
     }
-    if(len > 0) str[len-1] = '\0';
+    if(len > 0)
+    {
+        str[len-1] = '\0';
+    }
     return true;
+}
+
+bool stream::putcubestr(const char *str)
+{
+    size_t len = strlen(str);
+    return write(str, len) == len;
 }
 
 size_t stream::printf(const char *fmt, ...)
@@ -624,7 +657,7 @@ size_t stream::printf(const char *fmt, ...)
 
 struct filestream : stream
 {
-    FILE *file;
+    SDL_RWops *file;
 
     filestream() : file(NULL) {}
     ~filestream() { close(); }
@@ -632,69 +665,113 @@ struct filestream : stream
     bool open(const char *name, const char *mode)
     {
         if(file) return false;
-        file = fopen(name, mode);
+        file = SDL_RWFromFile(name, mode);
         return file!=NULL;
     }
 
     bool opentemp(const char *name, const char *mode)
     {
         if(file) return false;
-#ifdef WIN32
-        file = fopen(name, mode);
-#else
-        file = tmpfile();
-#endif
+
+        file = SDL_RWFromFile(name, mode);
+
         return file!=NULL;
     }
 
     void close()
     {
-        if(file) { fclose(file); file = NULL; }
+        if(file)
+        {
+        	SDL_RWclose(file);
+        	file = NULL;
+        }
     }
 
-    bool end() { return feof(file)!=0; }
+    bool end()
+    {
+    	return SDL_RWtell(file) > SDL_RWsize(file);
+    }
+
     offset tell()
     {
-#ifdef WIN32
-#ifdef __GNUC__
-        offset off = ftello64(file);
-#else
-        offset off = _ftelli64(file);
-#endif
-#else
-        offset off = ftello(file);
-#endif
-        // ftello returns LONG_MAX for directories on some platforms
-        return off + 1 >= 0 ? off : -1;
-    }
-    bool seek(offset pos, int whence)
-    {
-#ifdef WIN32
-#ifdef __GNUC__
-        return fseeko64(file, pos, whence) >= 0;
-#else
-        return _fseeki64(file, pos, whence) >= 0;
-#endif
-#else
-        return fseeko(file, pos, whence) >= 0;
-#endif
+		return SDL_RWtell(file);
     }
 
-    size_t read(void *buf, size_t len) { return fread(buf, 1, len, file); }
-    size_t write(const void *buf, size_t len) { return fwrite(buf, 1, len, file); }
-    bool flush() { return !fflush(file); }
-    int getchar() { return fgetc(file); }
-    bool putchar(int c) { return fputc(c, file)!=EOF; }
-    bool getline(char *str, size_t len) { return fgets(str, len, file)!=NULL; }
-    bool putcubestr(const char *str) { return fputs(str, file)!=EOF; }
+    bool seek(offset pos, int whence)
+    {
+    	auto sz = SDL_RWseek(file, pos, whence);
+		return sz >= 0;
+    }
+
+    size_t read(void *buf, size_t len)
+    {
+    	return SDL_RWread(file, buf, 1, len);
+    }
+
+    size_t write(const void *buf, size_t len)
+    {
+    	return SDL_RWwrite(file, buf, 1, len);
+    }
+
+    bool flush()
+    {
+    	return true;
+    }
+
+    int getchar()
+    {
+    	char c[1] = {0};
+    	read(c,1);
+    	return (int)c[1];
+    }
+
+    bool putchar(int c)
+    {
+    	return write(&c, 1) == 1;
+    }
+
+    bool getline(char *str, size_t len)
+    {
+    	size_t outPtr = 0;
+    	char c[1] = {0};
+    	bool moreData = true;
+		while (outPtr < len - 1)
+		{
+		    if (read(c,1) == 0)
+            {
+		        moreData = false;
+		        break;
+            }
+			if (c[0] == '\r')
+            {
+			    read(c,1);
+				break;
+            }
+			if (c[0] == '\n')
+            {
+			    break;
+            }
+			str[outPtr++] = c[0];
+		}
+		str[outPtr] = '\0';
+		return moreData;
+    }
+
+    bool putstr(const char *str)
+    {
+    	auto len = strlen(str);
+    	return write(str, len) == len;
+	}
 
     size_t printf(const char *fmt, ...)
     {
+    	char buffer[255] = {0};
         va_list v;
         va_start(v, fmt);
-        int result = vfprintf(file, fmt, v);
+        int result = vsnprintf(buffer, 255, fmt, v);
         va_end(v);
-        return max(result, 0);
+
+        return max(result, 0) != 0;
     }
 };
 
@@ -1235,7 +1312,3 @@ char *loadfile(const char *fn, size_t *size, bool utf8)
     if(size!=NULL) *size = len;
     return buf;
 }
-
-
-// >>>>>>>>>> SCRIPTBIND >>>>>>>>>>>>>> //
-// <<<<<<<<<< SCRIPTBIND <<<<<<<<<<<<<< //

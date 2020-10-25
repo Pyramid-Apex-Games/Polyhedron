@@ -1,0 +1,13 @@
+--- lib/CMakeLists.txt.orig	2020-04-30 15:50:39.836879763 +0200
++++ lib/CMakeLists.txt	2020-04-30 15:53:52.912980691 +0200
+@@ -87,6 +87,10 @@
+     target_link_libraries(vorbisenc ${OGG_LIBRARIES} vorbis)
+     target_link_libraries(vorbisfile ${OGG_LIBRARIES} vorbis)
+ 
++    target_include_directories(vorbis INTERFACE ../include)
++    target_include_directories(vorbisfile INTERFACE ../include)
++    target_include_directories(vorbisenc INTERFACE ../include)
++
+     install(FILES ${VORBIS_PUBLIC_HEADERS} DESTINATION ${CMAKE_INSTALL_FULL_INCLUDEDIR}/vorbis)
+ 
+     install(TARGETS vorbis     RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR} LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR} ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR} FRAMEWORK DESTINATION ${CMAKE_INSTALL_LIBDIR})

@@ -1,3 +1,5 @@
+#include "shared/types.h"
+
 #ifndef APIENTRY
 #define APIENTRY
 #endif
@@ -66,8 +68,8 @@
 #ifndef GL_EXT_timer_query
 #define GL_EXT_timer_query 1
 #define GL_TIME_ELAPSED_EXT               0x88BF
-typedef llong GLint64EXT;
-typedef ullong GLuint64EXT;
+//typedef llong GLint64EXT;
+//typedef ullong GLuint64EXT;
 typedef void (APIENTRYP PFNGLGETQUERYOBJECTI64VEXTPROC) (GLuint id, GLenum pname, GLint64EXT *params);
 typedef void (APIENTRYP PFNGLGETQUERYOBJECTUI64VEXTPROC) (GLuint id, GLenum pname, GLuint64EXT *params);
 #endif
@@ -375,10 +377,12 @@ extern PFNGLDRAWRANGEELEMENTSPROC glDrawRangeElements_;
 #define glGetShaderiv_ glGetShaderiv
 #define glGetProgramiv_ glGetProgramiv
 #define glAttachShader_ glAttachShader
+#define glDetachShader_ glDetachShader
 #define glGetProgramInfoLog_ glGetProgramInfoLog
 #define glGetShaderInfoLog_ glGetShaderInfoLog
 #define glLinkProgram_ glLinkProgram
 #define glGetUniformLocation_ glGetUniformLocation
+#define glGetAttribLocation_ glGetAttribLocation
 #define glUniform1f_ glUniform1f
 #define glUniform2f_ glUniform2f
 #define glUniform3f_ glUniform3f
@@ -470,10 +474,12 @@ extern PFNGLCOMPILESHADERPROC            glCompileShader_;
 extern PFNGLGETSHADERIVPROC              glGetShaderiv_;
 extern PFNGLGETPROGRAMIVPROC             glGetProgramiv_;
 extern PFNGLATTACHSHADERPROC             glAttachShader_;
+extern PFNGLDETACHSHADERPROC             glDetachShader_;
 extern PFNGLGETPROGRAMINFOLOGPROC        glGetProgramInfoLog_;
 extern PFNGLGETSHADERINFOLOGPROC         glGetShaderInfoLog_;
 extern PFNGLLINKPROGRAMPROC              glLinkProgram_;
 extern PFNGLGETUNIFORMLOCATIONPROC       glGetUniformLocation_;
+extern PFNGLGETATTRIBLOCATIONPROC        glGetAttribLocation_;
 extern PFNGLUNIFORM1FPROC                glUniform1f_;
 extern PFNGLUNIFORM2FPROC                glUniform2f_;
 extern PFNGLUNIFORM3FPROC                glUniform3f_;
@@ -830,3 +836,17 @@ extern PFNGLGETDEBUGMESSAGELOGPROC glGetDebugMessageLog_;
 // GL_ARB_copy_image
 extern PFNGLCOPYIMAGESUBDATAPROC glCopyImageSubData_;
 
+
+#ifdef ANDROID
+#define glDepthRange glDepthRangef
+#define glClearDepth glClearDepthf
+#endif
+
+//#ifdef DEBUG
+
+GLenum DebugOpenGL(const char *expression, const char *file, int line);
+
+#define glCheckError(EXPR) EXPR; DebugOpenGL(#EXPR, __FILE__, __LINE__)
+//#else
+//#define glCheckError(EXPR)
+//#endif

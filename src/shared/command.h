@@ -1,6 +1,6 @@
 // script binding functionality
 #pragma once
-#include "cube.h"
+#include "shared/tools/vector.h"
 
 enum { VAL_NULL = 0, VAL_INT, VAL_FLOAT, VAL_STR, VAL_ANY, VAL_CODE, VAL_MACRO, VAL_IDENT, VAL_CSTR, VAL_CANY, VAL_WORD, VAL_POP, VAL_COND };
 
@@ -68,13 +68,18 @@ struct tagval : identval
 {
     int type;
 
-    void setint(int val) { type = VAL_INT; i = val; }
+    void setint(int val) {
+    type = VAL_INT; i = val;
+	}
     void setfloat(float val) { type = VAL_FLOAT; f = val; }
     void setnumber(double val) { i = int(val); if(val == i) type = VAL_INT; else { type = VAL_FLOAT; f = val; } }
     void setstr(char *val) { type = VAL_STR; s = val; }
     void setnull() { type = VAL_NULL; i = 0; }
     void setcode(const uint *val) { type = VAL_CODE; code = val; }
-    void setmacro(const uint *val) { type = VAL_MACRO; code = val; }
+    void setmacro(const uint *val) {
+    type = VAL_MACRO; code = val;
+    
+	}
     void setcstr(const char *val) { type = VAL_CSTR; cstr = val; }
     void setident(ident *val) { type = VAL_IDENT; id = val; }
 
@@ -144,35 +149,35 @@ struct ident
 
     ident() {}
     // ID_VAR
-    ident(int t, const char *n, int m, int x, int *s, void *f = NULL, int flags = 0)
+    ident(int t, const char *n, int m, int x, int *s, void *f = nullptr, int flags = 0)
         : type(t), flags(flags | (m > x ? IDF_READONLY : 0)), name(n), minval(m), maxval(x), fun((identfun)f)
     { storage.i = s; }
     // ID_FVAR
-    ident(int t, const char *n, float m, float x, float *s, void *f = NULL, int flags = 0)
+    ident(int t, const char *n, float m, float x, float *s, void *f = nullptr, int flags = 0)
         : type(t), flags(flags | (m > x ? IDF_READONLY : 0)), name(n), minvalf(m), maxvalf(x), fun((identfun)f)
     { storage.f = s; }
     // ID_SVAR
-    ident(int t, const char *n, char **s, void *f = NULL, int flags = 0)
+    ident(int t, const char *n, char **s, void *f = nullptr, int flags = 0)
         : type(t), flags(flags), name(n), fun((identfun)f)
     { storage.s = s; }
     // ID_ALIAS
     ident(int t, const char *n, char *a, int flags)
-        : type(t), valtype(VAL_STR), flags(flags), name(n), code(NULL), stack(NULL)
+        : type(t), valtype(VAL_STR), flags(flags), name(n), code(nullptr), stack(nullptr)
     { val.s = a; }
     ident(int t, const char *n, int a, int flags)
-        : type(t), valtype(VAL_INT), flags(flags), name(n), code(NULL), stack(NULL)
+        : type(t), valtype(VAL_INT), flags(flags), name(n), code(nullptr), stack(nullptr)
     { val.i = a; }
     ident(int t, const char *n, float a, int flags)
-        : type(t), valtype(VAL_FLOAT), flags(flags), name(n), code(NULL), stack(NULL)
+        : type(t), valtype(VAL_FLOAT), flags(flags), name(n), code(nullptr), stack(nullptr)
     { val.f = a; }
     ident(int t, const char *n, int flags)
-        : type(t), valtype(VAL_NULL), flags(flags), name(n), code(NULL), stack(NULL)
+        : type(t), valtype(VAL_NULL), flags(flags), name(n), code(nullptr), stack(nullptr)
     {}
     ident(int t, const char *n, const tagval &v, int flags)
-        : type(t), valtype(v.type), flags(flags), name(n), code(NULL), stack(NULL)
+        : type(t), valtype(v.type), flags(flags), name(n), code(nullptr), stack(nullptr)
     { val = v; }
     // ID_COMMAND
-    ident(int t, const char *n, const char *args, uint argmask, int numargs, void *f = NULL, int flags = 0)
+    ident(int t, const char *n, const char *args, uint argmask, int numargs, void *f = nullptr, int flags = 0)
         : type(t), numargs(numargs), flags(flags), name(n), args(args), argmask(argmask), fun((identfun)f)
     {}
 
@@ -217,6 +222,68 @@ extern void numberret(double v);
 extern void cubestrret(char *s);
 extern void result(tagval &v);
 extern void result(const char *s);
+
+// command
+extern int variable(const char *name, int min, int cur, int max, int *storage, identfun fun, int flags);
+extern float fvariable(const char *name, float min, float cur, float max, float *storage, identfun fun, int flags);
+extern char *svariable(const char *name, const char *cur, char **storage, identfun fun, int flags);
+extern void setvar(const char *name, int i, bool dofunc = true, bool doclamp = true);
+extern void setfvar(const char *name, float f, bool dofunc = true, bool doclamp = true);
+extern void setsvar(const char *name, const char *str, bool dofunc = true);
+extern void setvarchecked(ident *id, int val);
+extern void setfvarchecked(ident *id, float val);
+extern void setsvarchecked(ident *id, const char *val);
+extern void touchvar(const char *name);
+extern int getvar(const char *name);
+extern int getvarmin(const char *name);
+extern int getvarmax(const char *name);
+extern bool identexists(const char *name);
+extern ident *getident(const char *name);
+extern ident *newident(const char *name, int flags = 0);
+extern ident *readident(const char *name);
+extern ident *writeident(const char *name, int flags = 0);
+extern bool addcommand(const char *name, identfun fun, const char *narg, int type = ID_COMMAND, const char* doc = "");
+extern uint *compilecode(const char *p);
+extern void keepcode(uint *p);
+extern void freecode(uint *p);
+extern void executeret(const uint *code, tagval &result = *commandret);
+extern void executeret(const char *p, tagval &result = *commandret);
+extern void executeret(ident *id, tagval *args, int numargs, bool lookup = false, tagval &result = *commandret);
+extern char *executestr(const uint *code);
+extern char *executestr(const char *p);
+extern char *executestr(ident *id, tagval *args, int numargs, bool lookup = false);
+extern char *execidentstr(const char *name, bool lookup = false);
+extern int execute(const uint *code);
+extern int execute(const char *p);
+extern int execute(ident *id, tagval *args, int numargs, bool lookup = false);
+extern int execident(const char *name, int noid = 0, bool lookup = false);
+extern float executefloat(const uint *code);
+extern float executefloat(const char *p);
+extern float executefloat(ident *id, tagval *args, int numargs, bool lookup = false);
+extern float execidentfloat(const char *name, float noid = 0, bool lookup = false);
+extern bool executebool(const uint *code);
+extern bool executebool(const char *p);
+extern bool executebool(ident *id, tagval *args, int numargs, bool lookup = false);
+extern bool execidentbool(const char *name, bool noid = false, bool lookup = false);
+extern bool execfile(const char *cfgfile, bool msg = true);
+extern void alias(const char *name, const char *action);
+extern void alias(const char *name, tagval &v);
+extern const char *getalias(const char *name);
+extern const char *escapecubestr(const char *s);
+extern const char *escapeid(const char *s);
+static inline const char *escapeid(ident &id) { return escapeid(id.name); }
+extern bool validateblock(const char *s);
+extern void explodelist(const char *s, vector<char *> &elems, int limit = -1);
+extern char *indexlist(const char *s, int pos);
+extern int listlen(const char *s);
+extern void printvar(ident *id);
+extern void printvar(ident *id, int i);
+extern void printfvar(ident *id, float f);
+extern void printsvar(ident *id, const char *s);
+extern int clampvar(ident *id, int i, int minval, int maxval);
+extern float clampfvar(ident *id, float f, float minval, float maxval);
+extern void loopiter(ident *id, identstack &stack, const tagval &v);
+extern void loopend(ident *id, identstack &stack);
 
 static inline int parseint(const char *s)
 {

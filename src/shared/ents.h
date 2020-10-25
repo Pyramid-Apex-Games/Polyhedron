@@ -3,7 +3,7 @@
 
 // This file defines static map entities ("entity") and includes the basic entities:
 // (dynamic entities (players/monsters, "dynent"), and static(No AI, or Input) entities(barrels, etc, "physent")
-// the gamecode extends from the BaseEntity class type (Which extends from the CoreEntity type.)
+// the gamecode extends from the BaseEntity class type (Which extends from the Entity type.)
 // NOTE: dynent and physent are old Tesseract names for what now are, BaseDynamicEntity and BasePhysicalEntity
 
 // ET_*: The internal engine entity type.
@@ -96,26 +96,18 @@ enum
 #define CROUCHTIME 200
 #define CROUCHHEIGHT 0.75f
 
-namespace entities
-{
-    enum EntityFlags : int {
-        EF_NOFLAG     = 0,
-        EF_NOVIS      = 1<<0,
-        EF_NOSHADOW   = 1<<1,
-        EF_NOCOLLIDE  = 1<<2,
-        EF_ANIM       = 1<<3,
-        EF_SHADOWMESH = 1<<4,
-        EF_OCTA       = 1<<5,
-        EF_RENDER     = 1<<6,
-        EF_SOUND      = 1<<7,
-        EF_SPAWNED    = 1<<8
-    };
-
-    namespace classes {
-        class BasePhysicalEntity;
-        class BaseDynamicEntity;
-    } // classes
-} // entities
+enum EntityFlags : int {
+    EF_NOFLAG     = 0,
+    EF_NOVIS      = 1<<0,
+    EF_NOSHADOW   = 1<<1,
+    EF_NOCOLLIDE  = 1<<2,
+    EF_ANIM       = 1<<3,
+    EF_SHADOWMESH = 1<<4,
+    EF_OCTA       = 1<<5,
+    EF_RENDER     = 1<<6,
+    EF_SOUND      = 1<<7,
+    EF_SPAWNED    = 1<<8
+};
 
 
 #endif // ENTS_H

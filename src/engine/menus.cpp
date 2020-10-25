@@ -1,4 +1,6 @@
-#include "engine.h"
+#include "shared/cube.h"
+#include "engine/scriptexport.h"
+#include "engine/menus.h"
 
 void notifywelcome()
 {
@@ -24,6 +26,18 @@ void addchange(const char *desc, int type)
     loopv(needsapply) if(!strcmp(needsapply[i].desc, desc)) return;
     needsapply.add(change(type, desc));
     if(!hidechanges) UI::showui("changes");
+}
+
+int initing = NOT_INITING;
+
+bool initwarning(const char *desc, int level, int type)
+{
+    if(initing < level)
+    {
+        addchange(desc, type);
+        return true;
+    }
+    return false;
 }
 
 void clearchanges(int type)
@@ -61,6 +75,8 @@ SCRIPTEXPORT void pendingchanges(int *idx)
     }
 }
 
+VAR(mainmenu, 1, 1, 0);
+
 static int lastmainmenu = -1;
 
 void menuprocess()
@@ -70,10 +86,9 @@ void menuprocess()
         lastmainmenu = mainmenu;
         execident("mainmenutoggled");
     }    
-    if(mainmenu && !isconnected(true) && !UI::hascursor()) UI::showui("main");
+    if(mainmenu && !isconnected(true)) UI::showui("main");
 }
 
-VAR(mainmenu, 1, 1, 0);
 
 void clearmainmenu()
 {

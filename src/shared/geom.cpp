@@ -64,17 +64,17 @@ bool raysphereintersect(const vec &center, float radius, const vec &o, const vec
 
 bool rayboxintersect(const vec &b, const vec &s, const vec &o, const vec &ray, float &dist, int &orient)
 {
-    loop(d, 3) if(ray[d])
+    loop(dim, 3) if(ray[dim])
     {
-        int dc = ray[d]<0 ? 1 : 0;
-        float pdist = (b[d]+s[d]*dc - o[d]) / ray[d];
+        int dimcoef = ray[dim]<0 ? 1 : 0;
+        float pdist = (b[dim]+s[dim]*dimcoef - o[dim]) / ray[dim];
         vec v(ray);
         v.mul(pdist).add(o);
-        if(v[R[d]] >= b[R[d]] && v[R[d]] <= b[R[d]]+s[R[d]]
-        && v[C[d]] >= b[C[d]] && v[C[d]] <= b[C[d]]+s[C[d]])
+        if(v[R[dim]] >= b[R[dim]] && v[R[dim]] <= b[R[dim]]+s[R[dim]]
+        && v[C[dim]] >= b[C[dim]] && v[C[dim]] <= b[C[dim]]+s[C[dim]])
         {
             dist = pdist;
-            orient = 2*d+dc;
+            orient = 2*dim+dimcoef;
             return true;
         }
     }
@@ -287,26 +287,3 @@ extern const vec2 sincos360[721] =
     vec2(0.99452190, -0.10452846), vec2(0.99619470, -0.08715574), vec2(0.99756405, -0.06975647), vec2(0.99862953, -0.05233596), vec2(0.99939083, -0.03489950), vec2(0.99984770, -0.01745241), // 714
     vec2(1.00000000, 0.00000000) // 720
 };
-
-void to_json(nlohmann::json& document, const vec& v)
-{
-	document = nlohmann::json{{"x", v.x}, {"y", v.y}, {"z", v.z}};
-}
-
-void from_json(const nlohmann::json& document, vec& v) {
-	document.at("x").get_to(v.x);
-	document.at("y").get_to(v.y);
-	document.at("z").get_to(v.z);
-}
-
-void to_json(nlohmann::json& document, const vec4& v)
-{
-	document = nlohmann::json{{"x", v.x}, {"y", v.y}, {"z", v.z}, {"w", v.w}};
-}
-
-void from_json(const nlohmann::json& document, vec4& v) {
-	document.at("x").get_to(v.x);
-	document.at("y").get_to(v.y);
-	document.at("z").get_to(v.z);
-	document.at("w").get_to(v.w);
-}

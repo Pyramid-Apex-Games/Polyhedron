@@ -1,8 +1,21 @@
 // renderparticles.cpp
 
-#include "engine.h"
-#include "shared/entities/basephysicalentity.h"
-
+#include "shared/cube.h"
+#include "shared/entities/DynamicEntity.h"
+#include "shared/entities/MovableEntity.h"
+#include "engine/texture.h"
+#include "engine/pvs.h"
+#include "engine/font.h"
+#include "engine/rendergl.h"
+#include "engine/water.h"
+#include "engine/renderparticles.h"
+#include "engine/renderlights.h"
+#include "engine/menus.h"
+#include "engine/hud.h"
+#include "engine/main/Application.h"
+#include "engine/main/Renderer.h"
+#include "engine/main/Compatibility.h"
+#include "engine/Camera.h"
 
 Shader *particleshader = NULL, *particlenotextureshader = NULL, *particlesoftshader = NULL, *particletextshader = NULL;
 
@@ -33,14 +46,14 @@ VAR(dbgpseed, 0, 0, 1);
 
 struct particleemitter
 {
-    entities::classes::CoreEntity *ent;
+    Entity *ent;
     vec bbmin, bbmax;
     vec center;
     float radius;
     ivec cullmin, cullmax;
     int maxfade, lastemit, lastcull;
 
-    particleemitter(entities::classes::CoreEntity *ent)
+    particleemitter(Entity *ent)
         : ent(ent), bbmin(ent->o), bbmax(ent->o), maxfade(-1), lastemit(0), lastcull(0)
     {}
 
@@ -82,15 +95,16 @@ void clearparticleemitters()
 void addparticleemitters()
 {
     emitters.setsize(0);
-    const auto& ents = entities::getents();
+    const auto& ents = getents();
     loopv(ents)
     {
-        auto e = dynamic_cast<entities::classes::BaseEntity *>(ents[i]);
+        auto e = dynamic_cast<DynamicEntity *>(ents[i]);
         if (!e)
 			continue;
-			
-		if(e->et_type != ET_PARTICLES)
-			continue;
+
+        //FIXME: ParticleEmitter entity?
+//		if(e->et_type != ET_PARTICLES)
+//			continue;
 			
 		emitters.add(particleemitter(e));
     }
@@ -142,7 +156,7 @@ struct particle
     {
         const char *text;
         float val;
-        entities::classes::CoreEntity *owner;
+        Entity *owner;
         struct
         {
             uchar color2[3];
@@ -184,7 +198,7 @@ struct partrenderer
 
     virtual void init(int n) { }
     virtual void reset() = 0;
-    virtual void resettracked(entities::classes::CoreEntity *owner) { }
+    virtual void resettracked(Entity *owner) { }
     virtual particle *addpart(const vec &o, const vec &d, int fade, int color, float size, int gravity = 0) = 0;
     virtual void update() { }
     virtual void render() = 0;
@@ -306,7 +320,7 @@ struct listrenderer : partrenderer
         list = NULL;
     }
 
-    void resettracked(entities::classes::CoreEntity *owner)
+    void resettracked(Entity *owner)
     {
         if(!(type&PT_TRACK)) return;
         for(listparticle **prev = &list, *cur = list; cur; cur = *prev)
@@ -414,6 +428,10 @@ struct meterrenderer : listrenderer
 
     void renderpart(listparticle *p, const vec &o, const vec &d, int blend, int ts)
     {
+        const auto& activeCamera = Camera::GetActiveCamera();
+        if (!activeCamera) return;
+
+        auto [camdir, camup, camright, worldpos] = activeCamera->GetDirUpRightWorld();
         int basetype = type&0xFF;
         float scale = FONTH*p->size/80.0f, right = 8, left = p->progress/100.0f*right;
         matrix4x3 m(camright, vec(camup).neg(), vec(camdir).neg(), o);
@@ -501,6 +519,11 @@ struct textrenderer : listrenderer
 
     void renderpart(listparticle *p, const vec &o, const vec &d, int blend, int ts)
     {
+        const auto& activeCamera = Camera::GetActiveCamera();
+        if (!activeCamera) return;
+
+        auto [camdir, camup, camright, worldpos] = activeCamera->GetDirUpRightWorld();
+
         float scale = p->size/80.0f, xoff = -text_width(p->text)/2, yoff = 0;
         if((type&0xFF)==PT_TEXTUP) { xoff += detrnd((size_t)p, 100)-50; yoff -= detrnd((size_t)p, 101); }
 
@@ -529,6 +552,11 @@ inline void modifyblend<PT_TAPE>(const vec &o, int &blend)
 template<int T>
 static inline void genpos(const vec &o, const vec &d, float size, int grav, int ts, partvert *vs)
 {
+    const auto& activeCamera = Camera::GetActiveCamera();
+    if (!activeCamera) return;
+
+    auto [_, camup, camright, __] = activeCamera->GetDirUpRightWorld();
+
     vec udir = vec(camup).sub(camright).mul(size);
     vec vdir = vec(camup).add(camright).mul(size);
     vs[0].pos = vec(o.x + udir.x, o.y + udir.y, o.z + udir.z);
@@ -540,7 +568,9 @@ static inline void genpos(const vec &o, const vec &d, float size, int grav, int 
 template<>
 inline void genpos<PT_TAPE>(const vec &o, const vec &d, float size, int ts, int grav, partvert *vs)
 {
-    vec dir1 = vec(d).sub(o), dir2 = vec(d).sub(camera1->o), c;
+    assert(Camera::GetActiveCamera());
+    const auto& cameraPos = Camera::GetActiveCamera()->o;
+    vec dir1 = vec(d).sub(o), dir2 = vec(d).sub(cameraPos), c;
     c.cross(dir2, dir1).normalize().mul(size);
     vs[0].pos = vec(d.x-c.x, d.y-c.y, d.z-c.z);
     vs[1].pos = vec(o.x-c.x, o.y-c.y, o.z-c.z);
@@ -580,6 +610,11 @@ static const vec2 rotcoeffs[32][4] =
 template<>
 inline void genrotpos<PT_PART>(const vec &o, const vec &d, float size, int grav, int ts, partvert *vs, int rot)
 {
+    const auto& activeCamera = Camera::GetActiveCamera();
+    if (!activeCamera) return;
+
+    auto [_, camup, camright, __] = activeCamera->GetDirUpRightWorld();
+
     const vec2 *coeffs = rotcoeffs[rot];
     vs[0].pos = vec(o).madd(camright, coeffs[0].x*size).madd(camup, coeffs[0].y*size);
     vs[1].pos = vec(o).madd(camright, coeffs[1].x*size).madd(camup, coeffs[1].y*size);
@@ -657,7 +692,7 @@ struct varenderer : partrenderer
         lastupdate = -1;
     }
 
-    void resettracked(entities::classes::CoreEntity *owner)
+    void resettracked(Entity *owner)
     {
         if(!(type&PT_TRACK)) return;
         loopi(numparts)
@@ -901,7 +936,7 @@ void cleanupparticles()
     loopi(sizeof(parts)/sizeof(parts[0])) parts[i]->cleanup();
 }
 
-void removetrackedparticles(entities::classes::CoreEntity *owner)
+void removetrackedparticles(Entity *owner)
 {
     loopi(sizeof(parts)/sizeof(parts[0])) parts[i]->resettracked(owner);
 }
@@ -1011,7 +1046,9 @@ VARP(maxparticledistance, 256, 1024, 4096);
 
 static void splash(int type, int color, int radius, int num, int fade, const vec &p, float size, int gravity)
 {
-    if(camera1->o.dist(p) > maxparticledistance && !seedemitter) return;
+    assert(Camera::GetActiveCamera());
+    const auto& cameraPos = Camera::GetActiveCamera()->o;
+    if(cameraPos.dist(p) > maxparticledistance && !seedemitter) return;
     float collidez = parts[type]->type&PT_COLLIDE ? p.z - raycube(p, vec(0, 0, -1), COLLIDERADIUS, RAY_CLIPMAT) + (parts[type]->stain >= 0 ? COLLIDEERROR : 0) : -1;
     int fmin = 1;
     int fmax = fade*3;
@@ -1039,7 +1076,7 @@ static void regularsplash(int type, int color, int radius, int num, int fade, co
 
 bool canaddparticles()
 {
-    return !minimized;
+    return !Application::Instance().GetAppState().Minimized;
 }
 
 void regular_particle_splash(int type, int num, int fade, const vec &p, int color, float size, int radius, int gravity, int delay)
@@ -1078,7 +1115,8 @@ VARP(maxparticletextdistance, 0, 128, 10000);
 void particle_text(const vec &s, const char *t, int type, int fade, int color, float size, int gravity)
 {
     if(!canaddparticles()) return;
-    if(!particletext || camera1->o.dist(s) > maxparticletextdistance) return;
+    const auto& cameraPos = Camera::GetActiveCamera()->o;
+    if(!particletext || cameraPos.dist(s) > maxparticletextdistance) return;
     particle *p = newparticle(s, vec(0, 0, 1), fade, type, color, size, gravity);
     p->text = t;
 }
@@ -1086,7 +1124,8 @@ void particle_text(const vec &s, const char *t, int type, int fade, int color, f
 void particle_textcopy(const vec &s, const char *t, int type, int fade, int color, float size, int gravity)
 {
     if(!canaddparticles()) return;
-    if(!particletext || camera1->o.dist(s) > maxparticletextdistance) return;
+    const auto& cameraPos = Camera::GetActiveCamera()->o;
+    if(!particletext || cameraPos.dist(s) > maxparticletextdistance) return;
     particle *p = newparticle(s, vec(0, 0, 1), fade, type, color, size, gravity);
     p->text = newcubestr(t);
     p->flags = 1;
@@ -1109,7 +1148,7 @@ void particle_meter(const vec &s, float val, int type, int fade, int color, int 
     p->progress = clamp(int(val*100), 0, 100);
 }
 
-void particle_flare(const vec &p, const vec &dest, int fade, int type, int color, float size, entities::classes::CoreEntity *owner)
+void particle_flare(const vec &p, const vec &dest, int fade, int type, int color, float size, Entity *owner)
 {
     if(!canaddparticles()) return;
     newparticle(p, dest, fade, type, color, size)->owner = owner;
@@ -1226,7 +1265,9 @@ static void regularshape(int type, int radius, int color, int dir, int num, int 
 
         if(taper)
         {
-            float dist = clamp(from.dist2(camera1->o)/maxparticledistance, 0.0f, 1.0f);
+            assert(Camera::GetActiveCamera());
+            const auto& cameraPos = Camera::GetActiveCamera()->o;
+            float dist = clamp(from.dist2(cameraPos)/maxparticledistance, 0.0f, 1.0f);
             if(dist > 0.2f)
             {
                 dist = 1 - (dist - 0.2f)/0.8f;
@@ -1267,9 +1308,10 @@ void regular_particle_flame(int type, const vec &p, float radius, float height, 
     regularflame(type, p, radius, height, color, density, scale, speed, fade, gravity);
 }
 
-static void makeparticles(entities::classes::CoreEntity *e)
+static void makeparticles(Entity *e)
 {
-	switch(e->attr1)
+    //FIXME: make ParticleEntity
+/*	switch(e->attr1)
     {
         case 0: //fire and smoke -  <radius> <height> <rgb> - 0 values default to compat for old maps
         {
@@ -1310,8 +1352,32 @@ static void makeparticles(entities::classes::CoreEntity *e)
 			int type = typemap[e->attr1-4];
 			float size = sizemap[e->attr1-4];
 			int gravity = gravmap[e->attr1-4];
-			if(e->attr2 >= 256) regularshape(type, max(1+e->attr3, 1), colorfromattr(e->attr4), e->attr2-256, 5, e->attr5 > 0 ? min(int(e->attr5), 10000) : 200, e->o, size, gravity);
-			else newparticle(e->o, offsetvec(e->o, e->attr2, max(1+e->attr3, 0)), 1, type, colorfromattr(e->attr4), size, gravity);
+			if(e->attr2 >= 256)
+            {
+			    regularshape(
+                    type,
+                    max(1+e->attr3, 1),
+                    colorfromattr(e->attr4),
+                    e->attr2-256,
+                    5,
+                    e->attr5 > 0 ? min(int(e->attr5), 10000) : 200,
+                    e->o,
+                    size,
+                    gravity
+                );
+            }
+			else
+            {
+			    newparticle(
+                    e->o,
+                    offsetvec(e->o, e->attr2, max(1+e->attr3, 0)),
+                    1,
+                    type,
+                    colorfromattr(e->attr4),
+                    size,
+                    gravity
+                );
+            }
             break;
         }
         case 5: //meter, metervs - <percent> <rgb> <rgb2>
@@ -1344,23 +1410,25 @@ static void makeparticles(entities::classes::CoreEntity *e)
 				particle_textcopy(e->o, ds, PART_TEXT, 1, 0x6496FF, 2.0f);
             }
             break;
-    }
+    }*/
 }
 
-bool printparticles(entities::classes::CoreEntity *e, char *buf, int len)
+bool printparticles(Entity *e, char *buf, int len)
 {
+    //FIXME: ParticleEntity feature
+    /*
 	switch(e->attr1)
     {
         case 0: case 4: case 7: case 8: case 9: case 10: case 11: case 12: case 13:
-			nformatcubestr(buf, len, "%s %d %d %d 0x%.3hX %d", entities::entname(e->et_type), e->attr1, e->attr2, e->attr3, e->attr4, e->attr5);
+			nformatcubestr(buf, len, "%s %d %d %d 0x%.3hX %d", entname(e->et_type), e->attr1, e->attr2, e->attr3, e->attr4, e->attr5);
             return true;
         case 3:
-			nformatcubestr(buf, len, "%s %d %d 0x%.3hX %d %d", entities::entname(e->et_type), e->attr1, e->attr2, e->attr3, e->attr4, e->attr5);
+			nformatcubestr(buf, len, "%s %d %d 0x%.3hX %d %d", entname(e->et_type), e->attr1, e->attr2, e->attr3, e->attr4, e->attr5);
             return true;
         case 5: case 6:
-			nformatcubestr(buf, len, "%s %d %d 0x%.3hX 0x%.3hX %d", entities::entname(e->et_type), e->attr1, e->attr2, e->attr3, e->attr4, e->attr5);
+			nformatcubestr(buf, len, "%s %d %d 0x%.3hX 0x%.3hX %d", entname(e->et_type), e->attr1, e->attr2, e->attr3, e->attr4, e->attr5);
             return true;
-    }
+    } */
     return false;
 }
 
@@ -1372,7 +1440,7 @@ void seedparticles()
     loopv(emitters)
     {
         particleemitter &pe = emitters[i];
-        entities::classes::CoreEntity *e = pe.ent;
+        Entity *e = pe.ent;
         seedemitter = &pe;
         for(int millis = 0; millis < seedmillis; millis += min(emitmillis, seedmillis/10))
 			makeparticles(e);
@@ -1386,7 +1454,7 @@ void updateparticles()
 {
     if(regenemitters) addparticleemitters();
 
-    if(minimized) { canemit = false; return; }
+    if (Application::Instance().GetAppState().Minimized) { canemit = false; return; }
 
     if(lastmillis - lastemitframe >= emitmillis)
     {
@@ -1404,11 +1472,13 @@ void updateparticles()
     {
         int emitted = 0, replayed = 0;
         addedparticles = 0;
+        assert(Camera::GetActiveCamera());
+        const auto& cameraPos = Camera::GetActiveCamera()->o;
         loopv(emitters)
         {
             particleemitter &pe = emitters[i];
-            entities::classes::CoreEntity *e = pe.ent;
-			if(e->o.dist(camera1->o) > maxparticledistance) { pe.lastemit = lastmillis; continue; }
+            Entity *e = pe.ent;
+			if(e->o.dist(cameraPos) > maxparticledistance) { pe.lastemit = lastmillis; continue; }
             if(cullparticles && pe.maxfade >= 0)
             {
                 if(isfoggedsphere(pe.radius, pe.center)) { pe.lastcull = lastmillis; continue; }
@@ -1431,7 +1501,7 @@ void updateparticles()
     }
     if(editmode) // show sparkly thingies for map entities in edit mode
     {
-        const auto& ents = entities::getents();
+        const auto& ents = getents();
         // note: order matters in this case as particles of the same type are drawn in the reverse order that they are added
         loopv(entgroup)
         {
@@ -1442,8 +1512,8 @@ void updateparticles()
         loopv(ents)
         {
             auto e = ents[i];
-			if(e->et_type == ET_EMPTY)
-				continue;
+//			if(e->et_type == ET_EMPTY)
+//				continue;
 				
 			particle_textcopy(e->o, entname(e), PART_TEXT, 1, 0x1EC850, 2.0f);
 			regular_particle_splash(PART_EDIT, 2, 40, e->o, 0x3232FF, 0.32f*particlesize/100.0f);
@@ -1451,6 +1521,3 @@ void updateparticles()
     }
 }
 
-
-// >>>>>>>>>> SCRIPTBIND >>>>>>>>>>>>>> //
-// <<<<<<<<<< SCRIPTBIND <<<<<<<<<<<<<< //

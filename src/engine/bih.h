@@ -1,7 +1,18 @@
 #ifndef BIH_H
 #define BIH_H
+#include "shared/types.h"
+#include "shared/geom/svec.h"
+#include "shared/geom/ivec.h"
+#include "shared/geom/matrix4x3.h"
+#include "shared/geom/matrix3.h"
+#include "shared/geom/vec.h"
+#include "shared/geom/vec2.h"
+#include "shared/tools/vector.h"
 
 struct stainrenderer;
+struct Texture;
+class MovableEntity;
+class ModelEntity;
 
 struct BIH
 {
@@ -77,13 +88,13 @@ struct BIH
     bool traverse(const mesh &m, const vec &o, const vec &ray, const vec &invray, float maxdist, float &dist, int mode, node *curnode, float tmin, float tmax);
     bool triintersect(const mesh &m, int tidx, const vec &mo, const vec &mray, float maxdist, float &dist, int mode);
 
-    bool boxcollide(entities::classes::BasePhysicalEntity *d, const vec &dir, float cutoff, const vec &o, int yaw, int pitch, int roll, float scale = 1);
-    bool ellipsecollide(entities::classes::BasePhysicalEntity *d, const vec &dir, float cutoff, const vec &o, int yaw, int pitch, int roll, float scale = 1);
+    bool boxcollide(MovableEntity *d, const vec &dir, float cutoff, const vec &o, int yaw, int pitch, int roll, float scale = 1);
+    bool ellipsecollide(MovableEntity *d, const vec &dir, float cutoff, const vec &o, int yaw, int pitch, int roll, float scale = 1);
 
     template<int C>
-    void collide(const mesh &m, entities::classes::BasePhysicalEntity *d, const vec &dir, float cutoff, const vec &center, const vec &radius, const matrix4x3 &orient, float &dist, node *curnode, const ivec &bo, const ivec &br);
+    void collide(const mesh &m, MovableEntity *d, const vec &dir, float cutoff, const vec &center, const vec &radius, const matrix4x3 &orient, float &dist, node *curnode, const ivec &bo, const ivec &br);
     template<int C>
-    void tricollide(const mesh &m, int tidx, entities::classes::BasePhysicalEntity *d, const vec &dir, float cutoff, const vec &center, const vec &radius, const matrix4x3 &orient, float &dist, const ivec &bo, const ivec &br);
+    void tricollide(const mesh &m, int tidx, MovableEntity *d, const vec &dir, float cutoff, const vec &center, const vec &radius, const matrix4x3 &orient, float &dist, const ivec &bo, const ivec &br);
 
     void genstaintris(stainrenderer *s, const vec &staincenter, float stainradius, const vec &o, int yaw, int pitch, int roll, float scale = 1);
     void genstaintris(stainrenderer *s, const mesh &m, const vec &center, float radius, const matrix4x3 &orient, node *curnode, const ivec &bo, const ivec &br);
@@ -92,7 +103,7 @@ struct BIH
     void preload();
 
     // Static function, why should we have a global mmintersect ?
-    static bool mmintersect(entities::classes::CoreEntity *e, const vec &o, const vec &ray, float maxdist, int mode, float &dist);
+    static bool mmintersect(ModelEntity *e, const vec &o, const vec &ray, float maxdist, int mode, float &dist);
 };
 
 #endif // BIH_H

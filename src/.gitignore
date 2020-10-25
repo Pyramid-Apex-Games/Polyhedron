@@ -1,5 +1,6 @@
 #vscode build folder
 build/
+cmake-build-*/
 
 #CMake related files
 CMakeLists.txt.user

@@ -1,4 +1,10 @@
-#include "engine.h"
+#include "shared/cube.h"
+#include "engine/light.h"
+#include "engine/texture.h"
+#include "engine/scriptexport.h"
+#include "engine/blend.h"
+#include "engine/GLFeatures.h"
+#include "engine/Camera.h"
 
 enum
 {
@@ -593,7 +599,7 @@ struct BlendBrush
         {
             loopj(w) *dst++ = 255 - *src++;
         }
-        createtexture(tex, w, h, buf, 3, 1, hasTRG ? GL_R8 : GL_LUMINANCE8);
+        createtexture(tex, w, h, buf, 3, 1, GLFeatures::HasTRG() ? GL_R8 : GL_LUMINANCE8);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
         GLfloat border[4] = { 0, 0, 0, 0 };
@@ -656,8 +662,8 @@ struct BlendTexture
         size = sz;
         if(data) delete[] data;
         data = new uchar[size*size];
-        format = hasTRG ? GL_RED : GL_LUMINANCE;
-        createtexture(tex, size, size, NULL, 3, 1, hasTRG ? GL_R8 : GL_LUMINANCE8);
+        format = GLFeatures::HasTRG() ? GL_RED : GL_LUMINANCE;
+        createtexture(tex, size, size, NULL, 3, 1, GLFeatures::HasTRG() ? GL_R8 : GL_LUMINANCE8);
         valid = false;
         return true;
     }
@@ -969,8 +975,11 @@ SCRIPTEXPORT void rotateblendbrush(int *val)
 void paintblendmap(bool msg)
 {
     if(!canpaintblendmap(true, false, msg)) return;
+    const auto& activeCamera = Camera::GetActiveCamera();
+    if (!activeCamera) return;
 
     BlendBrush *brush = brushes[curbrush];
+    const auto& worldpos = activeCamera->GetWorldPos();
     int x = (int)floor(clamp(worldpos.x, 0.0f, float(worldsize))/(1<<BM_SCALE) - 0.5f*brush->w),
         y = (int)floor(clamp(worldpos.y, 0.0f, float(worldsize))/(1<<BM_SCALE) - 0.5f*brush->h);
     blitblendmap(brush->data, x, y, brush->w, brush->h, blendpaintmode);
@@ -1074,8 +1083,11 @@ SCRIPTEXPORT_AS(moveblendmap) void moveblendmap_scriptimpl(int *dx, int *dy)
 void renderblendbrush()
 {
     if(!blendpaintmode || !brushes.inrange(curbrush)) return;
+    const auto& activeCamera = Camera::GetActiveCamera();
+    if (!activeCamera) return;
 
     BlendBrush *brush = brushes[curbrush];
+    const vec& worldpos = activeCamera->GetWorldPos();
     int x1 = (int)floor(clamp(worldpos.x, 0.0f, float(worldsize))/(1<<BM_SCALE) - 0.5f*brush->w) << BM_SCALE,
         y1 = (int)floor(clamp(worldpos.y, 0.0f, float(worldsize))/(1<<BM_SCALE) - 0.5f*brush->h) << BM_SCALE,
         x2 = x1 + (brush->w << BM_SCALE),

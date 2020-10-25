@@ -1,0 +1,85 @@
+apply plugin: 'com.android.application'
+
+android {
+    compileSdkVersion 28
+
+    defaultConfig {
+        applicationId 'org.polyhedron.dev'
+        minSdkVersion 26
+        targetSdkVersion 28
+        versionCode 1
+        versionName "1.0"
+        externalNativeBuild {
+            cmake {
+                arguments '-DANDROID_STL=c++_static'
+            }
+        }
+
+    }
+
+    signingConfigs {
+        defaultSigningConfig {
+        }
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled true
+            proguardFiles getDefaultProguardFile('proguard-android.txt')
+
+            signingConfig signingConfigs.defaultSigningConfig
+        }
+
+    }
+
+    externalNativeBuild {
+        cmake {
+            path "../../src/CMakeLists.txt"
+            version "3.14.5"
+            buildStagingDirectory ".cxx"
+        }
+    }
+
+    sourceSets {
+        main {
+            manifest {
+                srcFile "../AndroidManifest.xml"
+            }
+            res {
+                srcDirs += "../res"
+            }
+            java {
+                srcDirs += "../java"
+            }
+            assets {
+                srcDirs += "../assets"
+            }
+        }
+    }
+
+    flavorDimensions 'cpuArch'
+    productFlavors {
+        arm8 {
+            dimension 'cpuArch'
+            ndk {
+                abiFilters 'arm64-v8a'
+            }
+        }
+        x86_64 {
+            dimension 'cpuArch'
+            ndk {
+                abiFilter 'x86_64'
+            }
+        }
+        universal {
+            dimension 'cpuArch'
+        }
+    }
+}
+
+dependencies {
+    implementation fileTree(dir: '../jars', include: ['*.jar'])
+    implementation 'com.android.support:appcompat-v7:28.0.0'
+    implementation 'com.android.support.constraint:constraint-layout:1.1.3'
+}
+

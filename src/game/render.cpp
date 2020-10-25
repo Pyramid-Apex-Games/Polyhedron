@@ -1,24 +1,23 @@
 #include "game.h"
 #include "engine/scriptexport.h"
 #include "entities.h"
-#include "entities/player.h"
+#include "entities/SkeletalEntity.h"
 
 namespace game
 {
-    __attribute__((optimize("O0"))) void RenderGameEntities()
+    void renderentities(RenderPass pass)
     {
-        loopv(entities::getents()) {
-            entities::classes::BaseEntity *ent = dynamic_cast<entities::classes::BaseEntity*>(entities::getents()[i]);
-            //if (ent->et_type != ET_PLAYERSTART && ent->et_type != ET_EMPTY && ent->et_type != ET_LIGHT && ent->et_type != ET_SPOTLIGHT && ent->et_type != ET_SOUND)
-
-            // Ensure we only render player entities if it isn't our own player 1 entity. (Otherwise we'd render it double.)
-            if (ent != nullptr && (ent != game::player1))
-                ent->render();
+		auto& ents = getents();
+		
+        for (int i = 0; ents.inrange(i); ++i)
+        {
+			auto& entity = ents[i];
+			
+			entity->render(pass);
         }
 
-        // Render our client player.
-        if (game::player1 != nullptr)
-            game::player1->render();
+        if (player1)
+            player1->render(pass);
     }
 
     VARP(hudgun, 0, 1, 1);
@@ -36,7 +35,7 @@ namespace game
     }
 
 
-    void drawhudmodel(entities::classes::CoreEntity *d, int anim, int basetime) {
+    void drawhudmodel(Entity *d, int anim, int basetime) {
 
     }
 
@@ -48,7 +47,7 @@ namespace game
 
     }
 
-    vec hudgunorigin(int gun, const vec &from, const vec &to, entities::classes::CoreEntity *d) {
+    vec hudgunorigin(int gun, const vec &from, const vec &to, Entity *d) {
         vec offset(from);
 
         return offset;
@@ -60,7 +59,8 @@ namespace game
 
     __attribute__((used)) void findanims(const char *pattern, vector<int> &anims)
     {
-        //loopi(sizeof(animnames)/sizeof(animnames[0])) if(matchanim(animnames[i], pattern)) anims.add(i);
+        SkeletalEntity::FindAnimations(pattern, anims);
+//        loopi(sizeof(animnames)/sizeof(animnames[0])) if(matchanim(animnames[i], pattern)) anims.add(i);
     }
 
     void preloadweapons() {
@@ -82,10 +82,3 @@ SCRIPTEXPORT int getplayercolor(int team, int color)
         default: return 0xFFFF77;
     }
 }
-
-
-// >>>>>>>>>> SCRIPTBIND >>>>>>>>>>>>>> //
-#if 0
-#include "/Users/micha/dev/ScMaMike/src/build/binding/..+game+render.binding.cpp"
-#endif
-// <<<<<<<<<< SCRIPTBIND <<<<<<<<<<<<<< //

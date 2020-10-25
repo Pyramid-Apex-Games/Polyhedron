@@ -2,11 +2,11 @@
 #import "SDL.h"
 #import "Launcher.h"
 
-@interface SDLApplication : NSApplication
-@end
-
-@implementation SDLApplication
-@end
+//@interface SDLApplication : NSApplication
+//@end
+//
+//@implementation SDLApplication
+//@end
 
 #ifdef main
 #  undef main

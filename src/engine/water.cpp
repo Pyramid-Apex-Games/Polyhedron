@@ -1,5 +1,13 @@
-#include "engine.h"
-#include "shared/entities/basephysicalentity.h"
+#include "shared/entities/DynamicEntity.h"
+#include "shared/entities/MovableEntity.h"
+#include "engine/engine.h"
+#include "engine/texture.h"
+#include "engine/rendergl.h"
+#include "engine/renderlights.h"
+#include "engine/octarender.h"
+#include "engine/material.h"
+#include "engine/water.h"
+#include "engine/Camera.h"
 
 #define NUMCAUSTICS 32
 
@@ -46,7 +54,9 @@ void setupcaustics(int tmu, float surface = -1e16f)
     float blendscale = causticcontrast, blendoffset = 1;
     if(surface > -1e15f)
     {
-        float bz = surface + camera1->o.z + (vertwater ? WATER_AMPLITUDE : 0);
+        assert(Camera::GetActiveCamera());
+
+        float bz = surface + Camera::GetActiveCamera()->o.z + (vertwater ? WATER_AMPLITUDE : 0);
         matrix4 m(vec4(s.x, t.x,  0, 0),
                   vec4(s.y, t.y,  0, 0),
                   vec4(s.z, t.z, -1, 0),
@@ -83,7 +93,11 @@ void renderwaterfog(int mat, float surface)
 {
     glDepthFunc(GL_NOTEQUAL);
     glDepthMask(GL_FALSE);
-    glDepthRange(1, 1); 
+#ifdef OPEN_GL_ES
+    glDepthRangef(1.0f, 1.0f);
+#else
+    glDepthRange(1, 1);
+#endif
 
     glEnable(GL_BLEND);
 
@@ -99,7 +113,8 @@ void renderwaterfog(int mat, float surface)
         invcamprojmatrix.perspectivetransform(vec(1, -1, -1)),
         invcamprojmatrix.perspectivetransform(vec(1, 1, -1))
     };
-    float bz = surface + camera1->o.z + (vertwater ? WATER_AMPLITUDE : 0),
+    assert(Camera::GetActiveCamera());
+    float bz = surface + Camera::GetActiveCamera()->o.z + (vertwater ? WATER_AMPLITUDE : 0),
           syl = p[1].z > p[0].z ? 2*(bz - p[0].z)/(p[1].z - p[0].z) - 1 : 1,
           syr = p[3].z > p[2].z ? 2*(bz - p[2].z)/(p[3].z - p[2].z) - 1 : 1;
 
@@ -140,7 +155,11 @@ void renderwaterfog(int mat, float surface)
         
     glDepthFunc(GL_LESS);
     glDepthMask(GL_TRUE);
+#ifdef OPEN_GL_ES
+    glDepthRangef(0.0f, 1.0f);
+#else
     glDepthRange(0, 1);
+#endif
 }
 
 /* vertex water */
@@ -209,6 +228,7 @@ VERTWN(vertln, {
     gle::attribf(wxscale*(v1+wscroll), wyscale*(v2+wscroll));
 })
 
+#ifndef OPEN_GL_ES
 #define renderwaterstrips(vertw, z) { \
     def##vertw(); \
     gle::begin(GL_TRIANGLE_STRIP, 2*(wy2-wy1 + 1)*(wx2-wx1)/subdiv); \
@@ -225,6 +245,23 @@ VERTWN(vertln, {
     } \
     xtraverts += gle::end(); \
 }
+#else
+#define renderwaterstrips(vertw, z) { \
+    def##vertw(); \
+    gle::begin(GL_TRIANGLE_STRIP, 2*(wy2-wy1 + 1)*(wx2-wx1)/subdiv); \
+    for(int x = wx1; x<wx2; x += subdiv) \
+    { \
+        vertw(x,        wy1, z); \
+        vertw(x+subdiv, wy1, z); \
+        for(int y = wy1; y<wy2; y += subdiv) \
+        { \
+            vertw(x,        y+subdiv, z); \
+            vertw(x+subdiv, y+subdiv, z); \
+        } \
+    } \
+    xtraverts += gle::end(); \
+}
+#endif
 
 void rendervertwater(int subdiv, int xo, int yo, int z, int size, int mat)
 {
@@ -259,11 +296,13 @@ void rendervertwater(int subdiv, int xo, int yo, int z, int size, int mat)
 int calcwatersubdiv(int x, int y, int z, int size)
 {
     float dist;
-    if(camera1->o.x >= x && camera1->o.x < x + size &&
-       camera1->o.y >= y && camera1->o.y < y + size)
-        dist = fabs(camera1->o.z - float(z));
+    assert(Camera::GetActiveCamera());
+    const auto& cameraPos = Camera::GetActiveCamera()->o;
+    if(cameraPos.x >= x && cameraPos.x < x + size &&
+       cameraPos.y >= y && cameraPos.y < y + size)
+        dist = fabs(cameraPos.z - float(z));
     else
-        dist = vec(x + size/2, y + size/2, z + size/2).dist(camera1->o) - size*1.42f/2;
+        dist = vec(x + size/2, y + size/2, z + size/2).dist(cameraPos) - size*1.42f/2;
     int subdiv = watersubdiv + int(dist) / (32 << waterlod);
     return subdiv >= 31 ? INT_MAX : 1<<subdiv;
 }
@@ -591,6 +630,9 @@ void renderwaterfalls()
 
 void renderwater()
 {
+    assert(Camera::GetActiveCamera());
+    const auto& cameraPos = Camera::GetActiveCamera()->o;
+
     loopk(4)
     {
         vector<materialsurface> &surfs = watersurfs[k];
@@ -663,7 +705,7 @@ void renderwater()
         loopv(surfs)
         {
             materialsurface &m = surfs[i];
-            if(camera1->o.z < m.o.z - WATER_OFFSET) continue;
+            if(cameraPos.z < m.o.z - WATER_OFFSET) continue;
             renderwater(m);
         }
         xtraverts += gle::end();
@@ -674,14 +716,10 @@ void renderwater()
             loopv(surfs)
             {
                 materialsurface &m = surfs[i];
-                if(camera1->o.z >= m.o.z - WATER_OFFSET) continue;
+                if(cameraPos.z >= m.o.z - WATER_OFFSET) continue;
                 renderwater(m);
             }
             xtraverts += gle::end();
         }
     }
 }
-
-
-// >>>>>>>>>> SCRIPTBIND >>>>>>>>>>>>>> //
-// <<<<<<<<<< SCRIPTBIND <<<<<<<<<<<<<< //

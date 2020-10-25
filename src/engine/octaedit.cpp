@@ -1,7 +1,34 @@
-#include "engine.h"
-#include "../game/entities/player.h"
+#include "shared/cube.h"
+#include "shared/stream.h"
+#include "engine/light.h"
+#include "engine/texture.h"
+#include "engine/pvs.h"
+#include "engine/rendergl.h"
+#include "engine/octaedit.h"
+#include "engine/octarender.h"
+#include "engine/renderva.h"
+#include "engine/renderlights.h"
+#include "engine/material.h"
+#include "engine/ui.h"
+#include "engine/menus.h"
+#include "engine/blend.h"
+#include "engine/hud.h"
+#include "engine/main/Compatibility.h"
+#include "engine/main/Application.h"
+#include "engine/main/Input.h"
+#include "engine/main/Window.h"
+#include "engine/main/GLContext.h"
+#include "engine/main/Renderer.h"
+#include "game/entities/SkeletalEntity.h"
 
 extern int outline;
+
+
+//extern from menus.h
+extern int mainmenu;
+
+//REVIEW: only actual import from renderlights.h, just declare instead of including the whole header?
+void clearshadowcache();
 
 bool boxoutline = false;
 
@@ -117,10 +144,18 @@ VARF(dragging, 0, 0, 1,
 int moving = 0;
 SCRIPTEXPORT_AS(moving) void moving_scriptimpl(int *n)
 {
+	extern int enthover;
+	
     if(*n >= 0)
     {
-        if(!*n || (moving<=1 && !pointinsel(sel, vec(cur).add(1)))) moving = 0;
-        else if(!moving) moving = 1;
+        if(!*n || (moving<=1 && !pointinsel(sel, vec(cur).add(1))))
+        {
+			moving = 0;
+		}
+        else if(!moving)
+        {
+			moving = 1;
+		}
     }
     intret(moving);
 }
@@ -144,6 +179,8 @@ namespace hmap { void cancel(); }
 
 SCRIPTEXPORT void cubecancel()
 {
+	extern int enthover;
+	
     havesel = false;
     moving = dragging = hmapedit = passthroughsel = 0;
     forcenextundo();
@@ -159,6 +196,7 @@ SCRIPTEXPORT void cancelsel()
 
 void toggleedit(bool force)
 {
+    extern void mouselook(CommandTypes::Boolean);
     if(!force)
     {
         if(!isconnected()) return;
@@ -181,6 +219,10 @@ void toggleedit(bool force)
     stoppaintblendmap();
     keyrepeat(editmode, KR_EDITMODE);
     editing = entediting = editmode;
+
+    int off = editmode ? 0 : 1;
+    mouselook(&off);
+
     if(!force) game::edittoggled(editmode);
     execident("edittoggled");
 }
@@ -344,21 +386,21 @@ void updateselection()
     sel.s.z = abs(lastcur.z-cur.z)/sel.grid+1;
 }
 
-bool editmoveplane(const vec &o, const vec &ray, int d, float off, vec &handle, vec &dest, bool first)
+bool editmoveplane(const vec &camPos, const vec &o, const vec &ray, int d, float off, vec &handle, vec &dest, bool first)
 {
     plane pl(d, off);
     float dist = 0.0f;
-    if(!pl.rayintersect(player->o, ray, dist))
+    if(!pl.rayintersect(camPos, ray, dist))
         return false;
 
-    dest = vec(ray).mul(dist).add(player->o);
+    dest = vec(ray).mul(dist).add(camPos);
     if(first) handle = vec(dest).sub(o);
     dest.sub(handle);
     return true;
 }
 
 namespace hmap { inline bool isheightmap(int orient, int d, bool empty, cube *c); }
-extern void entdrag(const vec &ray);
+extern void entdrag(const vec &rayOrigin, const vec &ray);
 extern bool hoveringonent(int ent, int orient);
 extern void renderentselection(const vec &o, const vec &ray, bool entmoving);
 extern float rayent(const vec &o, const vec &ray, float radius, int mode, int size, int &orient, int &ent);
@@ -372,13 +414,30 @@ void rendereditcursor()
         od  = dimension(orient),
         odc = dimcoord(orient);
 
-    bool hidecursor = UI::hascursor() || blendpaintmode, hovering = false;
+    bool hidecursor = blendpaintmode, hovering = false;
     hmapsel = false;
+
+    ivec2 mouseCoordinates = Application::Instance().GetInput().GetMousePosition();
+    ivec2 framebufferSize(0, 0);
+    Application::Instance().GetWindow().GetContext().GetFramebufferSize(framebufferSize.x, framebufferSize.y);
+
+    vec2 mouseClipSpace(
+        ( 2.0f * mouseCoordinates.x ) / framebufferSize.x - 1.0f,
+        1.0f - ( 2.0f * mouseCoordinates.y ) / framebufferSize.y
+    );
+    if (Application::Instance().GetInput().IsMouseGrabbed())
+    {
+        mouseClipSpace.x = 0;
+        mouseClipSpace.y = 0;
+    }
+    vec worldNear = invcamprojmatrix.perspectivetransform(vec4(mouseClipSpace, 0.0f, 1.0f));
+    vec worldFar = invcamprojmatrix.perspectivetransform(vec4(mouseClipSpace, 1.0f, 1.0f));
+    vec rayWorld = vec(worldFar).sub(worldNear).normalize();
 
     if(moving)
     {
         static vec dest, handle;
-        if(editmoveplane(vec(sel.o), camdir, od, sel.o[D[od]]+odc*sel.grid*sel.s[D[od]], handle, dest, moving==1))
+        if(editmoveplane(worldNear, vec(sel.o), rayWorld, od, sel.o[D[od]]+odc*sel.grid*sel.s[D[od]], handle, dest, moving==1))
         {
             if(moving==1)
             {
@@ -394,7 +453,7 @@ void rendereditcursor()
     }
     else if(entmoving)
     {
-        entdrag(camdir);
+        entdrag(worldNear, rayWorld);
     }
     else
     {
@@ -402,14 +461,14 @@ void rendereditcursor()
         float sdist = 0, wdist = 0, t;
         int entorient = 0, ent = -1;
 
-        wdist = rayent(player->o, camdir, 1e16f,
+        wdist = rayent(worldNear, rayWorld, 1e16f,
                        (editmode && showmat ? RAY_EDITMAT : 0)   // select cubes first
                        | (!dragging && entediting ? RAY_ENTS : 0)
                        | RAY_SKIPFIRST
                        | (passthroughcube==1 ? RAY_PASS : 0), gridsize, entorient, ent);
 
         if((havesel || dragging) && !passthroughsel && !hmapedit)     // now try selecting the selection
-            if(rayboxintersect(vec(sel.o), vec(sel.s).mul(sel.grid), player->o, camdir, sdist, orient))
+            if(rayboxintersect(vec(sel.o), vec(sel.s).mul(sel.grid), worldNear, rayWorld, sdist, orient))
             {   // and choose the nearest of the two
                 if(sdist < wdist)
                 {
@@ -429,28 +488,28 @@ void rendereditcursor()
         }
         else
         {
-            vec w = vec(camdir).mul(wdist+0.05f).add(player->o);
+            vec w = vec(rayWorld).mul(wdist+0.05f).add(worldNear);
             if(!insideworld(w))
             {
-                loopi(3) wdist = min(wdist, ((camdir[i] > 0 ? worldsize : 0) - player->o[i]) / camdir[i]);
-                w = vec(camdir).mul(wdist-0.05f).add(player->o);
+                loopi(3) wdist = min(wdist, ((rayWorld[i] > 0 ? worldsize : 0) - worldNear[i]) / rayWorld[i]);
+                w = vec(rayWorld).mul(wdist-0.05f).add(worldNear);
                 if(!insideworld(w))
                 {
                     wdist = 0;
-                    loopi(3) w[i] = clamp(player->o[i], 0.0f, float(worldsize));
+                    loopi(3) w[i] = clamp(worldNear[i], 0.0f, float(worldsize));
                 }
             }
             cube *c = &lookupcube(ivec(w));
             if(gridlookup && !dragging && !moving && !havesel && hmapedit!=1) gridsize = lusize;
             int mag = lusize / gridsize;
             normalizelookupcube(ivec(w));
-            if(sdist == 0 || sdist > wdist) rayboxintersect(vec(lu), vec(gridsize), player->o, camdir, t=0, orient); // just getting orient
+            if(sdist == 0 || sdist > wdist) rayboxintersect(vec(lu), vec(gridsize), worldNear, rayWorld, t=0, orient); // just getting orient
             cur = lu;
             cor = ivec(vec(w).mul(2).div(gridsize));
             od = dimension(orient);
             d = dimension(sel.orient);
 
-            if(hmapedit==1 && dimcoord(horient) == (camdir[dimension(horient)]<0))
+            if(hmapedit==1 && dimcoord(horient) == (rayWorld[dimension(horient)]<0))
             {
                 hmapsel = hmap::isheightmap(horient, dimension(horient), false, c);
                 if(hmapsel)
@@ -515,7 +574,7 @@ void rendereditcursor()
 
     ldrnotextureshader->set();
 
-    renderentselection(player->o, camdir, entmoving!=0);
+    renderentselection(worldNear, rayWorld, entmoving!=0);
 
     boxoutline = outline!=0;
 
@@ -1117,10 +1176,10 @@ bool packundo(undoblock *u, int &inlen, uchar *&outbuf, int &outlen)
         loopi(u->numents)
         {
             *(ushort *)buf.pad(2) = lilswap(ushort(ue[i].i));
-            entities::classes::CoreEntity* e = (entities::classes::CoreEntity *)buf.pad(sizeof(entities::classes::CoreEntity));
+            Entity* e = (Entity *)buf.pad(sizeof(Entity));
             e = ue[i].e;
             lilswap(&e->o.x, 3);
-            lilswap(&e->attr1, 5); 
+            lilswap(&e->scale, 5);
         }
     }
     else
@@ -1147,7 +1206,7 @@ bool unpackundo(const uchar *inbuf, int inlen, int outlen)
     int numents = lilswap(*(const ushort *)buf.pad(2));
     if(numents)
     {
-        if(buf.remaining() < numents*int(2 + sizeof(entities::classes::CoreEntity)))
+        if(buf.remaining() < numents*int(2 + sizeof(Entity)))
         {
             delete[] outbuf;
             return false;
@@ -1155,9 +1214,9 @@ bool unpackundo(const uchar *inbuf, int inlen, int outlen)
         loopi(numents)
         {
             int idx = lilswap(*(const ushort *)buf.pad(2));
-            entities::classes::CoreEntity *e = (entities::classes::CoreEntity *)buf.pad(sizeof(entities::classes::CoreEntity));
+            Entity *e = (Entity *)buf.pad(sizeof(Entity));
             lilswap(&e->o.x, 3);
-            lilswap(&e->attr1, 5);
+            lilswap(&e->scale, 5);
             pasteundoent(idx, e);
         }
     }
@@ -1470,7 +1529,9 @@ static void renderprefab(prefab &p, const vec &o, float yaw, float pitch, float 
     gle::color(vec(color).mul(ldrscale));
     glDrawRangeElements_(GL_TRIANGLES, 0, p.numverts-1, p.numtris*3, GL_UNSIGNED_SHORT, (ushort *)0);
 
+#ifndef OPEN_GL_ES
     glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+#endif
     enablepolygonoffset(GL_POLYGON_OFFSET_LINE);
 
     pm.mul(camprojmatrix, m);
@@ -1480,8 +1541,9 @@ static void renderprefab(prefab &p, const vec &o, float yaw, float pitch, float 
     glDrawRangeElements_(GL_TRIANGLES, 0, p.numverts-1, p.numtris*3, GL_UNSIGNED_SHORT, (ushort *)0);
 
     disablepolygonoffset(GL_POLYGON_OFFSET_LINE);
+#ifndef OPEN_GL_ES
     glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
-
+#endif
     gle::disablevertex();
     gle::disablenormal();
     gle::clearebo();
@@ -2527,6 +2589,7 @@ SCRIPTEXPORT void looptexmru(ident *id, CommandTypes::Expression body)
     }
     loopend(id, stack);
 }
+
 SCRIPTEXPORT void numvslots()
 {
     intret(vslots.length());

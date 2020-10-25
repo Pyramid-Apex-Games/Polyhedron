@@ -4,4 +4,8 @@ ide
 build/
 bscriptbinding/
 bentity_new/
-
+screenshot/
+.idea
+cmake-build-*/
+config/site-py/
+.vs/

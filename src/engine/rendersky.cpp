@@ -1,6 +1,13 @@
-#include "engine.h"
-#include "shared/entities/basephysicalentity.h"
-
+#include "shared/cube.h"
+#include "shared/stream.h"
+#include "shared/entities/MovableEntity.h"
+#include "shared/entities/DynamicEntity.h"
+#include "engine/light.h"
+#include "engine/texture.h"
+#include "engine/rendergl.h"
+#include "engine/renderva.h"
+#include "engine/renderlights.h"
+#include "engine/Camera.h"
 
 Texture *sky[6] = { 0, 0, 0, 0, 0, 0 }, *clouds[6] = { 0, 0, 0, 0, 0, 0 };
 
@@ -349,10 +356,16 @@ namespace fogdome
 
 static void drawfogdome()
 {
+    auto activeCamera = Camera::GetActiveCamera();
+    if (!activeCamera)
+        return;
+
     SETSHADER(skyfog);
 
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+    auto& cammatrix = activeCamera->GetMatrix();
 
     matrix4 skymatrix = cammatrix, skyprojmatrix;
     skymatrix.settranslation(vec(cammatrix.c).mul(farplane*fogdomeheight*0.5f));
@@ -446,12 +459,16 @@ bool limitsky()
 
 void drawskybox(bool clear)
 {
+    auto activeCamera = Camera::GetActiveCamera();
+    if (!activeCamera)
+        return;
+
     bool limited = false;
     if(limitsky()) for(vtxarray *va = visibleva; va; va = va->next)
     {
         if(va->sky && va->occluded < OCCLUDE_BB &&
            ((va->skymax.x >= 0 && isvisiblebb(va->skymin, ivec(va->skymax).sub(va->skymin)) != VFC_NOT_VISIBLE) ||
-            !insideworld(camera1->o)))
+            !insideworld(activeCamera->o)))
         {
             limited = true;
             break;
@@ -467,7 +484,9 @@ void drawskybox(bool clear)
         glDepthMask(GL_FALSE);
     }
 
+#ifndef OPEN_GL_ES
     if(clampsky) glDepthRange(1, 1);
+#endif
 
     if(clear || (!skybox[0] && (!atmo || atmoalpha < 1)))
     {
@@ -475,6 +494,8 @@ void drawskybox(bool clear)
         glClearColor(skyboxcolor.x, skyboxcolor.y, skyboxcolor.z, 0);
         glClear(GL_COLOR_BUFFER_BIT);
     }
+
+    auto& cammatrix = activeCamera->GetMatrix();
 
     if(skybox[0])
     {
@@ -561,7 +582,9 @@ void drawskybox(bool clear)
         drawfogdome();
     }
 
+#ifndef OPEN_GL_ES
     if(clampsky) glDepthRange(0, 1);
+#endif
 
     if(limited)
     {

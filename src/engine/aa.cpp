@@ -1,4 +1,8 @@
-#include "engine.h"
+#include "engine/texture.h"
+#include "engine/rendergl.h"
+#include "engine/renderlights.h"
+#include "engine/aa.h"
+#include "engine/GLFeatures.h"
 
 extern int intel_texalpha_bug;
 
@@ -33,6 +37,7 @@ void setuptqaa(int w, int h)
         glBindFramebuffer_(GL_FRAMEBUFFER, tqaafbo[i]);
         createtexture(tqaatex[i], w, h, NULL, 3, 1, GL_RGBA8, GL_TEXTURE_RECTANGLE);
         glFramebufferTexture2D_(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_RECTANGLE, tqaatex[i], 0);
+
         bindgdepth();
         if(glCheckFramebufferStatus_(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
             fatal("failed allocating TQAA buffer!");
@@ -202,7 +207,7 @@ void loadsmaashaders(bool split = false)
 
     cubestr opts;
     int optslen = 0;
-    if(!hasTRG) opts[optslen++] = 'a';
+    if(!GLFeatures::HasTRG()) opts[optslen++] = 'a';
     if((smaadepthmask && (!tqaa || msaalight)) || (smaastencil && ghasstencil > (msaasamples ? 1 : 0))) opts[optslen++] = 'd';
     if(split) opts[optslen++] = 's';
     if(tqaa || smaagreenluma || intel_texalpha_bug) opts[optslen++] = 'g';
@@ -505,8 +510,10 @@ void setupsmaa(int w, int h)
     if(!smaasearchtex) glGenTextures(1, &smaasearchtex);
     gensmaasearchdata();
     gensmaaareadata();
-    createtexture(smaaareatex, SMAA_AREATEX_WIDTH, SMAA_AREATEX_HEIGHT, smaaareadata, 3, 1, hasTRG ? GL_RG8 : GL_LUMINANCE8_ALPHA8, GL_TEXTURE_RECTANGLE, 0, 0, 0, false);
-    createtexture(smaasearchtex, SMAA_SEARCHTEX_WIDTH, SMAA_SEARCHTEX_HEIGHT, smaasearchdata, 3, 0, hasTRG ? GL_R8 : GL_LUMINANCE8, GL_TEXTURE_RECTANGLE, 0, 0, 0, false);
+    createtexture(smaaareatex, SMAA_AREATEX_WIDTH, SMAA_AREATEX_HEIGHT, smaaareadata, 3, 1,
+                  GLFeatures::HasTRG() ? GL_RG8 : GL_LUMINANCE8_ALPHA8, GL_TEXTURE_RECTANGLE, 0, 0, 0, false);
+    createtexture(smaasearchtex, SMAA_SEARCHTEX_WIDTH, SMAA_SEARCHTEX_HEIGHT, smaasearchdata, 3, 0,
+                  GLFeatures::HasTRG() ? GL_R8 : GL_LUMINANCE8, GL_TEXTURE_RECTANGLE, 0, 0, 0, false);
     bool split = multisampledaa();
     smaasubsampleorder = split ? (msaapositions[0].x < 0.5f ? 1 : 0) : -1;
     smaat2x = tqaa ? 1 : 0;
@@ -521,7 +528,7 @@ void setupsmaa(int w, int h)
         switch(i)
         {
             case 0: format = tqaa || (!smaagreenluma && !intel_texalpha_bug && !smaacoloredge) ? GL_RGBA8 : GL_RGB; break;
-            case 1: format = hasTRG ? GL_RG8 : GL_RGBA8; break;
+            case 1: format = GLFeatures::HasTRG() ? GL_RG8 : GL_RGBA8; break;
             case 2: case 3: format = GL_RGBA8; break;
         }
         createtexture(smaatex[i], w, h, NULL, 3, 1, format, GL_TEXTURE_RECTANGLE);
@@ -600,7 +607,7 @@ void dosmaa(GLuint outfbo = 0, bool split = false)
             glEnable(GL_DEPTH_TEST);
             glDepthFunc(GL_ALWAYS);
             float depthval = cleardepth ? 0.25f*(pass+1) : 1;
-            glDepthRange(depthval, depthval);
+            glDepthRange_(depthval, depthval);
         }
         else if(stencil)
         {
@@ -643,7 +650,7 @@ void dosmaa(GLuint outfbo = 0, bool split = false)
             glDisable(GL_DEPTH_TEST);
             glDepthMask(GL_TRUE);
             glDepthFunc(GL_LESS);
-            glDepthRange(0, 1);
+            glDepthRange_(0, 1);
         }
         else if(stencil) glDisable(GL_STENCIL_TEST);
     }

@@ -1,4 +1,3 @@
-#CMake Configuration for Tesseract "The Right Way (tm)"
 cmake_minimum_required(VERSION 3.13)
 project(Polyhedron)
 
@@ -9,62 +8,46 @@ set(PYTHON python3)
 if (APPLE)
     set(PYTHON /usr/local/bin/python3)
 endif()
+if (WIN32)
+    set(PYTHON py)
+endif()
 
-option(SCHIZOMANIA_BUILD_CLIENT "Build the game client" ON)
-option(SCHIZOMANIA_BUILD_SERVER "Build the game server" OFF)
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
-set(CMAKE_CXX_STANDARD 14)
-set(CMAKE_CXX_STANDARD_REQUIRED OFF)
+set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
-
-list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/../cmake")
 
 #For OSX, find the Shared libraries and ignore the static ones
 if (APPLE)
-    set(CMAKE_FIND_LIBRARY_SUFFIXES ".dylib")
-    list(REMOVE_ITEM CMAKE_FIND_LIBRARY_SUFFIXES ".a")
-    list(INSERT CMAKE_FIND_LIBRARY_SUFFIXES 0 ".dylib" )
+#    set(CMAKE_FIND_LIBRARY_SUFFIXES ".dylib")
+#    list(REMOVE_ITEM CMAKE_FIND_LIBRARY_SUFFIXES ".a")
+#    list(INSERT CMAKE_FIND_LIBRARY_SUFFIXES 0 ".dylib" )
 
     set(CMAKE_XCODE_ATTRIBUTE_CLANG_CXX_LIBRARY "libc++")
-    set(CMAKE_XCODE_ATTRIBUTE_CLANG_LANGUAGE_STANDARD "c++14")
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -stdlib=libc++ -std=c++14")
+    set(CMAKE_XCODE_ATTRIBUTE_CLANG_LANGUAGE_STANDARD "c++20")
+#    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -stdlib=libc++ -std=c++17")
 endif()
 
-#Libraries
-find_package(ZLIB REQUIRED)
-find_package(PNG REQUIRED)
-find_package(JPEG REQUIRED)
-find_package(TIFF REQUIRED)
-find_package(WEBP REQUIRED)
-find_package(Freetype REQUIRED)
-#For Linux, prime the SDL2 finder by setting the include dir
-if (UNIX AND NOT APPLE)
-    set(SDL2_INCLUDE_DIR "/usr/include/SDL2")
-endif()
-find_package(SDL2 REQUIRED)
-find_package(SDL2_mixer REQUIRED)
-find_package(SDL2_image REQUIRED)
-find_package(OpenGL REQUIRED)
-
-if (APPLE)
-    find_library(COREAUDIO CoreAudio REQUIRED)
-    find_library(AVFOUNDATION AVFoundation REQUIRED)
-    find_library(COCOA Cocoa REQUIRED)
-    find_library(COREFOUNDATION CoreFoundation REQUIRED)
-    find_library(APPLICATIONSERVICES ApplicationServices REQUIRED)
-    find_library(FOUNDATION Foundation REQUIRED)
-    find_library(COREFOUNDATION CoreFoundation REQUIRED)
-    find_library(AUDIOTOOLBOX AudioToolbox REQUIRED)
-    find_library(BULLSHITLIB BullShitLib REQUIRED)
-endif()
+include(../cmake/thirdparty.cmake)
 
 #defines, project wide
 #Silence OpenGL deprecations .. yes Apple, you like Metal and you can't shutup about it .. :rolleyes:
 add_definitions("-DGL_SILENCE_DEPRECATION")
 include_directories(
-    ext/json-develop/single_include
+    ext/json-develop/include
+    ext/nuklear
+    ext/renderdoc
+    ext/glad/include
+    ext/imgui
 )
+
+CHECK_INCLUDE_FILE(renderdoc.h HAVE_RENDERDOC_H)
+if (HAVE_RENDERDOC_H)
+    add_definitions("-DHAVE_RENDERDOC_H")
+    message("Found renderdoc.h -- including support")
+    list(APPEND THIRDPARTY_LIBRARIES dl)
+endif()
 
 #The engine, server and shared sub projects
 add_subdirectory(enet)
@@ -72,19 +55,28 @@ add_subdirectory(enet)
 list(APPEND fileListEngine
     engine/aa.cpp
     engine/animmodel.h
+    engine/animmodel.cpp
     engine/bih.cpp
     engine/bih.h
     engine/blend.cpp
+    engine/Camera.cpp
+    engine/Camera.h
     engine/client.cpp
     engine/command.cpp
     engine/console.cpp
     engine/dynlight.cpp
     engine/engine.h
     engine/explosion.h
+    engine/GLFeatures.cpp
+    engine/GLFeatures.h
+    engine/engine/font.h
+    engine/engine/font.cpp
     engine/grass.cpp
     engine/help.h
     engine/help.cpp
     engine/hitzone.h
+    engine/hud.cpp
+    engine/hud.h
     engine/iqm.h
     engine/lensflare.h
     engine/light.cpp
@@ -93,6 +85,28 @@ list(APPEND fileListEngine
     engine/log.h
     engine/log.cpp
     engine/main.cpp
+    engine/main/AppConfig.cpp
+    engine/main/AppConfig.h
+    engine/main/Application.cpp
+    engine/main/Application.h
+    engine/main/Clock.cpp
+    engine/main/Clock.h
+    engine/main/CommandlineArguments.cpp
+    engine/main/CommandlineArguments.h
+    engine/main/Compatibility.cpp
+    engine/main/Compatibility.h
+    engine/main/FPS.cpp
+    engine/main/FPS.h
+    engine/main/GLContext.cpp
+    engine/main/GLContext.h
+    engine/main/Input.cpp
+    engine/main/Input.h
+    engine/main/Renderer.cpp
+    engine/main/Renderer.h
+    engine/main/SoundConfig.cpp
+    engine/main/SoundConfig.h
+    engine/main/Window.cpp
+    engine/main/Window.h
     # engine/master.cpp
     engine/material.cpp
     engine/md2.h
@@ -103,6 +117,8 @@ list(APPEND fileListEngine
     engine/movie.cpp
     engine/mpr.h
     engine/normal.cpp
+    engine/nui/nui.cpp
+    engine/nui/nui.h
     engine/obj.h
     engine/octa.cpp
     engine/octa.h
@@ -112,6 +128,7 @@ list(APPEND fileListEngine
     engine/physics.cpp
     engine/pvs.cpp
     engine/ragdoll.h
+    engine/ragdoll.cpp
     engine/rendergl.cpp
     engine/renderlights.cpp
     engine/rendermodel.cpp
@@ -143,20 +160,131 @@ list(APPEND fileListShared
     shared/command.h
     shared/crypto.cpp
     shared/cube.h
+    shared/Easing.cpp
+    shared/Easing.h
     shared/ents.h
     shared/geom.cpp
     shared/geom.h
+    shared/geom/bvec.cpp
+    shared/geom/bvec.h
+    shared/geom/bvec4.cpp
+    shared/geom/bvec4.h
+    shared/geom/constants.h
+    shared/geom/dualquat.cpp
+    shared/geom/dualquat.h
+    shared/geom/dvec4.cpp
+    shared/geom/dvec4.h
+    shared/geom/half.cpp
+    shared/geom/half.h
+    shared/geom/hvec.cpp
+    shared/geom/hvec.h
+    shared/geom/hvec2.cpp
+    shared/geom/hvec2.h
+    shared/geom/hvec4.cpp
+    shared/geom/hvec4.h
+    shared/geom/ivec.cpp
+    shared/geom/ivec.h
+    shared/geom/ivec2.cpp
+    shared/geom/ivec2.h
+    shared/geom/ivec4.cpp
+    shared/geom/ivec4.h
+    shared/geom/matrix.cpp
+    shared/geom/matrix.h
+    shared/geom/matrix2.cpp
+    shared/geom/matrix2.h
+    shared/geom/matrix3.cpp
+    shared/geom/matrix3.h
+    shared/geom/matrix4.cpp
+    shared/geom/matrix4.h
+    shared/geom/matrix4x3.cpp
+    shared/geom/matrix4x3.h
+    shared/geom/plane.cpp
+    shared/geom/plane.h
+    shared/geom/quat.cpp
+    shared/geom/quat.h
+    shared/geom/squat.cpp
+    shared/geom/squat.h
+    shared/geom/svec.cpp
+    shared/geom/svec.h
+    shared/geom/triangle.cpp
+    shared/geom/triangle.h
+    shared/geom/usvec.cpp
+    shared/geom/usvec.h
+    shared/geom/vec.cpp
+    shared/geom/vec.h
+    shared/geom/vec2.cpp
+    shared/geom/vec2.h
+    shared/geom/vec4.cpp
+    shared/geom/vec4.h
     shared/glemu.cpp
     shared/glemu.h
     shared/glexts.h
     shared/iengine.h
     shared/igame.h
     shared/pch.cpp
+    shared/python/PythonScript.cpp
+    shared/python/PythonScript.h
+    shared/python/PythonPipeIO.cpp
+    shared/python/PythonPipeIO.h
     shared/stream.cpp
     # shared/tessfont.c
     shared/tools.cpp
     shared/tools.h
     shared/zip.cpp
+)
+
+list(APPEND fileListSharedGeom
+    shared/geom/bvec.cpp
+    shared/geom/bvec.h
+    shared/geom/bvec4.cpp
+    shared/geom/bvec4.h
+    shared/geom/constants.h
+    shared/geom/dualquat.cpp
+    shared/geom/dualquat.h
+    shared/geom/dvec4.cpp
+    shared/geom/dvec4.h
+    shared/geom/half.cpp
+    shared/geom/half.h
+    shared/geom/hvec.cpp
+    shared/geom/hvec.h
+    shared/geom/hvec2.cpp
+    shared/geom/hvec2.h
+    shared/geom/hvec4.cpp
+    shared/geom/hvec4.h
+    shared/geom/ivec.cpp
+    shared/geom/ivec.h
+    shared/geom/ivec2.cpp
+    shared/geom/ivec2.h
+    shared/geom/ivec4.cpp
+    shared/geom/ivec4.h
+    shared/geom/matrix.cpp
+    shared/geom/matrix.h
+    shared/geom/matrix2.cpp
+    shared/geom/matrix2.h
+    shared/geom/matrix3.cpp
+    shared/geom/matrix3.h
+    shared/geom/matrix4.cpp
+    shared/geom/matrix4.h
+    shared/geom/matrix4x3.cpp
+    shared/geom/matrix4x3.h
+    shared/geom/plane.cpp
+    shared/geom/plane.h
+    shared/geom/quat.cpp
+    shared/geom/quat.h
+    shared/geom/squat.cpp
+    shared/geom/squat.h
+    shared/geom/svec.cpp
+    shared/geom/svec.h
+    shared/geom/triangle.cpp
+    shared/geom/triangle.h
+    shared/geom/usvec.cpp
+    shared/geom/usvec.h
+    shared/geom/vec.cpp
+    shared/geom/vec.h
+    shared/geom/vec2.cpp
+    shared/geom/vec2.h
+    shared/geom/vec4.cpp
+    shared/geom/vec4.h
 )
 
 list(APPEND fileListGame
@@ -169,48 +297,105 @@ list(APPEND fileListGame
 )
 
 list(APPEND fileListGameEntities
-    game/entities/basemapmodel.cpp
-    game/entities/basemapmodel.h
-    game/entities/door.cpp
-    game/entities/door.h
-    game/entities/dynamiclight.cpp
-    game/entities/dynamiclight.h
-    game/entities/basemonster.cpp
-    game/entities/basemonster.h
-    game/entities/playerstart.cpp
-    game/entities/playerstart.h
-    game/entities/player.cpp
-    game/entities/player.h
+        game/entities/ModelEntity.cpp
+        game/entities/ModelEntity.h
+        game/entities/DoorEntity.cpp
+        game/entities/DoorEntity.h
+        game/entities/LightEntity.cpp
+        game/entities/LightEntity.h
+        game/entities/MonsterEntity.cpp
+        game/entities/MonsterEntity.h
+        game/entities/PlayerSpawnEntity.cpp
+        game/entities/PlayerSpawnEntity.h
+        game/entities/SkeletalEntity.cpp
+        game/entities/SkeletalEntity.h
+        game/entities/SoundEntity.cpp
+        game/entities/SoundEntity.h
 )
 
 list(APPEND fileListSharedEntities
+    shared/entities/DecalEntity.cpp
+    shared/entities/DecalEntity.h
+    shared/entities/DynamicEntity.cpp
+    shared/entities/DynamicEntity.h
+    shared/entities/Entity.cpp
+    shared/entities/Entity.h
+    shared/entities/EntityEditorMenu.cpp
+    shared/entities/EntityEditorMenu.h
+    shared/entities/EntityFactory.cpp
+    shared/entities/EntityFactory.h
+    shared/entities/EnvMapEntity.cpp
+    shared/entities/EnvMapEntity.h
+    shared/entities/MovableEntity.cpp
+    shared/entities/MovableEntity.h
     shared/entities/animinfo.h
-    shared/entities/attributes.h
     shared/entities/attributes.cpp
-    shared/entities/coreentity.h
-    shared/entities/coreentity.cpp
-    shared/entities/baseentity.h
-    shared/entities/baseentity.cpp
-    shared/entities/basedynamicentity.cpp
-    shared/entities/basedynamicentity.h
-    shared/entities/basephysicalentity.cpp
-    shared/entities/basephysicalentity.h
-    shared/entities/decalentity.h
-    shared/entities/decalentity.cpp
-    shared/entities/entityfactory.h
-    shared/entities/entityfactory.cpp
+    shared/entities/attributes.h
+)
+
+list(APPEND extRenderdocFiles
+    ext/renderdoc/renderdoc_api.h
+    ext/renderdoc/renderdoc_api.cpp
+)
+
+list(APPEND extNuklearFiles
+    ext/nuklear/nuklear.h
+    ext/nuklear/nuklear_polyhedron.h
+    ext/nuklear/nuklear_polyhedron.cpp
+)
+
+list(APPEND extGladFiles
+    ext/glad/src/glad.c
+    ext/glad/include/glad/glad.h
+    ext/glad/include/KHR/khrplatform.h
+)
+
+list(APPEND extImguiFiles
+    ext/imgui/imconfig.h
+    ext/imgui/imgui.cpp
+    ext/imgui/imgui.h
+    ext/imgui/imgui_demo.cpp
+    ext/imgui/imgui_draw.cpp
+    ext/imgui/imgui_internal.h
+    ext/imgui/imgui_widgets.cpp
+    ext/imgui/imstb_rectpack.h
+    ext/imgui/imstb_textedit.h
+    ext/imgui/imstb_truetype.h
+    ext/imgui/examples/imgui_impl_sdl.h
+    ext/imgui/examples/imgui_impl_sdl.cpp
+    ext/imgui/examples/imgui_impl_opengl3.h
+    ext/imgui/examples/imgui_impl_opengl3.cpp
+)
+
+list(APPEND engineEditorFiles
+    engine/editor/ui.cpp
+    engine/editor/ui.h
 )
 
 list(APPEND fileList
     ${fileListEngine}
     ${fileListShared}
+    ${fileListSharedGeom}
     ${fileListGame}
     ${fileListSharedEntities}
     ${fileListGameEntities}
+    ${engineEditorFiles}
+    ${extRenderdocFiles}
+    ${extNuklearFiles}
+    ${extGladFiles}
+    ${extImguiFiles}
 )
 
 function(GenerateBindingFor input_file ide_folder)
-    if(${input_file} MATCHES "\.cpp$")
+    if (${LIBCLANG_PATH})
+        set(ENV{LIBCLANG_PATH} "${LIBCLANG_PATH}")
+    else()
+        if (WIN32)
+            set(LIBCLANG_PATH "${CMAKE_CURRENT_BINARY_DIR}/thirdparty_sources/libclang/bin/libclang.dll")
+            set(ENV{LIBCLANG_PATH} "${CMAKE_CURRENT_BINARY_DIR}/thirdparty_sources/libclang/bin/libclang.dll")
+        endif()
+    endif()
+    if(${input_file} MATCHES "\\.cpp$")
         execute_process(
             COMMAND ${PYTHON} ${CMAKE_CURRENT_LIST_DIR}/binding/index.py cmake_output ${input_file}
             WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}
@@ -218,15 +403,16 @@ function(GenerateBindingFor input_file ide_folder)
             OUTPUT_STRIP_TRAILING_WHITESPACE
         )
         get_filename_component(output_file_target ${CMAKE_CURRENT_BINARY_DIR}/${input_file_target} ABSOLUTE)
+        get_filename_component(input_file_full ${CMAKE_CURRENT_LIST_DIR}/${input_file} ABSOLUTE)
 
         message(">> ${input_file} => ${output_file_target} (${input_file_target})")
 
         add_custom_command(
-            OUTPUT ${output_file_target}
+            OUTPUT ${input_file_target}
             WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}
-            COMMAND ${PYTHON} ${CMAKE_CURRENT_LIST_DIR}/binding/index.py gen ${CMAKE_CURRENT_BINARY_DIR} ${input_file} ${output_file_target}
+            COMMAND ${CMAKE_COMMAND} -E env "LIBCLANG_PATH=${LIBCLANG_PATH}" ${PYTHON} ${CMAKE_CURRENT_LIST_DIR}/binding/index.py gen ${CMAKE_CURRENT_BINARY_DIR} ${input_file} ${output_file_target}
             COMMENT "Preprocessing ${input_file}"
-            DEPENDS ${input_file}
+#            DEPENDS ${input_file_full}
         )
 
         set_source_files_properties(
@@ -244,7 +430,7 @@ endfunction()
 
 
 function(StoreCompileFlagsFor input_file)
-    if(${input_file} MATCHES "\.cpp$")
+    if(${input_file} MATCHES "\\.cpp$")
         execute_process(
             COMMAND ${PYTHON} ${CMAKE_CURRENT_LIST_DIR}/binding/index.py cmake_output ${input_file}
             WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}
@@ -273,6 +459,7 @@ endfunction()
 
 source_group("Sources\\Engine" FILES ${fileListEngine})
 source_group("Sources\\Shared" FILES ${fileListShared})
+source_group("Sources\\Shared\\Geom" FILES ${fileListSharedGeom})
 source_group("Sources\\Game" FILES ${fileListGame})
 source_group("Sources\\Entities\\Shared" FILES ${fileListSharedEntities})
 source_group("Sources\\Entities\\Game" FILES ${fileListGameEntities})
@@ -298,6 +485,11 @@ foreach(input_file ${fileListGameEntities})
     GenerateBindingFor(${input_file} "Generated\\\\Entities\\\\Game")
 endforeach()
 
+foreach(input_file ${engineEditorFiles})
+    GenerateBindingFor(${input_file} "Generated\\\\Engine\\\\Editor")
+endforeach()
+
+
 
 #Everything ready, now define the executables
 if (APPLE)
@@ -317,6 +509,11 @@ if (APPLE)
     )
 
     source_group("XCode Files" FILES ${fileListXCode})
+elseif(ANDROID)
+    add_library(Polyhedron SHARED
+        ${generatedFileList}
+        ${fileList}
+    )
 else()
     add_executable(Polyhedron
         ${generatedFileList}
@@ -324,71 +521,67 @@ else()
     )
 endif()
 
+#Options
+target_compile_definitions(Polyhedron
+    PRIVATE
+        $<$<CONFIG:Debug>:_DEBUG>
+        $<$<CONFIG:RelWithDebInfo>:_DEBUG>
+)
+
 #Link the libraries
+target_compile_features(Polyhedron
+    PUBLIC
+        cxx_std_20)
+target_compile_options(Polyhedron
+        PUBLIC
+            -Wno-attributes)
+
 target_include_directories(Polyhedron
     PRIVATE
         .
         shared
         game
         engine
-		${CMAKE_SOURCE_DIR}
-		${SDL2_INCLUDE_DIRS}
-		${SDL2_MIXER_INCLUDE_DIRS}
-		${SDL2_IMAGE_INCLUDE_DIRS}
-		${FREETYPE_INCLUDE_DIRS}
-		${ZLIB_INCLUDE_DIRS}
-		${OPENGL_INCLUDE_DIRS}        
+        ${THIRDPARTY_INCLUDE_DIRS}
 )
 
-if (APPLE)
     target_link_libraries(Polyhedron
+    PUBLIC
+        ${THIRDPARTY_LIBRARIES}
         enet
+)
 
-        ${COCOA}
-        ${COREFOUNDATION}
-        ${AUDIOTOOLBOX}
-        ${COREAUDIO}
-
-        ${SDL2_LIBRARIES}
-        ${SDL2_MAIN_LIBRARIES}
-		${SDL2_MIXER_LIBRARIES}
-		${SDL2_IMAGE_LIBRARIES}
-        ${FREETYPE_LIBRARIES}
-        ${ZLIB_LIBRARIES}
-        ${OPENGL_LIBRARIES}     
-        # ${AVFOUNDATION}
-        # ${APLICATIONSERVICES}
-        # ${FOUNDATION}
-        # ${COREFOUNDATION}
-    )
-else()
+if (NOT APPLE AND NOT ANDROID)
     target_link_libraries(Polyhedron
-        enet
+        PUBLIC
         rt
-        ${SDL2_LIBRARIES}
-		${SDL2_MIXER_LIBRARIES}
-		${SDL2_IMAGE_LIBRARIES}
-        ${FREETYPE_LIBRARIES}
-        ${ZLIB_LIBRARIES}
-        ${OPENGL_LIBRARIES}
     )
 endif()
+
+target_link_directories(Polyhedron
+    PUBLIC
+    ${THIRDPARTY_LINK_DIRS}
+)
 
 #Apple specific stuff
 if (APPLE)
     set_property(TARGET Polyhedron PROPERTY MACOSX_BUNDLE_INFO_PLIST ${CMAKE_CURRENT_LIST_DIR}/xcode/tesseract.plist.in)
-    set_target_properties(Polyhedron PROPERTIES RESOURCE "${CMAKE_CURRENT_LIST_DIR}/xcode/English.lproj/MainMenu.xib")
-    target_compile_features(Polyhedron PUBLIC cxx_std_14)
 
-    # set_source_files_properties(
-    #     ${CMAKE_CURRENT_LIST_DIR}/xcode/English.lproj/MainMenu.nib/designable.nib
-    #     PROPERTIES
-    #     MACOSX_PACKAGE_LOCATION Resources/MainMenu.nib
-    # )
+    find_program(IBTOOL ibtool HINTS "/usr/bin" "${OSX_DEVELOPER_ROOT}/usr/bin")
+    if (${IBTOOL} STREQUAL "IBTOOL-NOTFOUND")
+        message(SEND_ERROR "ibtool can not be found and is needed to compile the .xib files. It should have been installed with
+                    the Apple developer tools. The default system paths were searched in addition to ${OSX_DEVELOPER_ROOT}/usr/bin")
+    endif()
 
-    # set_source_files_properties(
-    #     ${CMAKE_CURRENT_LIST_DIR}/xcode/English.lproj/MainMenu.nib/keyedobjects.nib
-    #     PROPERTIES
-    #     MACOSX_PACKAGE_LOCATION Resources/MainMenu.nib
-    # )
+    add_custom_command (TARGET Polyhedron PRE_BUILD
+        COMMAND mkdir -p ${CMAKE_CURRENT_BINARY_DIR}/Polyhedron.app/Contents/Resources)
+
+    add_custom_command (TARGET Polyhedron POST_BUILD
+        COMMAND ${IBTOOL} --errors --warnings --notices --output-format human-readable-text
+        --compile ${CMAKE_CURRENT_BINARY_DIR}/Polyhedron.app/Contents/Resources/MainMenu.nib
+        ${CMAKE_CURRENT_LIST_DIR}/xcode/English.lproj/MainMenu.xib
+        OUTPUTS ${CMAKE_CURRENT_BINARY_DIR}/Polyhedron.app/Contents/Resources/MainMenu.nib
+        DEPENDS ${CMAKE_CURRENT_LIST_DIR}/xcode/English.lproj/MainMenu.xib
+        COMMENT "Compiling ${CMAKE_CURRENT_LIST_DIR}/xcode/English.lproj/MainMenu.xib")
+
 endif()

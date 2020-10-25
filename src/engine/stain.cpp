@@ -1,5 +1,15 @@
-#include "engine.h"
-#include "shared/entities/basephysicalentity.h"
+#include "engine/engine.h"
+#include "engine/texture.h"
+#include "engine/model.h"
+#include "engine/rendergl.h"
+#include "engine/rendermodel.h"
+#include "engine/renderlights.h"
+#include "engine/stain.h"
+#include "engine/menus.h"
+#include "engine/main/Renderer.h"
+#include "engine/Camera.h"
+#include "shared/entities/DynamicEntity.h"
+#include "game/entities/ModelEntity.h"
 
 struct stainvert
 {
@@ -686,22 +696,24 @@ struct stainrenderer
 
     void genmmtris(octaentities &oe)
     {
-        const auto &ents = entities::getents();
-        loopv(oe.mapmodels)
+        const auto &ents = getents();
+        for(auto& modelIdx : oe.mapmodels)
         {
-            auto e = ents[oe.mapmodels[i]];
+            auto e = dynamic_cast<ModelEntity*>(ents[modelIdx]);
+            if (!e)
+                continue;
             
 			model *m = loadmapmodel(e->model_idx);
             if(!m) continue;
 
             vec center, radius;
-			float rejectradius = m->collisionbox(center, radius), scale = e->attr5 > 0 ? e->attr5/100.0f : 1;
+			float rejectradius = m->collisionbox(center, radius), scale = e->scale > 0 ? e->scale/100.0f : 1;
             center.mul(scale);
 			if(staincenter.reject(vec(e->o).add(center), stainradius + rejectradius*scale)) continue;
 
             if(m->animated() || (!m->bih && !m->setBIH())) continue; 
 
-			int yaw = e->attr2, pitch = e->attr3, roll = e->attr4;
+			int yaw = e->d.x, pitch = e->d.y, roll = e->d.z;
 
 			m->bih->genstaintris(this, staincenter, stainradius, e->o, yaw, pitch, roll, scale);
         }
@@ -719,7 +731,7 @@ struct stainrenderer
                 if(cu.ext)
                 {
                     if(cu.ext->va && cu.ext->va->matsurfs) findmaterials(cu.ext->va);
-                    if(cu.ext->ents && cu.ext->ents->mapmodels.length()) genmmtris(*cu.ext->ents);            
+                    if(cu.ext->ents && cu.ext->ents->mapmodels.size()) genmmtris(*cu.ext->ents);
                 }
                 if(cu.children) gentris(cu.children, co, size>>1, cu.escaped);
                 else
@@ -809,7 +821,8 @@ VARP(maxstaindistance, 1, 512, 10000);
 
 void addstain(int type, const vec &center, const vec &surface, float radius, const bvec &color, int info)
 {
-    if(!showstains || type<0 || (size_t)type>=sizeof(stains)/sizeof(stains[0]) || center.dist(camera1->o) - radius > maxstaindistance) return;
+    assert(Camera::GetActiveCamera());
+    if(!showstains || type<0 || (size_t)type>=sizeof(stains)/sizeof(stains[0]) || center.dist(Camera::GetActiveCamera()->o) - radius > maxstaindistance) return;
     stainrenderer &d = stains[type];
     d.addstain(center, surface, radius, color, info);
 }
@@ -818,7 +831,3 @@ void genstainmmtri(stainrenderer *s, const vec v[3])
 {
     s->genmmtri(v);
 }
-
-
-// >>>>>>>>>> SCRIPTBIND >>>>>>>>>>>>>> //
-// <<<<<<<<<< SCRIPTBIND <<<<<<<<<<<<<< //

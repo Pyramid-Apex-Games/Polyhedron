@@ -1,5 +1,19 @@
-#include "engine.h"
-#include "ents.h"
+#include <fmt/format.h>
+#include "shared/cube.h"
+#include "shared/ents.h"
+#include "shared/entities/MovableEntity.h"
+#include "engine/pvs.h"
+#include "engine/rendergl.h"
+#include "engine/renderlights.h"
+#include "engine/aa.h"
+#include "engine/renderva.h"
+#include "engine/main/Compatibility.h"
+#include "engine/main/Renderer.h"
+#include "engine/Camera.h"
+#include "game/entities/ModelEntity.h"
+
+//extern from command.h
+extern int identflags;
 
 VAR(oqdynent, 0, 1, 1);
 VAR(animationinterpolationtime, 0, 200, 1000);
@@ -70,10 +84,9 @@ SCRIPTEXPORT void mdlellipsecollide(int *collide)
 SCRIPTEXPORT void mdltricollide(char *collide)
 {
 	checkmdl;
-	DELETEA(loadingmodel->collidemodel);
 	char *end = NULL;
 	int val = strtol(collide, &end, 0);
-	if(*end) { val = 1; loadingmodel->collidemodel = newcubestr(collide); }
+	if(*end) { val = 1; loadingmodel->collidemodel = collide; }
 	loadingmodel->collide = val ? COLLIDE_TRI : COLLIDE_NONE;
 }
 
@@ -196,7 +209,7 @@ SCRIPTEXPORT void mdlextendbb(float *x, float *y, float *z)
 SCRIPTEXPORT void mdlname()
 {
 	checkmdl;
-	result(loadingmodel->name);
+	result(loadingmodel->name.c_str());
 }
 
 #define checkragdoll \
@@ -275,21 +288,34 @@ SCRIPTEXPORT void rdanimjoints(int *on)
 }
 
 // mapmodels
-vector<mapmodelinfo> mapmodels;                     // Vector containing all the mapmodels (by index.)
-static const char * const mmprefix = "world/";      // The base subdirectory in the media/model/ folder to append the name to.
-static const int mmprefixlen = strlen(mmprefix);    // Strlen... C++-ify this.
+std::vector<mapmodelinfo> mapmodels;
 
 SCRIPTEXPORT void mapmodel(char *name)
 {
 	// Returns a reference to the added mapmodel info in the list.
-	mapmodelinfo &mmi = mapmodels.add();
+	auto path = std::string("model/") + name;
+	if (fileexists(path.c_str(), "a"))
+	{
+		mapmodelinfo &mmi = loadmodelinfo(path.c_str());
+		
+		// Setup the name.
+		if(name[0])
+		{
+			mmi.name = name;
+		}
+		else
+		{
+			mmi.name = "";
+		}
 
-	// Setup the name.
-	if(name[0]) formatcubestr(mmi.name, "%s%s", mmprefix, name);
-	else mmi.name[0] = '\0';
-
-	// Set all to NULL.
-	mmi.m = mmi.collide = NULL;
+		// Set all to NULL.
+		mmi.m = mmi.collide = nullptr;
+		conoutf(CON_INFO, "mapmodel prepared: %s", name);
+	}
+	else
+	{
+		conoutf(CON_WARN, "No such mapmodel: %s", name);
+	}
 }
 
 SCRIPTEXPORT void mmodel(char *name)
@@ -299,28 +325,76 @@ SCRIPTEXPORT void mmodel(char *name)
 
 SCRIPTEXPORT void mapmodelreset(int *n)
 {
-	if(!(identflags&IDF_OVERRIDDEN) && !game::allowedittoggle()) return;
-	mapmodels.shrink(clamp(*n, 0, mapmodels.length()));
+	if(!(identflags&IDF_OVERRIDDEN) && !game::allowedittoggle())
+	    return;
+	for(int i = clamp(*n, 0, (int)mapmodels.size()); i >= 0 && !mapmodels.empty(); --i)
+    {
+        mapmodels.pop_back();
+    }
 }
 
-const char * mapmodelname(int i)
+std::string mapmodelname(int i)
 {
-    return mapmodels.inrange(i) ? mapmodels[i].name : NULL;
+    return (mapmodels.size() > i && i >= 0) ? mapmodels[i].name : "";
 }
 
 SCRIPTEXPORT_AS(mapmodelname) void mapmodelname_scriptimpl(int *index, int *prefix)
 {
-    if(mapmodels.inrange(*index))
+    if(mapmodels.size() > *index && *index >= 0)
     {
-        result(mapmodels[*index].name[0] ? mapmodels[*index].name + (*prefix ? 0 : mmprefixlen) : "");
+        result(!mapmodels[*index].name.empty() ? mapmodels[*index].name.c_str() : "");
     }
 }
 
 SCRIPTEXPORT void nummapmodels()
 {
-    intret(mapmodels.length());
+    intret(mapmodels.size());
 }
 
+//static inlines from rendermodel.h
+model *loadmapmodel(ModelEntity* entity)
+{
+    return entity->getModel();
+}
+
+model *loadmapmodel(int n)
+{
+    if(mapmodels.size() > n && n >= 0)
+    {
+        model *m = mapmodels[n].m;
+        return m ? m : getmodel(n);
+    }
+    return NULL;
+}
+
+model *loadmapmodel(const char *filename)
+{
+    for(auto& mm : mapmodels)
+    {
+        // Compare if the mapmodel's values equal each other.
+        model *m = mm.m;
+
+        if (m->name == filename)
+        {
+            // If they equal each other, it means we don't have to load it in again. Just return the pointer.
+            if (!m)
+            {
+                auto [model, name] = loadmodel(filename);
+                return model;
+            }
+            return m;
+        }
+        else
+            return nullptr;
+    }
+    return nullptr;
+}
+
+
+mapmodelinfo *getmminfo(int n)
+{
+    return (mapmodels.size() > n && n >= 0) ? &mapmodels[n] : NULL;
+}
 // model registry
 
 hashnameset<model *> models;
@@ -339,8 +413,14 @@ void flushpreloadedmodels(bool msg)
 	loopv(preloadmodels)
 	{
 		loadprogress = float(i+1)/preloadmodels.length();
-		model *m = loadmodel(preloadmodels[i], -1, msg);
-		if(!m) { if(msg) conoutf(CON_WARN, "could not load model: %s", preloadmodels[i]); }
+		auto [m, name] = loadmodel(preloadmodels[i], -1, msg);
+		if(!m)
+		{
+		    if(msg)
+            {
+		        conoutf(CON_WARN, "could not load model: %s", preloadmodels[i]);
+            }
+		}
 		else
 		{
 			m->preloadmeshes();
@@ -353,12 +433,12 @@ void flushpreloadedmodels(bool msg)
 
 void preloadusedmapmodels(bool msg, bool bih)
 {
-	auto &ents = entities::getents();
+	auto &ents = getents();
 	vector<int> used;
 	loopv(ents)
 	{
-		auto e = ents[i];
-		if(e->et_type==ET_MAPMODEL && e->et_type >= 0 && used.find(e->et_type) < 0) used.add(e->model_idx);
+		auto e = dynamic_cast<ModelEntity*>(ents[i]);
+		if(e && used.find(e->model_idx) < 0) used.add(e->model_idx);
 	}
 
 	vector<const char *> col;
@@ -366,25 +446,25 @@ void preloadusedmapmodels(bool msg, bool bih)
 	{
 		loadprogress = float(i+1)/used.length();
 		int mmindex = used[i];
-		if(!mapmodels.inrange(mmindex)) { if(msg) conoutf(CON_WARN, "could not find map model: %d", mmindex); continue; }
+		if(mapmodels.size() >= mmindex || mmindex <= 0) { if(msg) conoutf(CON_WARN, "could not find map model: %d", mmindex); continue; }
 		mapmodelinfo &mmi = mapmodels[mmindex];
 		if(!mmi.name[0]) continue;
-		model *m = loadmodel(NULL, mmindex, msg);
-		if(!m) { if(msg) conoutf(CON_WARN, "could not load map model: %s", mmi.name); }
+		model *m = getmodel(mmindex, msg);
+		if(!m) { if(msg) conoutf(CON_WARN, "could not load map model: %s", mmi.name.c_str()); }
 		else
 		{
 			if(bih) m->preloadBIH();
-			else if(m->collide == COLLIDE_TRI && !m->collidemodel && m->bih) m->setBIH();
+			else if(m->collide == COLLIDE_TRI && m->collidemodel.empty() && m->bih) m->setBIH();
 			m->preloadmeshes();
 			m->preloadshaders();
-			if(m->collidemodel && col.htfind(m->collidemodel) < 0) col.add(m->collidemodel);
+			if(!m->collidemodel.empty() && col.htfind(m->collidemodel.c_str()) < 0) col.add(m->collidemodel.c_str());
 		}
 	}
 
 	loopv(col)
 	{
 		loadprogress = float(i+1)/col.length();
-		model *m = loadmodel(col[i], -1, msg);
+		auto [m, n] = loadmodel(col[i], -1, msg);
 		if(!m) { if(msg) conoutf(CON_WARN, "could not load collide model: %s", col[i]); }
 		else if(!m->bih) m->setBIH();
 	}
@@ -392,58 +472,74 @@ void preloadusedmapmodels(bool msg, bool bih)
 	loadprogress = 0;
 }
 
-model *loadmodel(const char *name, int i, bool msg)
+model* getmodel(int i, bool msg)
 {
-	if(!name)
+    auto [model, name] = loadmodel("", i, msg);
+    return model;
+}
+
+std::tuple<model *, std::string> loadmodel(const std::string& _name, int i, bool msg)
+{
+    std::string name = _name;
+	model *m = nullptr;
+	if(name.empty())
 	{
-		if(!mapmodels.inrange(i)) return NULL;
+		if(mapmodels.size() <= i || i < 0) return std::tie(m, name);
 		mapmodelinfo &mmi = mapmodels[i];
-		if(mmi.m) return mmi.m;
+		if(mmi.m) return std::tie(mmi.m, name);
 		name = mmi.name;
 	}
-	model **mm = models.access(name);
-	model *m;
+	model **mm = models.access(name.c_str());
 	if(mm) m = *mm;
 	else
 	{
-		if(!name[0] || loadingmodel || failedmodels.find(name, NULL)) return NULL;
+		if(
+			name.empty() ||
+			loadingmodel ||
+			failedmodels.find(name.c_str(), NULL)
+		)
+			return std::tie(m, name);
 		if(msg)
 		{
-			defformatcubestr(filename, "media/model/%s", name);
-			renderprogress(loadprogress, filename);
+		    auto filename = fmt::format("media/model/{}", name);
+			renderprogress(loadprogress, filename.c_str());
 		}
 		loopi(NUMMODELTYPES)
 		{
-			m = modeltypes[i](name);
-			if(!m) continue;
+			m = modeltypes[i](name.c_str());
+			if(!m)
+            {
+			    continue;
+            }
 			loadingmodel = m;
-			if(m->load()) break;
+			if(m->load())
+            {
+			    break;
+            }
 			DELETEP(m);
 		}
 		loadingmodel = NULL;
 		if(!m)
 		{
-			failedmodels.add(newcubestr(name));
-			return NULL;
+			failedmodels.add(newcubestr(name.c_str()));
+			return std::tie(m, name);
 		}
-		models.access(m->name, m);
+		models.access(m->name.c_str(), m);
 	}
-	if(mapmodels.inrange(i) && !mapmodels[i].m) mapmodels[i].m = m;
-	return m;
+	if(mapmodels.size() > i && i >= 0 && !mapmodels[i].m) mapmodels[i].m = m;
+	return std::tie(m, name);
 }
 
-mapmodelinfo loadmodelinfo(const char *name, entities::classes::CoreEntity *ent) {
-	mapmodelinfo &mmi = mapmodels.add();
-
+mapmodelinfo& loadmodelinfo(const char *name)
+{
 	// Preload first.
 	preloadmodel(name);
 
+	mapmodelinfo &mmi = mapmodels.emplace_back();
+
 	// Load in the model.
-	mmi.m = loadmodel(name, -1, true);
-	if (mmi.m != NULL) {
-		copycubestr(mmi.name, name, strlen(name));
-		ent->onAttributeSet("model", mmi.name);
-	}
+	std::string tmp;
+	std::tie(mmi.m, tmp) = loadmodel(name, -1, true);
 
 	return mmi;
 }
@@ -462,9 +558,8 @@ SCRIPTEXPORT void clearmodel(char *name)
 {
 	model *m = models.find(name, NULL);
 	if(!m) { conoutf("model %s is not loaded", name); return; }
-	loopv(mapmodels)
+	for(mapmodelinfo &mmi : mapmodels)
 	{
-		mapmodelinfo &mmi = mapmodels[i];
 		if(mmi.m == m) mmi.m = NULL;
 		if(mmi.collide == m) mmi.collide = NULL;
 	}
@@ -491,7 +586,7 @@ struct batchedmodel
 		int visible;
 		int culled;
 	};
-	entities::classes::BaseDynamicEntity *d;
+	ModelEntity *d;
 	int next;
 };
 struct modelbatch
@@ -547,7 +642,7 @@ static inline void renderbatchedmodel(model *m, const batchedmodel &b)
 		if(b.flags&MDL_FULLBRIGHT) anim |= ANIM_FULLBRIGHT;
 	}
 
-	m->render(anim, b.basetime, b.basetime2, b.pos, b.yaw, b.pitch, b.roll, (entities::classes::BaseDynamicEntity*)b.d, a, b.sizescale, b.colorscale);
+	m->render(anim, b.basetime, b.basetime2, b.pos, b.yaw, b.pitch, b.roll, (MovableEntity*)b.d, a, b.sizescale, b.colorscale);
 }
 
 VAR(maxmodelradiusdistance, 10, 200, 1000);
@@ -557,11 +652,13 @@ static inline void enablecullmodelquery()
 	startbb();
 }
 
-static inline void rendercullmodelquery(model *m, entities::classes::BaseDynamicEntity *d, const vec &center, float radius)
+static inline void rendercullmodelquery(model *m, MovableEntity *d, const vec &center, float radius)
 {
-	if(fabs(camera1->o.x-center.x) < radius+1 &&
-	   fabs(camera1->o.y-center.y) < radius+1 &&
-	   fabs(camera1->o.z-center.z) < radius+1)
+    assert(Camera::GetActiveCamera());
+    const auto& o = Camera::GetActiveCamera()->o;
+	if(fabs(o.x-center.x) < radius+1 &&
+	   fabs(o.y-center.y) < radius+1 &&
+	   fabs(o.z-center.z) < radius+1)
 	{
 		d->query = NULL;
 		return;
@@ -579,9 +676,10 @@ static inline void disablecullmodelquery()
 	endbb();
 }
 
-static inline int cullmodel(model *m, const vec &center, float radius, int flags, entities::classes::BaseDynamicEntity *d = NULL)
+static inline int cullmodel(model *m, const vec &center, float radius, int flags, ModelEntity *d = NULL)
 {
-	if(flags&MDL_CULL_DIST && center.dist(camera1->o)/radius>maxmodelradiusdistance) return MDL_CULL_DIST;
+    assert(Camera::GetActiveCamera());
+	if(flags&MDL_CULL_DIST && center.dist(Camera::GetActiveCamera()->o)/radius>maxmodelradiusdistance) return MDL_CULL_DIST;
 	if(flags&MDL_CULL_VFC && isfoggedsphere(radius, center)) return MDL_CULL_VFC;
 	if(flags&MDL_CULL_OCCLUDED && modeloccluded(center, radius)) return MDL_CULL_OCCLUDED;
 	else if(flags&MDL_CULL_QUERY && d->query && d->query->owner==d && checkquery(d->query)) return MDL_CULL_QUERY;
@@ -898,11 +996,16 @@ void clearbatchedmapmodels()
 void rendermapmodel(int idx, int anim, const vec &o, float yaw, float pitch, float roll, int flags, int basetime, float size)
 {
 	// WatIsDeze: TODO: Remove.
-	conoutf("rendermapmodel: %d (%.2f/%.2f/%.2f) %s", idx, o.x, o.y, o.z, mapmodels.inrange(idx) ? "found" : "not found");
+//	conoutf("rendermapmodel: %d (%.2f/%.2f/%.2f) %s", idx, o.x, o.y, o.z, mapmodels.inrange(idx) ? "found" : "not found");
 
-	if(!mapmodels.inrange(idx)) return;
+	if(mapmodels.size() <= idx && idx < 0) return;
 	mapmodelinfo &mmi = mapmodels[idx];
-	model *m = mmi.m ? mmi.m : loadmodel(mmi.name);
+	model *m = mmi.m ? mmi.m : nullptr;
+	if (!m)
+    {
+    	std::string tmp;
+	    std::tie(m, tmp) = loadmodel(mmi.name);
+    }
 	if(!m) return;
 
 	vec center, bbradius;
@@ -944,25 +1047,26 @@ void rendermapmodel(int idx, int anim, const vec &o, float yaw, float pitch, flo
 	addbatchedmodel(m, b, batchedmodels.length()-1);
 }
 
-void rendermodel(const char *mdl, int anim, const vec &o, float yaw, float pitch, float roll, int flags, entities::classes::BaseDynamicEntity *d, modelattach *a, int basetime, int basetime2, float size, const vec4 &color)
+void rendermodel(const char *mdl, int anim, const vec &o, float yaw, float pitch, float roll, int flags, ModelEntity *d, modelattach *a, int basetime, int basetime2, float size, const vec4 &color)
 {
-	model *m = loadmodel(mdl);
+	auto [m, name] = loadmodel(mdl);
 	if(!m) return;
 
 	vec center, bbradius;
 	m->boundbox(center, bbradius);
 	float radius = bbradius.magnitude();
-	if(d)
+	MovableEntity *dynent = dynamic_cast<MovableEntity*>(d);
+	if(dynent)
 	{
-		if(d->ragdoll)
+		if(dynent->ragdoll)
 		{
-			if(anim&ANIM_RAGDOLL && d->ragdoll->millis >= basetime)
+			if(anim&ANIM_RAGDOLL && dynent->ragdoll->millis >= basetime)
 			{
 				radius = max(radius, d->ragdoll->radius);
-				center = d->ragdoll->center;
+				center = dynent->ragdoll->center;
 				goto hasboundbox;
 			}
-			DELETEP(d->ragdoll);
+			DELETEP(dynent->ragdoll);
 		}
 		if(anim&ANIM_RAGDOLL) flags &= ~(MDL_CULL_VFC | MDL_CULL_OCCLUDED | MDL_CULL_QUERY);
 	}
@@ -978,7 +1082,11 @@ hasboundbox:
 
 	if(a) for(int i = 0; a[i].tag; i++)
 	{
-		if(a[i].name) a[i].m = loadmodel(a[i].name);
+		if(a[i].name)
+        {
+		    std::string tmp;
+		    std::tie(a[i].m, tmp) = loadmodel(a[i].name);
+        }
 	}
 
 	if(flags&MDL_CULL_QUERY)
@@ -1035,21 +1143,25 @@ hasboundbox:
 	addbatchedmodel(m, b, batchedmodels.length()-1);
 }
 
-int intersectmodel(const std::string &mdl, int anim, const vec &pos, float yaw, float pitch, float roll, const vec &o, const vec &ray, float &dist, int mode, entities::classes::BaseDynamicEntity *d, modelattach *a, int basetime, int basetime2, float size)
+int intersectmodel(const std::string &mdl, int anim, const vec &pos, float yaw, float pitch, float roll, const vec &o, const vec &ray, float &dist, int mode, MovableEntity *d, modelattach *a, int basetime, int basetime2, float size)
 {
-	model *m = loadmodel(mdl.c_str());
+	auto [m, name] = loadmodel(mdl.c_str());
 	if(!m) return -1;
 	if(d && d->ragdoll && (!(anim&ANIM_RAGDOLL) || d->ragdoll->millis < basetime)) DELETEP(d->ragdoll);
 	if(a) for(int i = 0; a[i].tag; i++)
 	{
-		if(a[i].name) a[i].m = loadmodel(a[i].name);
+		if(a[i].name)
+        {
+		    std::string tmp;
+		    std::tie(a[i].m, tmp) = loadmodel(a[i].name);
+        }
 	}
 	return m->intersect(anim, basetime, basetime2, pos, yaw, pitch, roll, d, a, size, o, ray, dist, mode);
 }
 
 void abovemodel(vec &o, const std::string &mdl)
 {
-	model *m = loadmodel(mdl.c_str());
+	auto [m, tmp] = loadmodel(mdl.c_str());
 	if(!m) return;
 	o.z += m->above();
 }
@@ -1117,9 +1229,9 @@ void loadskin(const char *dir, const char *altdir, Texture *&skin, Texture *&mas
 	tryload(masks, NULL, NULL, "masks");
 }
 
-void setbbfrommodel(entities::classes::BasePhysicalEntity *d, const std::string &mdl)
+void setbbfrommodel(MovableEntity *d, const std::string &mdl)
 {
-	model *m = loadmodel(mdl.c_str());
+	auto [m, name] = loadmodel(mdl.c_str());
 	if(!m) return;
 	vec center, radius;
 	m->collisionbox(center, radius);

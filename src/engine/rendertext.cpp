@@ -1,184 +1,8 @@
-#include "engine.h"
-
-static hashnameset<font> fonts;
-static font *fontdef = NULL;
-static int fontdeftex = 0;
-
-font *curfont = NULL;
-int curfonttex = 0;
-
-SCRIPTEXPORT_AS(font) void newfont(char *name, char *tex, int *defaultw, int *defaulth, int *scale)
-{
-	font *f = &fonts[name];
-	if(!f->name) f->name = newcubestr(name);
-	f->texs.shrink(0);
-	f->texs.add(textureload(tex));
-	f->chars.shrink(0);
-	f->charoffset = '!';
-	f->defaultw = *defaultw;
-	f->defaulth = *defaulth;
-	f->scale = *scale > 0 ? *scale : f->defaulth;
-	f->bordermin = 0.49f;
-	f->bordermax = 0.5f;
-	f->outlinemin = -1;
-	f->outlinemax = 0;
-
-	fontdef = f;
-	fontdeftex = 0;
-}
-
-SCRIPTEXPORT void fontborder(float *bordermin, float *bordermax)
-{
-	if(!fontdef) return;
-
-	fontdef->bordermin = *bordermin;
-	fontdef->bordermax = max(*bordermax, *bordermin+0.01f);
-}
-
-SCRIPTEXPORT void fontoutline(float *outlinemin, float *outlinemax)
-{
-	if(!fontdef) return;
-
-	fontdef->outlinemin = min(*outlinemin, *outlinemax-0.01f);
-	fontdef->outlinemax = *outlinemax;
-}
-
-SCRIPTEXPORT void fontoffset(char *c)
-{
-	if(!fontdef) return;
-
-	fontdef->charoffset = c[0];
-}
-
-SCRIPTEXPORT void fontscale(int *scale)
-{
-	if(!fontdef) return;
-
-	fontdef->scale = *scale > 0 ? *scale : fontdef->defaulth;
-}
-
-SCRIPTEXPORT void fonttex(char *s)
-{
-	if(!fontdef) return;
-
-	Texture *t = textureload(s);
-	loopv(fontdef->texs) if(fontdef->texs[i] == t) { fontdeftex = i; return; }
-	fontdeftex = fontdef->texs.length();
-	fontdef->texs.add(t);
-}
-
-SCRIPTEXPORT void fontchar(float *x, float *y, float *w, float *h, float *offsetx, float *offsety, float *advance)
-{
-	if(!fontdef) return;
-
-	font::charinfo &c = fontdef->chars.add();
-	c.x = *x;
-	c.y = *y;
-	c.w = *w ? *w : fontdef->defaultw;
-	c.h = *h ? *h : fontdef->defaulth;
-	c.offsetx = *offsetx;
-	c.offsety = *offsety;
-	c.advance = *advance ? *advance : c.offsetx + c.w;
-	c.tex = fontdeftex;
-}
-
-SCRIPTEXPORT void fontskip(int *n)
-{
-	if(!fontdef) return;
-	loopi(max(*n, 1))
-	{
-		font::charinfo &c = fontdef->chars.add();
-		c.x = c.y = c.w = c.h = c.offsetx = c.offsety = c.advance = 0;
-		c.tex = 0;
-	}
-}
-
-SCRIPTEXPORT void fontalias(const char *dst, const char *src)
-{
-	font *s = fonts.access(src);
-	if(!s) return;
-	font *d = &fonts[dst];
-	if(!d->name) d->name = newcubestr(dst);
-	d->texs = s->texs;
-	d->chars = s->chars;
-	d->charoffset = s->charoffset;
-	d->defaultw = s->defaultw;
-	d->defaulth = s->defaulth;
-	d->scale = s->scale;
-	d->bordermin = s->bordermin;
-	d->bordermax = s->bordermax;
-	d->outlinemin = s->outlinemin;
-	d->outlinemax = s->outlinemax;
-
-	fontdef = d;
-	fontdeftex = d->texs.length()-1;
-}
-
-font *findfont(const char *name)
-{
-	return fonts.access(name);
-}
-
-bool setfont(const char *name)
-{
-	font *f = fonts.access(name);
-	if(!f) return false;
-	curfont = f;
-	return true;
-}
-
-static vector<font *> fontstack;
-
-void pushfont()
-{
-	fontstack.add(curfont);
-}
-
-bool popfont()
-{
-	if(fontstack.empty()) return false;
-	curfont = fontstack.pop();
-	return true;
-}
-
-void gettextres(int &w, int &h)
-{
-	if(w < MINRESW || h < MINRESH)
-	{
-		if(MINRESW > w*MINRESH/h)
-		{
-			h = h*MINRESW/w;
-			w = MINRESW;
-		}
-		else
-		{
-			w = w*MINRESH/h;
-			h = MINRESH;
-		}
-	}
-}
-
-float text_widthf(const char *str)
-{
-	float width, height;
-	text_boundsf(str, width, height);
-	return width;
-}
-
-#define FONTTAB (4*FONTW)
-#define TEXTTAB(x) ((int((x)/FONTTAB)+1.0f)*FONTTAB)
-
-SCRIPTEXPORT void tabify(const char *str, int *numtabs)
-{
-	int tw = max(*numtabs, 0)*FONTTAB-1, tabs = 0;
-	for(float w = text_widthf(str); w <= tw; w = TEXTTAB(w)) ++tabs;
-	int len = strlen(str);
-	char *tstr = newcubestr(len + tabs);
-	memcpy(tstr, str, len);
-	memset(&tstr[len], '\t', tabs);
-	tstr[len+tabs] = '\0';
-	cubestrret(tstr);
-}
+#include "shared/cube.h"
+//#include "engine/engine.h"
+#include "engine/texture.h"
+#include "engine/rendergl.h"
+#include "engine/engine/font.h"
 
 void draw_textf(const char *fstr, float left, float top, ...)
 {
@@ -191,12 +15,12 @@ float textscale = 1;
 
 static float draw_char(Texture *&tex, int c, float x, float y, float scale)
 {
-	font::charinfo &info = curfont->chars[c-curfont->charoffset];
-	if(tex != curfont->texs[info.tex])
+	font::charinfo &info = font::CurrentFont()->chars[c-font::CurrentFont()->charoffset];
+	if(tex != font::CurrentFont()->texs[info.tex])
 	{
 		xtraverts += gle::end();
-		tex = curfont->texs[info.tex];
-		glBindTexture(GL_TEXTURE_2D, tex->id);
+		tex = font::CurrentFont()->texs[info.tex];
+        glCheckError(glBindTexture(GL_TEXTURE_2D, tex->id));
 	}
 
 	x *= textscale;
@@ -265,19 +89,19 @@ static void text_color(char c, char *stack, int size, int &sp, bvec color, int a
 }
 
 #define TEXTSKELETON \
-	float y = 0, x = 0, scale = curfont->scale/float(curfont->defaulth);\
+	float y = 0, x = 0, scale = font::CurrentFont()->scale/float(font::CurrentFont()->defaulth);\
 	int i;\
 	for(i = 0; str[i]; i++)\
 	{\
 		TEXTINDEX(i)\
 		int c = uchar(str[i]);\
 		if(c=='\t')      { x = TEXTTAB(x); TEXTWHITE(i) }\
-		else if(c==' ')  { x += scale*curfont->defaultw; TEXTWHITE(i) }\
+		else if(c==' ')  { x += scale*font::CurrentFont()->defaultw; TEXTWHITE(i) }\
 		else if(c=='\n') { TEXTLINE(i) x = 0; y += FONTH; }\
 		else if(c=='\f') { if(str[i+1]) { i++; TEXTCOLOR(i) }}\
-		else if(curfont->chars.inrange(c-curfont->charoffset))\
+		else if(font::CurrentFont()->chars.inrange(c-font::CurrentFont()->charoffset))\
 		{\
-			float cw = scale*curfont->chars[c-curfont->charoffset].advance;\
+			float cw = scale*font::CurrentFont()->chars[c-font::CurrentFont()->charoffset].advance;\
 			if(cw <= 0) continue;\
 			if(maxwidth >= 0)\
 			{\
@@ -287,8 +111,8 @@ static void text_color(char c, char *stack, int size, int &sp, bvec color, int a
 				{\
 					int c = uchar(str[i+1]);\
 					if(c=='\f') { if(str[i+2]) i++; continue; }\
-					if(!curfont->chars.inrange(c-curfont->charoffset)) break;\
-					float cw = scale*curfont->chars[c-curfont->charoffset].advance;\
+					if(!font::CurrentFont()->chars.inrange(c-font::CurrentFont()->charoffset)) break;\
+					float cw = scale*font::CurrentFont()->chars[c-font::CurrentFont()->charoffset].advance;\
 					if(cw <= 0 || w + cw > maxwidth) break;\
 					w += cw;\
 				}\
@@ -306,7 +130,7 @@ static void text_color(char c, char *stack, int size, int &sp, bvec color, int a
 					TEXTINDEX(j)\
 					int c = uchar(str[j]);\
 					if(c=='\f') { if(str[j+1]) { j++; TEXTCOLOR(j) }}\
-					else { float cw = scale*curfont->chars[c-curfont->charoffset].advance; TEXTCHAR(j) }\
+					else { float cw = scale*font::CurrentFont()->chars[c-font::CurrentFont()->charoffset].advance; TEXTCHAR(j) }\
 				}
 
 #define TEXTEND(cursor) if(cursor >= i) { do { TEXTINDEX(cursor); } while(0); }
@@ -387,11 +211,11 @@ void draw_text(const char *str, float left, float top, int r, int g, int b, int 
 	float cx = -FONTW, cy = 0;
 	bool usecolor = true;
 	if(a < 0) { usecolor = false; a = -a; }
-	Texture *tex = curfont->texs[0];
+	Texture *tex = font::CurrentFont()->texs[0];
 	(textshader ? textshader : hudtextshader)->set();
-	LOCALPARAMF(textparams, curfont->bordermin, curfont->bordermax, curfont->outlinemin, curfont->outlinemax);
-	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-	glBindTexture(GL_TEXTURE_2D, tex->id);
+	LOCALPARAMF(textparams, font::CurrentFont()->bordermin, font::CurrentFont()->bordermax, font::CurrentFont()->outlinemin, font::CurrentFont()->outlinemax);
+    glCheckError(glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA));
+    glCheckError(glBindTexture(GL_TEXTURE_2D, tex->id));
 	gle::color(color, a);
 	gle::defvertex(textmatrix ? 3 : 2);
 	gle::deftexcoord0();
@@ -414,12 +238,6 @@ void draw_text(const char *str, float left, float top, int r, int g, int b, int 
 	#undef TEXTWORD
 }
 
-void reloadfonts()
-{
-	enumerate(fonts, font, f,
-		loopv(f.texs) if(!reloadtexture(*f.texs[i])) fatal("failed to reload font texture");
-	);
-}
 
 
 // >>>>>>>>>> SCRIPTBIND >>>>>>>>>>>>>> //

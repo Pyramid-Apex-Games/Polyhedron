@@ -3,7 +3,7 @@
 #import <crt_externs.h>
 
 // If you make a MOD then please change this, the bundle indentifier, the file extensions (.ogz, .dmo), and the url registration.
-#define kGAMEDIR @"tesseract"
+#define kGAMEDIR @"Polyhedron"
 
 @implementation Launcher
 

@@ -37,9 +37,6 @@ void DoorEntity::think()
 
 }
 
-void DoorEntity::render(game::RenderPass pass) {
-}
-
 void DoorEntity::onAnimate(int &anim, int &basetime)
 {
 //    conoutf("OnAnimate: %i %i", anim, basetime);

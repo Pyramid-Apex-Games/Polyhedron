@@ -7,6 +7,7 @@
 #include "engine/SoundConfig.h"
 #include "engine/main/Application.h"
 #include "engine/main/Compatibility.h"
+#include "engine/Camera.h"
 #include "game/entities/SkeletalEntity.h"
 
 #include <SDL_mixer.h>
@@ -465,6 +466,9 @@ void stopmapsound(Entity *e)
 
 void checkmapsounds()
 {
+    const auto& activeCamera = Camera::GetActiveCamera();
+    if (!activeCamera) return;
+
     const auto& ents = getents();
     loopv(ents)
     {
@@ -472,7 +476,7 @@ void checkmapsounds()
         if (!e)
 			continue;
 
-		if(camera1->o.dist(e->o) < e->radius)
+		if(activeCamera->o.dist(e->o) < e->radius)
         {
 			if(!(e->flags&EntityFlags::EF_SOUND)) playsound(e->soundIndex, NULL, e, SND_MAP, -1);
         }
@@ -487,11 +491,14 @@ VAR(maxsoundradius, 1, 340, 0);
 bool updatechannel(soundchannel &chan)
 {
     if(!chan.slot) return false;
+    const auto& activeCamera = Camera::GetActiveCamera();
+    if (!activeCamera) return false;
+
     int vol = soundvol, pan = 255/2;
     if(chan.hasloc())
     {
         vec v;
-        float dist = chan.loc.dist(camera1->o, v);
+        float dist = chan.loc.dist(activeCamera->o, v);
         int rad = 0; // int rad = maxsoundradius;
         if(chan.ent)
         {
@@ -507,7 +514,7 @@ bool updatechannel(soundchannel &chan)
         if(rad > 0) vol -= int(clamp(dist/rad, 0.0f, 1.0f)*soundvol); // simple mono distance attenuation
         if(stereo && (v.x != 0 || v.y != 0) && dist>0)
         {
-            v.rotate_around_z(-camera1->d.x*RAD);
+            v.rotate_around_z(-activeCamera->d.x*RAD);
             pan = int(255.9f*(0.5f - 0.5f*v.x/v.magnitude2())); // range is from 0 (left) to 255 (right)
         }
     }
@@ -595,13 +602,15 @@ int playsound(int n, const vec *loc, Entity *ent, int flags, int loops, int fade
     if(!sounds.configs.inrange(n)) { conoutf(CON_WARN, "unregistered sound: %d", n); return -1; }
     soundconfig &config = sounds.configs[n];
 
-    if(loc)
+    const auto& activeCamera = Camera::GetActiveCamera();
+
+    if(loc && activeCamera)
     {
         // cull sounds that are unlikely to be heard
         int rad = radius > 0 ? (maxsoundradius ? min(maxsoundradius, radius) : radius) : maxsoundradius;
         int maxrad = (ent != nullptr ? ent->soundRadius : maxsoundradius);
         if(radius <= 0 || maxrad < radius) radius = maxrad;
-        if(camera1->o.dist(*loc) > 1.5f*radius)
+        if(activeCamera->o.dist(*loc) > 1.5f*radius)
         {
             if(channels.inrange(chanid) && sounds.playing(channels[chanid], config))
             {

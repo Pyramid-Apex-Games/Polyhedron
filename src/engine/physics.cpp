@@ -10,6 +10,7 @@
 #include "engine/rendermodel.h"
 #include "engine/mpr.h"
 #include "engine/main/Compatibility.h"
+#include "engine/Camera.h"
 
 #include "game/entities/SkeletalEntity.h"
 #include "game/entities/ModelEntity.h"
@@ -1809,7 +1810,10 @@ SCRIPTEXPORT void phystest()
 {
     static const char * const states[] = {"float", "fall", "slide", "slope", "floor", "step up", "step down", "bounce"};
     printf ("PHYS(pl): %s, air %d, floor: (%f, %f, %f), vel: (%f, %f, %f), g: (%f, %f, %f)\n", states[player->physstate], player->timeinair, player->floor.x, player->floor.y, player->floor.z, player->vel.x, player->vel.y, player->vel.z, player->falling.x, player->falling.y, player->falling.z);
-    printf ("PHYS(cam): %s, air %d, floor: (%f, %f, %f), vel: (%f, %f, %f), g: (%f, %f, %f)\n", states[camera1->physstate], camera1->timeinair, camera1->floor.x, camera1->floor.y, camera1->floor.z, camera1->vel.x, camera1->vel.y, camera1->vel.z, camera1->falling.x, camera1->falling.y, camera1->falling.z);
+
+    const auto& activeCamera = Camera::GetActiveCamera();
+    if (!activeCamera)
+        printf ("PHYS(cam): %s, air %d, floor: (%f, %f, %f), vel: (%f, %f, %f), g: (%f, %f, %f)\n", states[activeCamera->physstate], activeCamera->timeinair, activeCamera->floor.x, activeCamera->floor.y, activeCamera->floor.z, activeCamera->vel.x, activeCamera->vel.y, activeCamera->vel.z, activeCamera->falling.x, activeCamera->falling.y, activeCamera->falling.z);
 }
 
 void vecfromyawpitch(float yaw, float pitch, int move, int strafe, vec &m)
@@ -1882,7 +1886,7 @@ void modifyvelocity(MovableEntity *pl, bool local, bool water, bool floating, in
     vec m(0.0f, 0.0f, 0.0f);
     if((pl->move || pl->strafe) && allowmove)
     {
-        vecfromyawpitch(pl->d.x, floating || water || pl == camera1 ? pl->d.y : 0, pl->move, pl->strafe, m);
+        vecfromyawpitch(pl->d.x, floating || water || pl == Camera::GetActiveCamera() ? pl->d.y : 0, pl->move, pl->strafe, m);
 
         if(!floating && pl->physstate >= PHYS_SLOPE)
         {
@@ -2198,10 +2202,3 @@ bool entinmap(MovableEntity *d, bool avoidplayers)        // brute force but eff
     conoutf(CON_WARN, "can't find entity spawn spot! (%.1f, %.1f, %.1f)", d->o.x, d->o.y, d->o.z);
     return false;
 }
-
-
-// >>>>>>>>>> SCRIPTBIND >>>>>>>>>>>>>> //
-#if 0
-#include "/Users/micha/dev/ScMaMike/src/build/binding/..+engine+physics.binding.cpp"
-#endif
-// <<<<<<<<<< SCRIPTBIND <<<<<<<<<<<<<< //

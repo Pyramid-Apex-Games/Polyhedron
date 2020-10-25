@@ -28,9 +28,6 @@ void DecalEntity::on(const Event& event)
 {
 }
 
-void DecalEntity::render(game::RenderPass pass)
-{
-}
 
 
 ADD_ENTITY_TO_FACTORY_SERIALIZED(DecalEntity, "decal", Entity);

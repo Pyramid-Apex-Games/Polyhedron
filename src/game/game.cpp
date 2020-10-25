@@ -212,7 +212,7 @@ namespace game
         return player1->state!=CS_DEAD;
     }
 
-    bool allowmove(MovableEntity *d)
+    bool allowmove(const MovableEntity *d)
     {
         return true;
         //if(d->ent_type!=ENT_PLAYER) return true;

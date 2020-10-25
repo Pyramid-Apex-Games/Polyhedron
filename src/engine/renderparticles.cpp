@@ -15,6 +15,7 @@
 #include "engine/main/Application.h"
 #include "engine/main/Renderer.h"
 #include "engine/main/Compatibility.h"
+#include "engine/Camera.h"
 
 Shader *particleshader = NULL, *particlenotextureshader = NULL, *particlesoftshader = NULL, *particletextshader = NULL;
 
@@ -427,6 +428,10 @@ struct meterrenderer : listrenderer
 
     void renderpart(listparticle *p, const vec &o, const vec &d, int blend, int ts)
     {
+        const auto& activeCamera = Camera::GetActiveCamera();
+        if (!activeCamera) return;
+
+        auto [camdir, camup, camright, worldpos] = activeCamera->GetDirUpRightWorld();
         int basetype = type&0xFF;
         float scale = FONTH*p->size/80.0f, right = 8, left = p->progress/100.0f*right;
         matrix4x3 m(camright, vec(camup).neg(), vec(camdir).neg(), o);
@@ -514,6 +519,11 @@ struct textrenderer : listrenderer
 
     void renderpart(listparticle *p, const vec &o, const vec &d, int blend, int ts)
     {
+        const auto& activeCamera = Camera::GetActiveCamera();
+        if (!activeCamera) return;
+
+        auto [camdir, camup, camright, worldpos] = activeCamera->GetDirUpRightWorld();
+
         float scale = p->size/80.0f, xoff = -text_width(p->text)/2, yoff = 0;
         if((type&0xFF)==PT_TEXTUP) { xoff += detrnd((size_t)p, 100)-50; yoff -= detrnd((size_t)p, 101); }
 
@@ -542,6 +552,11 @@ inline void modifyblend<PT_TAPE>(const vec &o, int &blend)
 template<int T>
 static inline void genpos(const vec &o, const vec &d, float size, int grav, int ts, partvert *vs)
 {
+    const auto& activeCamera = Camera::GetActiveCamera();
+    if (!activeCamera) return;
+
+    auto [_, camup, camright, __] = activeCamera->GetDirUpRightWorld();
+
     vec udir = vec(camup).sub(camright).mul(size);
     vec vdir = vec(camup).add(camright).mul(size);
     vs[0].pos = vec(o.x + udir.x, o.y + udir.y, o.z + udir.z);
@@ -553,7 +568,9 @@ static inline void genpos(const vec &o, const vec &d, float size, int grav, int 
 template<>
 inline void genpos<PT_TAPE>(const vec &o, const vec &d, float size, int ts, int grav, partvert *vs)
 {
-    vec dir1 = vec(d).sub(o), dir2 = vec(d).sub(camera1->o), c;
+    assert(Camera::GetActiveCamera());
+    const auto& cameraPos = Camera::GetActiveCamera()->o;
+    vec dir1 = vec(d).sub(o), dir2 = vec(d).sub(cameraPos), c;
     c.cross(dir2, dir1).normalize().mul(size);
     vs[0].pos = vec(d.x-c.x, d.y-c.y, d.z-c.z);
     vs[1].pos = vec(o.x-c.x, o.y-c.y, o.z-c.z);
@@ -593,6 +610,11 @@ static const vec2 rotcoeffs[32][4] =
 template<>
 inline void genrotpos<PT_PART>(const vec &o, const vec &d, float size, int grav, int ts, partvert *vs, int rot)
 {
+    const auto& activeCamera = Camera::GetActiveCamera();
+    if (!activeCamera) return;
+
+    auto [_, camup, camright, __] = activeCamera->GetDirUpRightWorld();
+
     const vec2 *coeffs = rotcoeffs[rot];
     vs[0].pos = vec(o).madd(camright, coeffs[0].x*size).madd(camup, coeffs[0].y*size);
     vs[1].pos = vec(o).madd(camright, coeffs[1].x*size).madd(camup, coeffs[1].y*size);
@@ -1024,7 +1046,9 @@ VARP(maxparticledistance, 256, 1024, 4096);
 
 static void splash(int type, int color, int radius, int num, int fade, const vec &p, float size, int gravity)
 {
-    if(camera1->o.dist(p) > maxparticledistance && !seedemitter) return;
+    assert(Camera::GetActiveCamera());
+    const auto& cameraPos = Camera::GetActiveCamera()->o;
+    if(cameraPos.dist(p) > maxparticledistance && !seedemitter) return;
     float collidez = parts[type]->type&PT_COLLIDE ? p.z - raycube(p, vec(0, 0, -1), COLLIDERADIUS, RAY_CLIPMAT) + (parts[type]->stain >= 0 ? COLLIDEERROR : 0) : -1;
     int fmin = 1;
     int fmax = fade*3;
@@ -1091,7 +1115,8 @@ VARP(maxparticletextdistance, 0, 128, 10000);
 void particle_text(const vec &s, const char *t, int type, int fade, int color, float size, int gravity)
 {
     if(!canaddparticles()) return;
-    if(!particletext || camera1->o.dist(s) > maxparticletextdistance) return;
+    const auto& cameraPos = Camera::GetActiveCamera()->o;
+    if(!particletext || cameraPos.dist(s) > maxparticletextdistance) return;
     particle *p = newparticle(s, vec(0, 0, 1), fade, type, color, size, gravity);
     p->text = t;
 }
@@ -1099,7 +1124,8 @@ void particle_text(const vec &s, const char *t, int type, int fade, int color, f
 void particle_textcopy(const vec &s, const char *t, int type, int fade, int color, float size, int gravity)
 {
     if(!canaddparticles()) return;
-    if(!particletext || camera1->o.dist(s) > maxparticletextdistance) return;
+    const auto& cameraPos = Camera::GetActiveCamera()->o;
+    if(!particletext || cameraPos.dist(s) > maxparticletextdistance) return;
     particle *p = newparticle(s, vec(0, 0, 1), fade, type, color, size, gravity);
     p->text = newcubestr(t);
     p->flags = 1;
@@ -1239,7 +1265,9 @@ static void regularshape(int type, int radius, int color, int dir, int num, int 
 
         if(taper)
         {
-            float dist = clamp(from.dist2(camera1->o)/maxparticledistance, 0.0f, 1.0f);
+            assert(Camera::GetActiveCamera());
+            const auto& cameraPos = Camera::GetActiveCamera()->o;
+            float dist = clamp(from.dist2(cameraPos)/maxparticledistance, 0.0f, 1.0f);
             if(dist > 0.2f)
             {
                 dist = 1 - (dist - 0.2f)/0.8f;
@@ -1444,11 +1472,13 @@ void updateparticles()
     {
         int emitted = 0, replayed = 0;
         addedparticles = 0;
+        assert(Camera::GetActiveCamera());
+        const auto& cameraPos = Camera::GetActiveCamera()->o;
         loopv(emitters)
         {
             particleemitter &pe = emitters[i];
             Entity *e = pe.ent;
-			if(e->o.dist(camera1->o) > maxparticledistance) { pe.lastemit = lastmillis; continue; }
+			if(e->o.dist(cameraPos) > maxparticledistance) { pe.lastemit = lastmillis; continue; }
             if(cullparticles && pe.maxfade >= 0)
             {
                 if(isfoggedsphere(pe.radius, pe.center)) { pe.lastcull = lastmillis; continue; }

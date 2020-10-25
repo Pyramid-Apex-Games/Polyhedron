@@ -5,6 +5,11 @@ set(BUILD_SHARED_LIBS OFF)
 set(DEPENDENCY_DOWNLOAD_DIR ${CMAKE_CURRENT_BINARY_DIR}/tmp)
 SET(CMAKE_INSTALL_PREFIX ${CMAKE_CURRENT_BINARY_DIR}/thirdparty)
 
+if (APPLE)
+    cmake_policy(SET CMP0042 NEW)
+    set(CMAKE_POLICY_DEFAULT_CMP0042 NEW)
+endif()
+
 include(FetchContent)
 include(ExternalProject)
 

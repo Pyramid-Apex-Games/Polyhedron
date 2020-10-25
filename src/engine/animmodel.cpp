@@ -3,6 +3,7 @@
 #include "shared/entities/MovableEntity.h"
 #include "game/entities/SkeletalEntity.h"
 #include "engine/ragdoll.h"
+#include "engine/Camera.h"
 
 VARP(fullbrightmodels, 0, 0, 200);
 VAR(testtags, 0, 0, 1);
@@ -641,7 +642,10 @@ bool animmodel::part::calcanim(int animpart, int anim, int basetime, int basetim
     if(d && interp>=0)
     {
         animinterpinfo &ai = d->animinterp[interp];
-        if((info.anim&(ANIM_LOOP|ANIM_CLAMP))==ANIM_CLAMP) animinterptime = min(animinterptime, int(info.range*info.speed*0.5e-3f));
+        if((info.anim&(ANIM_LOOP|ANIM_CLAMP))==ANIM_CLAMP)
+        {
+            animinterptime = min(animinterptime, int(info.range*info.speed*0.5e-3f));
+        }
         void *ak = meshes->animkey();
         if(d->ragdoll && d->ragdoll->millis != lastmillis)
         {
@@ -701,7 +705,7 @@ void animmodel::part::intersect(int anim, int basetime, int basetime2, float pit
     vec oaxis, oforward, oo, oray;
     matrixstack[matrixpos].transposedtransformnormal(axis, oaxis);
     float pitchamount = pitchscale*pitch + pitchoffset;
-    if(pitchmin || pitchmax) pitchamount = clamp(pitchamount, pitchmin, pitchmax);
+    if((pitchmin || pitchmax) && pitchmin <= pitchmax) pitchamount = clamp(pitchamount, pitchmin, pitchmax);
     if(as->cur.anim&ANIM_NOPITCH || (as->interp < 1 && as->prev.anim&ANIM_NOPITCH))
         pitchamount *= (as->cur.anim&ANIM_NOPITCH ? 0 : as->interp) + (as->interp < 1 && as->prev.anim&ANIM_NOPITCH ? 0 : 1-as->interp);
     if(pitchamount)
@@ -767,7 +771,8 @@ void animmodel::part::render(int anim, int basetime, int basetime2, float pitch,
     if((anim&ANIM_REUSE) != ANIM_REUSE) loopi(numanimparts)
     {
         animinfo info;
-        int interp = d && index+numanimparts<=MAXANIMPARTS ? index+i : -1, aitime = animationinterpolationtime;
+        int interp = d && index+numanimparts<=MAXANIMPARTS ? index+i : -1;
+        int aitime = animationinterpolationtime;
         if(!calcanim(i, anim, basetime, basetime2, d, interp, info, aitime)) return;
         animstate &p = as[i];
         p.owner = this;
@@ -816,12 +821,14 @@ void animmodel::part::render(int anim, int basetime, int basetime2, float pitch,
         if(resize!=1) modelmatrix.scale(resize);
         GLOBALPARAM(modelmatrix, modelmatrix);
 
-        if(!(anim&ANIM_NOSKIN))
+        const auto& activeCamera = Camera::GetActiveCamera();
+
+        if(!(anim&ANIM_NOSKIN) && activeCamera)
         {
             GLOBALPARAM(modelworld, matrix3(matrixstack[matrixpos]));
 
             vec modelcamera;
-            matrixstack[matrixpos].transposedtransform(camera1->o, modelcamera);
+            matrixstack[matrixpos].transposedtransform(activeCamera->o, modelcamera);
             modelcamera.div(resize);
             GLOBALPARAM(modelcamera, modelcamera);
         }
@@ -871,7 +878,7 @@ void animmodel::part::setanim(int animpart, int num, int frame, int range, float
     }
     if(frame<0 || range<=0 || !meshes || !meshes->hasframes(frame, range))
     {
-        conoutf("invalid frame %d, range %d in model %s", frame, range, model->name.c_str());
+        conoutf(CON_ERROR, "invalid frame %d, range %d in model %s", frame, range, model->name.c_str());
         return;
     }
     if(!anims[animpart])

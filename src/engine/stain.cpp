@@ -7,6 +7,7 @@
 #include "engine/stain.h"
 #include "engine/menus.h"
 #include "engine/main/Renderer.h"
+#include "engine/Camera.h"
 #include "shared/entities/DynamicEntity.h"
 #include "game/entities/ModelEntity.h"
 
@@ -820,7 +821,8 @@ VARP(maxstaindistance, 1, 512, 10000);
 
 void addstain(int type, const vec &center, const vec &surface, float radius, const bvec &color, int info)
 {
-    if(!showstains || type<0 || (size_t)type>=sizeof(stains)/sizeof(stains[0]) || center.dist(camera1->o) - radius > maxstaindistance) return;
+    assert(Camera::GetActiveCamera());
+    if(!showstains || type<0 || (size_t)type>=sizeof(stains)/sizeof(stains[0]) || center.dist(Camera::GetActiveCamera()->o) - radius > maxstaindistance) return;
     stainrenderer &d = stains[type];
     d.addstain(center, surface, radius, color, info);
 }
@@ -829,7 +831,3 @@ void genstainmmtri(stainrenderer *s, const vec v[3])
 {
     s->genmmtri(v);
 }
-
-
-// >>>>>>>>>> SCRIPTBIND >>>>>>>>>>>>>> //
-// <<<<<<<<<< SCRIPTBIND <<<<<<<<<<<<<< //

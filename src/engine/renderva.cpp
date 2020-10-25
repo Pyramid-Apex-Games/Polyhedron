@@ -17,6 +17,7 @@
 // Included especially for base and animated map models.
 #include "game/entities/ModelEntity.h"
 #include "engine/GLFeatures.h"
+#include "engine/Camera.h"
 
 static inline void drawtris(GLsizei numindices, const GLvoid *indices, ushort minvert, ushort maxvert)
 {
@@ -132,8 +133,10 @@ static vtxarray *vasort[VASORTSIZE];
 
 static inline void addvisibleva(vtxarray *va)
 {
-    float dist = vadist(va, camera1->o);
-    va->distance = int(dist); /*cv.dist(camera1->o) - va->size*SQRT3/2*/
+    assert(Camera::GetActiveCamera());
+
+    float dist = vadist(va, Camera::GetActiveCamera()->o);
+    va->distance = int(dist); /*cv.dist(activeCamera->o) - va->size*SQRT3/2*/
 
     int hash = clamp(int(dist*VASORTSIZE/worldsize), 0, VASORTSIZE-1);
     vtxarray **prev = &vasort[hash], *cur = vasort[hash];
@@ -517,7 +520,8 @@ void findvisiblemms(const vector<Entity *> &ents, bool doquery)
             }
             if(!visible) continue;
 
-            oe->distance = int(camera1->o.dist_to_bb(oe->o, oe->size));
+            assert(Camera::GetActiveCamera());
+            oe->distance = int(Camera::GetActiveCamera()->o.dist_to_bb(oe->o, oe->size));
 
             octaentities **prev = &visiblemms, *cur = visiblemms;
             while(cur && cur->distance >= 0 && oe->distance > cur->distance)
@@ -578,10 +582,12 @@ void rendermapmodels()
     rendermapmodelbatches();
     clearbatchedmapmodels();
 
+    assert(Camera::GetActiveCamera());
+    const auto& cameraPos = Camera::GetActiveCamera()->o;
     bool queried = false;
     for(octaentities *oe = visiblemms; oe; oe = oe->next) if(oe->distance<0)
     {
-        oe->query = doquery && !camera1->o.insidebb(oe->bbmin, oe->bbmax, 1) ? newquery(oe) : NULL;
+        oe->query = doquery && !cameraPos.insidebb(oe->bbmin, oe->bbmax, 1) ? newquery(oe) : NULL;
         if(!oe->query) continue;
         if(!queried)
         {
@@ -887,7 +893,8 @@ int cullfrustumsides(const vec &lightpos, float lightradius, float size, float b
     // this next test usually clips off more sides than the former, but occasionally clips fewer/different ones, so do both and combine results
     // check if frustum corners/origin cross plane sides
     // infinite version, assumes frustum corners merely give direction and extend to infinite distance
-    vec p = vec(camera1->o).sub(lightpos).div(lightradius);
+    assert(Camera::GetActiveCamera());
+    vec p = vec(Camera::GetActiveCamera()->o).sub(lightpos).div(lightradius);
     float dp = p.x + p.y, dn = p.x - p.y, ap = fabs(dp), an = fabs(dn);
     masks[0] |= ap <= bias*an ? 0x3F : (dp >= 0 ? (1<<0)|(1<<2) : (2<<0)|(2<<2));
     masks[1] |= an <= bias*ap ? 0x3F : (dn >= 0 ? (1<<0)|(2<<2) : (2<<0)|(1<<2));
@@ -1770,11 +1777,13 @@ void rendergeom()
     renderstate cur;
 
     int blends = 0;
+    assert(Camera::GetActiveCamera());
+    const auto& cameraPos = Camera::GetActiveCamera()->o;
     if(doOQ)
     {
         for(vtxarray *va = visibleva; va; va = va->next) if(va->texs)
         {
-            if(!camera1->o.insidebb(va->o, va->size, 2))
+            if(!cameraPos.insidebb(va->o, va->size, 2))
             {
                 if(va->parent && va->parent->occluded >= OCCLUDE_BB)
                 {
@@ -2088,10 +2097,13 @@ CVARP(explicitskycolour, 0x800080);
 
 bool renderexplicitsky(bool outline)
 {
+    const auto& activeCamera = Camera::GetActiveCamera();
+    assert(activeCamera);
+
     vtxarray *prev = NULL;
     for(vtxarray *va = visibleva; va; va = va->next) if(va->sky && va->occluded < OCCLUDE_BB &&
         ((va->skymax.x >= 0 && isvisiblebb(va->skymin, ivec(va->skymax).sub(va->skymin)) != VFC_NOT_VISIBLE) ||
-         !insideworld(camera1->o)))
+         !insideworld(activeCamera->o)))
     {
         if(!prev || va->vbuf != prev->vbuf)
         {

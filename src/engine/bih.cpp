@@ -827,7 +827,3 @@ void BIH::genstaintris(stainrenderer *s, const vec &staincenter, float stainradi
         genstaintris(s, m, m.invxform.transform(bo), radius, morient, m.nodes, icenter, iradius);
     }
 }
-
-
-// >>>>>>>>>> SCRIPTBIND >>>>>>>>>>>>>> //
-// <<<<<<<<<< SCRIPTBIND <<<<<<<<<<<<<< //

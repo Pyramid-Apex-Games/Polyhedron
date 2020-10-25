@@ -1,6 +1,7 @@
 #include "../shared/geom/matrix4.h"
 
 #include "engine/texture.h"
+#include "engine/Camera.h"
 
 VARP(softexplosion, 0, 1, 1);
 VARP(softexplosionblend, 1, 16, 64);
@@ -145,19 +146,23 @@ struct fireballrenderer : listrenderer
 
     void renderpart(listparticle *p, const vec &o, const vec &d, int blend, int ts)
     {
+        const auto& activeCamera = Camera::GetActiveCamera();
+        if (!activeCamera) return;
+
         float pmax = p->val,
               size = p->fade ? float(ts)/p->fade : 1,
               psize = p->size + pmax * size;
 
         if(isfoggedsphere(psize*WOBBLE, p->o)) return;
 
-        vec dir = vec(o).sub(camera1->o), s, t;
+        vec dir = vec(o).sub(activeCamera->o), s, t;
         float dist = dir.magnitude();
         bool inside = dist <= psize*WOBBLE;
+
         if(inside)
         {
-            s = camright;
-            t = camup;
+            s = activeCamera->GetRight();
+            t = activeCamera->GetUp();
         }
         else
         {

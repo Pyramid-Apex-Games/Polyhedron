@@ -1,7 +1,7 @@
 #include "MovableEntity.h"
 
 namespace {
-	float aboveeye = 1.0f;
+	float aboveeye = 9.0f;
 }
 
 void MovableEntity::resetinterp() {
@@ -26,10 +26,5 @@ vec MovableEntity::abovehead() {
 void MovableEntity::on(const Event& event)
 {
 }
-
-void MovableEntity::render(game::RenderPass pass)
-{
-}
-
 
 ADD_ENTITY_TO_FACTORY_SERIALIZED(MovableEntity, "movable", DynamicEntity);

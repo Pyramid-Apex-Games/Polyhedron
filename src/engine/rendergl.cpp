@@ -31,6 +31,7 @@
 #include "engine/main/Compatibility.h"
 #include "engine/hud.h"
 #include "engine/GLFeatures.h"
+#include "engine/Camera.h"
 #include "game/game.h"
 #include "game/entities/SkeletalEntity.h"
 #include "game/game.h"
@@ -247,45 +248,38 @@ VAR(wireframe, 0, 0, 1);
 
 SCRIPTEXPORT void getcamyaw()
 {
-    floatret(camera1->d.x);
+    assert(Camera::GetActiveCamera());
+
+    floatret(Camera::GetActiveCamera()->d.x);
 }
 
 SCRIPTEXPORT void getcampitch()
 {
-    floatret(camera1->d.y);
+    assert(Camera::GetActiveCamera());
+
+    floatret(Camera::GetActiveCamera()->d.y);
 }
 
 SCRIPTEXPORT void getcamroll()
 {
-    floatret(camera1->d.z);
+    assert(Camera::GetActiveCamera());
+
+    floatret(Camera::GetActiveCamera()->d.z);
 }
 
 SCRIPTEXPORT void getcampos()
 {
-    defformatcubestr(pos, "%s %s %s", floatstr(camera1->o.x), floatstr(camera1->o.y), floatstr(camera1->o.z));
+    const auto& activeCamera = Camera::GetActiveCamera();
+    assert(activeCamera);
+    defformatcubestr(pos, "%s %s %s", floatstr(activeCamera->o.x), floatstr(activeCamera->o.y), floatstr(activeCamera->o.z));
     result(pos);
 }
 
-vec worldpos, camdir, camright, camup;
+//vec worldpos, camdir, camright, camup;
 
 void setcammatrix()
 {
-    // move from RH to Z-up LH quake style worldspace
-    cammatrix = viewmatrix;
-    cammatrix.rotate_around_y(camera1->d.z*RAD);
-    cammatrix.rotate_around_x(camera1->d.y*-RAD);
-    cammatrix.rotate_around_z(camera1->d.x*-RAD);
-    cammatrix.translate(vec(camera1->o).neg());
-
-    cammatrix.transposedtransformnormal(vec(viewmatrix.b), camdir);
-    cammatrix.transposedtransformnormal(vec(viewmatrix.a).neg(), camright);
-    cammatrix.transposedtransformnormal(vec(viewmatrix.c), camup);
-
-    if(!drawtex)
-    {
-        if(raycubepos(camera1->o, camdir, worldpos, 0, RAY_CLIPMAT|RAY_SKIPFIRST) == -1)
-            worldpos = vec(camdir).mul(2*worldsize).add(camera1->o); // if nothing is hit, just far away in the view direction
-    }
+    Camera::UpdateAll();
 }
 
 void setcamprojmatrix(bool init = true, bool flush = false)
@@ -297,6 +291,11 @@ void setcamprojmatrix(bool init = true, bool flush = false)
 
     jitteraa();
 
+    auto activeCamera = Camera::GetActiveCamera();
+    if (!activeCamera)
+        return;
+
+    auto& cammatrix = activeCamera->GetMatrix();
     camprojmatrix.muld(projmatrix, cammatrix);
 
     if(init)
@@ -364,28 +363,33 @@ FVAR(thirdpersondistance, 0, 10, 25);
 FVAR(thirdpersonup, -25, 0, 25);
 FVAR(thirdpersonside, -25, 0, 25);
 
-MovableEntity *camera1 = NULL;
 bool detachedcamera = false;
-bool isthirdperson() { return player!=camera1 || detachedcamera; }
+bool isthirdperson() { return player!=Camera::GetActiveCamera() || detachedcamera; }
 
 void fixcamerarange()
 {
     const float MAXPITCH = 90.0f;
-    if(camera1->d.y>MAXPITCH) camera1->d.y = MAXPITCH;
-    if(camera1->d.y<-MAXPITCH) camera1->d.y = -MAXPITCH;
-    while(camera1->d.x<0.0f) camera1->d.x += 360.0f;
-    while(camera1->d.x>=360.0f) camera1->d.x -= 360.0f;
+    const auto& activeCamera = Camera::GetActiveCamera();
+    assert(activeCamera);
+
+    if(activeCamera->d.y>MAXPITCH) activeCamera->d.y = MAXPITCH;
+    if(activeCamera->d.y<-MAXPITCH) activeCamera->d.y = -MAXPITCH;
+    while(activeCamera->d.x<0.0f) activeCamera->d.x += 360.0f;
+    while(activeCamera->d.x>=360.0f) activeCamera->d.x -= 360.0f;
 }
 
 void modifyorient(float yaw, float pitch)
 {
-    camera1->d.x += yaw;
-    camera1->d.y += pitch;
+    const auto& activeCamera = Camera::GetActiveCamera();
+    assert(activeCamera);
+
+    activeCamera->d.x += yaw;
+    activeCamera->d.y += pitch;
     fixcamerarange();
-    if(camera1 != player && !detachedcamera)
+    if(activeCamera != player && !detachedcamera)
     {
-        player->d.x = camera1->d.x;
-        player->d.y = camera1->d.y;
+        player->d.x = activeCamera->d.x;
+        player->d.y = activeCamera->d.y;
     }
 }
 
@@ -416,70 +420,75 @@ void recomputecamera()
     game::setupcamera();
     computezoom();
 
-    assert(camera1);
+    const auto& activeCamera = Camera::GetActiveCamera();
+    assert(activeCamera);
     assert(player);
 
     bool allowthirdperson = true;
     bool shoulddetach = (allowthirdperson && thirdperson > 1) || game::detachcamera();
     if((!allowthirdperson || !thirdperson) && !shoulddetach)
     {
-        camera1 = player;
+        activeCamera->o = player->o;
 
         detachedcamera = false;
     }
     else
     {
-        static MovableEntity tempcamera;
-        camera1 = &tempcamera;
+        activeCamera->o = player->o;
 
         if(detachedcamera && shoulddetach) {
-            camera1->o = player->o;
         } else {
-            *camera1 = *player;
+            //*activeCamera = *player;
 
             detachedcamera = shoulddetach;
         }
 //        prepCamera1->ent_type = ENT_CAMERA;
-        camera1->move = -1;
-        camera1->eyeheight = camera1->aboveeye = camera1->radius = camera1->xradius = camera1->yradius = 2;
+//        activeCamera->move = -4;
+//        activeCamera->eyeheight = activeCamera->aboveeye = activeCamera->radius = activeCamera->xradius = activeCamera->yradius = 2;
 
         matrix3 orient;
         orient.identity();
-        orient.rotate_around_z(camera1->d.x*RAD);
-        orient.rotate_around_x(camera1->d.y*RAD);
-        orient.rotate_around_y(camera1->d.z*-RAD);
+        orient.rotate_around_z(activeCamera->d.x *  RAD);
+        orient.rotate_around_x(activeCamera->d.y *  RAD);
+        orient.rotate_around_y(activeCamera->d.z * -RAD);
         vec dir = vec(orient.b).neg(), side = vec(orient.a).neg(), up = orient.c;
 
         if(game::collidecamera())
         {
-            movecamera(camera1, dir, thirdpersondistance, 1);
-            movecamera(camera1, dir, clamp(thirdpersondistance - camera1->o.dist(player->o), 0.0f, 1.0f), 0.1f);
+            movecamera(activeCamera, dir, thirdpersondistance, 1);
+            movecamera(activeCamera, dir, clamp(thirdpersondistance - activeCamera->o.dist(player->o), 0.0f, 1.0f), 0.1f);
             if(thirdpersonup)
             {
-                vec pos = camera1->o;
+                vec pos = activeCamera->o;
                 float dist = fabs(thirdpersonup);
                 if(thirdpersonup < 0) up.neg();
-                movecamera(camera1, up, dist, 1);
-                movecamera(camera1, up, clamp(dist - camera1->o.dist(pos), 0.0f, 1.0f), 0.1f);
+                movecamera(activeCamera, up, dist, 1);
+                movecamera(activeCamera, up, clamp(dist - activeCamera->o.dist(pos), 0.0f, 1.0f), 0.1f);
             }
             if(thirdpersonside)
             {
-                vec pos = camera1->o;
+                vec pos = activeCamera->o;
                 float dist = fabs(thirdpersonside);
                 if(thirdpersonside < 0) side.neg();
-                movecamera(camera1, side, dist, 1);
-                movecamera(camera1, side, clamp(dist - camera1->o.dist(pos), 0.0f, 1.0f), 0.1f);
+                movecamera(activeCamera, side, dist, 1);
+                movecamera(activeCamera, side, clamp(dist - activeCamera->o.dist(pos), 0.0f, 1.0f), 0.1f);
             }
         }
         else
         {
-            camera1->o.add(vec(dir).mul(thirdpersondistance));
-            if(thirdpersonup) camera1->o.add(vec(up).mul(thirdpersonup));
-            if(thirdpersonside) camera1->o.add(vec(side).mul(thirdpersonside));
+            activeCamera->o.add(vec(dir).mul(thirdpersondistance));
+            if(thirdpersonup)
+            {
+                activeCamera->o.add(vec(up).mul(thirdpersonup));
+            }
+            if(thirdpersonside)
+            {
+                activeCamera->o.add(vec(side).mul(thirdpersonside));
+            }
         }
     }
 
-    setviewcell(camera1->o);
+    setviewcell(activeCamera->o);
 }
 
 float calcfrustumboundsphere(float nearplane, float farplane,  const vec &pos, const vec &view, vec &center)
@@ -506,13 +515,19 @@ float calcfrustumboundsphere(float nearplane, float farplane,  const vec &pos, c
 
 extern const matrix4 viewmatrix(vec(-1, 0, 0), vec(0, 0, 1), vec(0, -1, 0));
 extern const matrix4 invviewmatrix(vec(-1, 0, 0), vec(0, 0, -1), vec(0, 1, 0));
-matrix4 cammatrix, projmatrix, camprojmatrix, invcammatrix, invcamprojmatrix, invprojmatrix;
+matrix4 projmatrix, camprojmatrix, invcammatrix, invcamprojmatrix, invprojmatrix;
 
 FVAR(nearplane, 0.01f, 0.54f, 2.0f);
 
 vec calcavatarpos(const vec &pos, float dist)
 {
     vec eyepos;
+    auto activeCamera = Camera::GetActiveCamera();
+    if (!activeCamera)
+        return vec(0,0,0);
+
+    auto& cammatrix = activeCamera->GetMatrix();
+
     cammatrix.transform(pos, eyepos);
     GLdouble ydist = nearplane * tan(curavatarfov/2*RAD), xdist = ydist * aspect;
     vec4 scrpos;
@@ -522,8 +537,8 @@ vec calcavatarpos(const vec &pos, float dist)
     scrpos.w = -eyepos.z;
 
     vec worldpos = invcamprojmatrix.perspectivetransform(scrpos);
-    vec dir = vec(worldpos).sub(camera1->o).rescale(dist);
-    return dir.add(camera1->o);
+    vec dir = vec(worldpos).sub(activeCamera->o).rescale(dist);
+    return dir.add(activeCamera->o);
 }
 
 void renderavatar()
@@ -579,6 +594,12 @@ void disablepolygonoffset(GLenum type)
 bool calcspherescissor(const vec &center, float size, float &sx1, float &sy1, float &sx2, float &sy2, float &sz1, float &sz2)
 {
     vec e;
+    auto activeCamera = Camera::GetActiveCamera();
+    if (!activeCamera)
+        return false;
+
+    auto& cammatrix = activeCamera->GetMatrix();
+
     cammatrix.transform(center, e);
     if(e.z > 2*size) { sx1 = sy1 = sz1 = 1; sx2 = sy2 = sz2 = -1; return false; }
     if(drawtex == DRAWTEX_MINIMAP)
@@ -1085,7 +1106,7 @@ void drawminimap()
 //    minimapradius.x = minimapradius.y = max(minimapradius.x, minimapradius.y);
 //    minimapscale = vec((0.5f - 1.0f/size)/minimapradius.x, (0.5f - 1.0f/size)/minimapradius.y, 1.0f);
 //
-//    MovableEntity *oldcamera = camera1;
+//    MovableEntity *oldcamera = activeCamera;
 //    static MovableEntity cmcamera;
 //    cmcamera = *player;
 ////    cmcamera.ent_type = ENT_CAMERA;
@@ -1093,7 +1114,7 @@ void drawminimap()
 //    cmcamera.d.x = 0;
 //    cmcamera.d.y = -90;
 //    cmcamera.d.z = 0;
-//    camera1 = &cmcamera;
+//    activeCamera = &cmcamera;
 //    setviewcell(vec(-1, -1, -1));
 //
 //    float oldldrscale = ldrscale, oldldrscaleb = ldrscaleb;
@@ -1125,7 +1146,7 @@ void drawminimap()
 //
 //    if(minimapheight > 0 && minimapheight < minimapcenter.z + minimapradius.z)
 //    {
-//        camera1->o.z = minimapcenter.z + minimapradius.z + 1;
+//        activeCamera->o.z = minimapcenter.z + minimapradius.z + 1;
 //        projmatrix.ortho(-minimapradius.x, minimapradius.x, -minimapradius.y, minimapradius.y, -zscale, zscale);
 //        setcamprojmatrix();
 //        rendergbuffer(false);
@@ -1141,7 +1162,7 @@ void drawminimap()
 //    ldrscale = oldldrscale;
 //    ldrscaleb = oldldrscaleb;
 //
-//    camera1 = oldcamera;
+//    activeCamera = oldcamera;
 //    drawtex = 0;
 //
 //    createtexture(minimaptex, size, size, NULL, 3, 1, GL_RGBA, GL_TEXTURE_2D);
@@ -1166,7 +1187,7 @@ void drawcubemap(int size, const vec &o, float yaw, float pitch, const cubemapsi
 {
 //    drawtex = DRAWTEX_ENVMAP;
 //
-//    MovableEntity *oldcamera = camera1;
+//    MovableEntity *oldcamera = activeCamera;
 //    static MovableEntity cmcamera;
 //    cmcamera = *player;
 ////    cmcamera.ent_type = ENT_CAMERA;
@@ -1174,18 +1195,18 @@ void drawcubemap(int size, const vec &o, float yaw, float pitch, const cubemapsi
 //    cmcamera.d.x = yaw;
 //    cmcamera.d.y = pitch;
 //    cmcamera.d.z = 0;
-//    camera1 = &cmcamera;
-//    setviewcell(camera1->o);
+//    activeCamera = &cmcamera;
+//    setviewcell(activeCamera->o);
 //
 //    float fogmargin = 1 + WATER_AMPLITUDE + nearplane;
-//    int fogmat = lookupmaterial(vec(camera1->o.x, camera1->o.y, camera1->o.z - fogmargin))&(MATF_VOLUME|MATF_INDEX), abovemat = MAT_AIR;
+//    int fogmat = lookupmaterial(vec(activeCamera->o.x, activeCamera->o.y, activeCamera->o.z - fogmargin))&(MATF_VOLUME|MATF_INDEX), abovemat = MAT_AIR;
 //    float fogbelow = 0;
 //    if(isliquid(fogmat&MATF_VOLUME))
 //    {
-//        float z = findsurface(fogmat, vec(camera1->o.x, camera1->o.y, camera1->o.z - fogmargin), abovemat) - WATER_OFFSET;
-//        if(camera1->o.z < z + fogmargin)
+//        float z = findsurface(fogmat, vec(activeCamera->o.x, activeCamera->o.y, activeCamera->o.z - fogmargin), abovemat) - WATER_OFFSET;
+//        if(activeCamera->o.z < z + fogmargin)
 //        {
-//            fogbelow = z - camera1->o.z;
+//            fogbelow = z - activeCamera->o.z;
 //        }
 //        else fogmat = abovemat;
 //    }
@@ -1259,7 +1280,7 @@ void drawcubemap(int size, const vec &o, float yaw, float pitch, const cubemapsi
 //    ldrscale = oldldrscale;
 //    ldrscaleb = oldldrscaleb;
 //
-//    camera1 = oldcamera;
+//    activeCamera = oldcamera;
 //    drawtex = 0;
 }
 
@@ -1292,8 +1313,8 @@ VAR(modelpreviewpitch, -90, -15, 90);
 //
 //        drawtex = DRAWTEX_MODELPREVIEW;
 //
-//        oldcamera = camera1;
-//        camera = *camera1;
+//        oldcamera = activeCamera;
+//        camera = *activeCamera;
 ////        camera.et_type = ET_GAMESPECIFIC;
 ////        camera.ent_type = ENT_CAMERA;
 ////        camera.game_type = GAMEENTITY;
@@ -1301,7 +1322,7 @@ VAR(modelpreviewpitch, -90, -15, 90);
 //        camera.d.x = 0;
 //        camera.d.y = modelpreviewpitch;
 //        camera.d.z = 0;
-//        camera1 = &camera;
+//        activeCamera = &camera;
 //
 //        oldaspect = aspect;
 //        oldfovy = fovy;
@@ -1348,16 +1369,18 @@ VAR(modelpreviewpitch, -90, -15, 90);
 //        ldrscale = oldldrscale;
 //        ldrscaleb = oldldrscaleb;
 //
-//        camera1 = oldcamera;
+//        activeCamera = oldcamera;
 //        drawtex = 0;
 //    }
 //}
 
 vec calcmodelpreviewpos(const vec &radius, float &yaw)
 {
+    assert(Camera::GetActiveCamera());
+
     yaw = fmod(lastmillis/10000.0f*360.0f, 360.0f);
     float dist = max(radius.magnitude2()/aspect, radius.magnitude())/sinf(fovy/2*RAD);
-    return vec(0, dist, 0).rotate_around_x(camera1->d.y*RAD);
+    return vec(0, dist, 0).rotate_around_x(Camera::GetActiveCamera()->d.y*RAD);
 }
 
 int xtraverts, xtravertsva;
@@ -1367,15 +1390,17 @@ void gl_drawview()
     GLuint scalefbo = shouldscale();
     if(scalefbo) { vieww = gw; viewh = gh; }
 
+    const auto& activeCamera = Camera::GetActiveCamera();
+
     float fogmargin = 1 + WATER_AMPLITUDE + nearplane;
-    int fogmat = lookupmaterial(vec(camera1->o.x, camera1->o.y, camera1->o.z - fogmargin))&(MATF_VOLUME|MATF_INDEX), abovemat = MAT_AIR;
+    int fogmat = lookupmaterial(vec(activeCamera->o.x, activeCamera->o.y, activeCamera->o.z - fogmargin))&(MATF_VOLUME|MATF_INDEX), abovemat = MAT_AIR;
     float fogbelow = 0;
     if(isliquid(fogmat&MATF_VOLUME))
     {
-        float z = findsurface(fogmat, vec(camera1->o.x, camera1->o.y, camera1->o.z - fogmargin), abovemat) - WATER_OFFSET;
-        if(camera1->o.z < z + fogmargin)
+        float z = findsurface(fogmat, vec(activeCamera->o.x, activeCamera->o.y, activeCamera->o.z - fogmargin), abovemat) - WATER_OFFSET;
+        if(activeCamera->o.z < z + fogmargin)
         {
-            fogbelow = z - camera1->o.z;
+            fogbelow = z - activeCamera->o.z;
         }
         else fogmat = abovemat;
     }
@@ -1498,14 +1523,17 @@ float damagedirs[8] = { 0, 0, 0, 0, 0, 0, 0, 0 };
 
 void damagecompass(int n, const vec &loc)
 {
+    const auto& activeCamera = Camera::GetActiveCamera();
+    assert(activeCamera);
+
     if(!usedamagecompass || Application::Instance().GetAppState().Minimized) return;
     vec delta(loc);
-    delta.sub(camera1->o);
+    delta.sub(activeCamera->o);
     float yaw = 0, pitch;
     if(delta.magnitude() > 4)
     {
         vectoyawpitch(delta, yaw, pitch);
-        yaw -= camera1->d.x;
+        yaw -= activeCamera->d.x;
     }
     if(yaw >= 360) yaw = fmod(yaw, 360);
     else if(yaw < 0) yaw = 360 - fmod(-yaw, 360);
@@ -1858,10 +1886,3 @@ GLenum DebugOpenGL(const char *expression, const char *file, int line)
 }
 
 //#endif
-
-
-// >>>>>>>>>> SCRIPTBIND >>>>>>>>>>>>>> //
-#if 0
-#include "/Users/micha/dev/ScMaMike/src/build/binding/..+engine+rendergl.binding.cpp"
-#endif
-// <<<<<<<<<< SCRIPTBIND <<<<<<<<<<<<<< //

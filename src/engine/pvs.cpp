@@ -6,6 +6,7 @@
 #include "engine/octarender.h"
 #include "engine/main/Application.h"
 #include "engine/main/Compatibility.h"
+#include "engine/Camera.h"
 
 enum
 {
@@ -978,7 +979,10 @@ static void lockpvs_(bool lock)
 {
     if(lockedpvs) DELETEA(lockedpvs);
     if(!lock) return;
-    pvsdata *d = lookupviewcell(camera1->o);
+    const auto& activeCamera = Camera::GetActiveCamera();
+    if (!activeCamera) return;
+
+    pvsdata *d = lookupviewcell(activeCamera->o);
     if(!d) return;
     int wbytes = d->len%9, len = d->len - wbytes;
     lockedpvs = new uchar[len];
@@ -986,7 +990,7 @@ static void lockpvs_(bool lock)
     lockedwaterpvs = 0;
     loopi(wbytes) lockedwaterpvs |= pvsbuf[d->offset + i] << (i*8);
     loopi(MAXWATERPVS) lockedwaterplanes[i] = waterplanes[i].height;
-    conoutf("locked view cell at %.1f, %.1f, %.1f", camera1->o.x, camera1->o.y, camera1->o.z);
+    conoutf("locked view cell at %.1f, %.1f, %.1f", activeCamera->o.x, activeCamera->o.y, activeCamera->o.z);
 }
 
 VARF(lockpvs, 0, 0, 1, lockpvs_(lockpvs!=0));
@@ -1086,13 +1090,16 @@ SCRIPTEXPORT void testpvs(int *vcsize)
     int size = *vcsize>0 ? *vcsize : 32;
     for(int mask = 1; mask < size; mask <<= 1) size &= ~mask;
 
-    ivec o = ivec(camera1->o).mask(~(size-1));
+    const auto& activeCamera = Camera::GetActiveCamera();
+    if (!activeCamera) return;
+
+    ivec o = ivec(activeCamera->o).mask(~(size-1));
     pvsworker w;
     int len;
     lockedpvs = w.testviewcell(o, size, &lockedwaterpvs, &len);
     loopi(MAXWATERPVS) lockedwaterplanes[i] = waterplanes[i].height;
     lockpvs = 1;
-    conoutf("generated test view cell of size %d at %.1f, %.1f, %.1f (%d B)", size, camera1->o.x, camera1->o.y, camera1->o.z, len);
+    conoutf("generated test view cell of size %d at %.1f, %.1f, %.1f (%d B)", size, activeCamera->o.x, activeCamera->o.y, activeCamera->o.z, len);
 
     origpvsnodes.setsize(0);
     numwaterplanes = oldnumwaterplanes;

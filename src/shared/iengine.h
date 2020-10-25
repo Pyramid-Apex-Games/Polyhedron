@@ -229,8 +229,8 @@ extern void dynlightreaching(const vec &target, vec &color, vec &dir, bool hud =
 extern void removetrackeddynlights(Entity *owner = NULL);
 
 // rendergl
-extern MovableEntity *camera1;
-extern vec worldpos, camdir, camright, camup;
+//extern MovableEntity *camera1;
+//extern vec worldpos, camdir, camright, camup;
 extern float curfov, fovy, aspect;
 
 extern void disablezoom();

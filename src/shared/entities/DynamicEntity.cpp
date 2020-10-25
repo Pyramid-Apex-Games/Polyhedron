@@ -16,9 +16,5 @@ void DynamicEntity::on(const Event& event)
 {
 }
 
-void DynamicEntity::render(game::RenderPass pass)
-{
-}
-
 
 ADD_ENTITY_TO_FACTORY_SERIALIZED(DynamicEntity, "dynamic", Entity);

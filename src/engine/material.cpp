@@ -6,6 +6,7 @@
 #include "engine/octarender.h"
 #include "engine/material.h"
 #include "engine/water.h"
+#include "engine/Camera.h"
 #include "shared/entities/MovableEntity.h"
 #include "shared/entities/DynamicEntity.h"
 
@@ -471,8 +472,14 @@ static inline bool editmatcmp(const materialsurface &x, const materialsurface &y
 
 void sorteditmaterials()
 {
-    sortorigin = ivec(camera1->o);
-    vec dir = vec(camdir).abs();
+    sortorigin = ivec(Camera::GetActiveCamera()->o);
+    vec dir(0, 0, 1);
+    auto activeCamera = Camera::GetActiveCamera();
+    if (activeCamera)
+    {
+        dir = vec(activeCamera->GetDirection()).abs();
+    }
+
     loopi(3) sortdim[i] = i;
     if(dir[sortdim[2]] > dir[sortdim[1]]) swap(sortdim[2], sortdim[1]);
     if(dir[sortdim[1]] > dir[sortdim[0]]) swap(sortdim[1], sortdim[0]);

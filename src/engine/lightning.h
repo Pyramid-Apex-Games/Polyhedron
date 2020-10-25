@@ -31,6 +31,8 @@ static void setuplightning()
 
 static void renderlightning(Texture *tex, const vec &o, const vec &d, float sz)
 {
+    assert(Camera::GetActiveCamera());
+
     vec step(d);
     step.sub(o);
     float len = step.magnitude();
@@ -60,7 +62,7 @@ static void renderlightning(Texture *tex, const vec &o, const vec &d, float sz)
         }
         vec dir1 = next, dir2 = next, across;
         dir1.sub(cur);
-        dir2.sub(camera1->o);
+        dir2.sub(Camera::GetActiveCamera()->o);
         across.cross(dir2, dir1).normalize().mul(sz);
         gle::attribf(cur.x-across.x, cur.y-across.y, cur.z-across.z);
             gle::attribf(scroll, 1);

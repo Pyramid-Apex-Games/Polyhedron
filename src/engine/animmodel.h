@@ -116,6 +116,9 @@ struct animmodel : model
         bool canrender = true;
         bool noclip = false;
 
+        mesh() = default;
+        virtual ~mesh() = default;
+
         virtual void calcbb(vec &bbmin, vec &bbmax, const matrix4x3 &m) {}
         virtual void genBIH(BIH::mesh &m) {}
         virtual void genshadowmesh(vector<triangle> &tris, const matrix4x3 &m) {}
@@ -421,7 +424,7 @@ struct animmodel : model
     vector<part *> parts;
 
     animmodel(const char *name);
-    ~animmodel();
+    virtual ~animmodel();
     void cleanup();
     virtual void flushpart();
     part &addpart();
@@ -571,7 +574,7 @@ template<class MDL, class MESH> struct modelcommands
     {
         if(!MDL::loading)
         {
-            conoutf("model::setdir: not loading an %s", MDL::formatname());
+            conoutf(CON_ERROR, "model::setdir: not loading an %s", MDL::formatname());
             return;
         }
         MDL::dir = fmt::format("media/model/{}", name);
@@ -581,7 +584,7 @@ template<class MDL, class MESH> struct modelcommands
     {
         if (!MDL::loading || MDL::loading->parts.empty())
         {
-            conoutf("ForEachMesh: not loading an %s", MDL::formatname());
+            conoutf(CON_ERROR, "ForEachMesh: not loading an %s", MDL::formatname());
             return;
         }
 
@@ -604,7 +607,7 @@ template<class MDL, class MESH> struct modelcommands
     {
         if (!MDL::loading || MDL::loading->parts.empty())
         {
-            conoutf("ForEachSkin: not loading an %s", MDL::formatname());
+            conoutf(CON_ERROR, "ForEachSkin: not loading an %s", MDL::formatname());
             return;
         }
 
@@ -625,7 +628,7 @@ template<class MDL, class MESH> struct modelcommands
     }
 
 //    #define loopmeshes(meshname, m, body) do { \
-//        if(!MDL::loading || MDL::loading->parts.empty()) { conoutf("loopmeshes: not loading an %s", MDL::formatname()); return; } \
+//        if(!MDL::loading || MDL::loading->parts.empty()) { conoutf(CON_ERROR, "loopmeshes: not loading an %s", MDL::formatname()); return; } \
 //        part &mdl = *MDL::loading->parts.last(); \
 //        if(!mdl.meshes) return; \
 //        loopv(mdl.meshes->meshes) \
@@ -800,17 +803,17 @@ template<class MDL, class MESH> struct modelcommands
     {
         if(!MDL::loading)
         {
-            conoutf("skelmodel: not loading an %s", MDL::formatname());
+            conoutf(CON_ERROR, "skelmodel: not loading an %s", MDL::formatname());
             return;
         }
         if(!MDL::loading->parts.inrange(*parent) || !MDL::loading->parts.inrange(*child))
         {
-            conoutf("no models loaded to link");
+            conoutf(CON_ERROR, "no models loaded to link");
             return;
         }
         if(!MDL::loading->parts[*parent]->link(MDL::loading->parts[*child], tagname, vec(*x, *y, *z)))
         {
-            conoutf("could not link model %s", MDL::loading->name.c_str());
+            conoutf(CON_ERROR, "could not link model %s", MDL::loading->name.c_str());
         }
     }
 

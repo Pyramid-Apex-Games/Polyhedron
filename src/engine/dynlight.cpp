@@ -4,6 +4,7 @@
 #include "engine/engine.h"
 #include "engine/pvs.h"
 #include "engine/renderva.h"
+#include "engine/Camera.h"
 
 VARNP(dynlights, usedynlights, 0, 1, 1);
 VARP(dynlightdist, 0, 1024, 10000);
@@ -61,7 +62,10 @@ vector<dynlight *> closedynlights;
 void adddynlight(const vec &o, float radius, const vec &color, int fade, int peak, int flags, float initradius, const vec &initcolor, Entity *owner, const vec &dir, int spot)
 {
     if(!usedynlights) return;
-    if(o.dist(camera1->o) > dynlightdist || radius <= 0) return;
+    const auto& activeCamera = Camera::GetActiveCamera();
+    if (!activeCamera) return;
+
+    if(o.dist(activeCamera->o) > dynlightdist || radius <= 0) return;
 
     int insert = 0, expire = fade + peak + lastmillis;
     loopvrev(dynlights) if(expire>=dynlights[i].expire) { insert = i+1; break; }
@@ -112,13 +116,17 @@ int finddynlights()
 {
     closedynlights.setsize(0);
     if(!usedynlights) return 0;
+
+    const auto& activeCamera = Camera::GetActiveCamera();
+    if (!activeCamera) return 0;
+
     MovableEntity e;
 //    e.ent_type = ENT_CAMERA;
     loopvj(dynlights)
     {
         dynlight &d = dynlights[j];
         if(d.curradius <= 0) continue;
-        d.dist = camera1->o.dist(d.o) - d.curradius;
+        d.dist = activeCamera->o.dist(d.o) - d.curradius;
         if(d.dist > dynlightdist || isfoggedsphere(d.curradius, d.o) || pvsoccludedsphere(d.o, d.curradius))
             continue;
         e.o = d.o;

@@ -14,7 +14,7 @@ endif()
 
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
-set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
@@ -25,7 +25,7 @@ if (APPLE)
 #    list(INSERT CMAKE_FIND_LIBRARY_SUFFIXES 0 ".dylib" )
 
     set(CMAKE_XCODE_ATTRIBUTE_CLANG_CXX_LIBRARY "libc++")
-    set(CMAKE_XCODE_ATTRIBUTE_CLANG_LANGUAGE_STANDARD "c++17")
+    set(CMAKE_XCODE_ATTRIBUTE_CLANG_LANGUAGE_STANDARD "c++20")
 #    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -stdlib=libc++ -std=c++17")
 endif()
 
@@ -59,6 +59,8 @@ list(APPEND fileListEngine
     engine/bih.cpp
     engine/bih.h
     engine/blend.cpp
+    engine/Camera.cpp
+    engine/Camera.h
     engine/client.cpp
     engine/command.cpp
     engine/console.cpp
@@ -393,7 +395,7 @@ function(GenerateBindingFor input_file ide_folder)
             set(ENV{LIBCLANG_PATH} "${CMAKE_CURRENT_BINARY_DIR}/thirdparty_sources/libclang/bin/libclang.dll")
         endif()
     endif()
-    if(${input_file} MATCHES "\.cpp$")
+    if(${input_file} MATCHES "\\.cpp$")
         execute_process(
             COMMAND ${PYTHON} ${CMAKE_CURRENT_LIST_DIR}/binding/index.py cmake_output ${input_file}
             WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}
@@ -428,7 +430,7 @@ endfunction()
 
 
 function(StoreCompileFlagsFor input_file)
-    if(${input_file} MATCHES "\.cpp$")
+    if(${input_file} MATCHES "\\.cpp$")
         execute_process(
             COMMAND ${PYTHON} ${CMAKE_CURRENT_LIST_DIR}/binding/index.py cmake_output ${input_file}
             WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}
@@ -527,8 +529,12 @@ target_compile_definitions(Polyhedron
 )
 
 #Link the libraries
-target_compile_features(Polyhedron PUBLIC cxx_std_17)
-target_compile_options(Polyhedron PUBLIC -Wno-attributes)
+target_compile_features(Polyhedron
+    PUBLIC
+        cxx_std_20)
+target_compile_options(Polyhedron
+        PUBLIC
+            -Wno-attributes)
 
 target_include_directories(Polyhedron
     PRIVATE

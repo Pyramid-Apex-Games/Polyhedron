@@ -10,6 +10,7 @@
 #include "engine/rendergl.h"
 #include "engine/world.h"
 #include "engine/editor/ui.h"
+#include "engine/Camera.h"
 #include <vector>
 #include <string>
 #include <variant>
@@ -119,7 +120,7 @@ void Entity::render(game::RenderPass pass)
 			boxs3D(eo, es, 1);
 
 			gle::colorub(200,0,0);
-			auto cameraEnt = dynamic_cast<Entity*>(camera1);
+			const auto& cameraEnt = Camera::GetActiveCamera();
 			if (cameraEnt)
 			{
 				float cameraRelativeTickness = clamp(0.015f*cameraEnt->o.dist(o)*tan(fovy*0.5f*RAD), 0.1f, 1.0f);
@@ -168,11 +169,6 @@ void Entity::renderMoveShadow(int entselradius, int size)
 void Entity::onImpl(const Event& event)
 {
 	on(event);
-}
-
-void Entity::renderImpl(game::RenderPass pass)
-{
-	render(pass);
 }
 
 void Entity::on(const Event& event)

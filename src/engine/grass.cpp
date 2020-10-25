@@ -5,6 +5,7 @@
 #include "engine/rendergl.h"
 #include "engine/renderva.h"
 #include "engine/blend.h"
+#include "engine/Camera.h"
 
 VARP(grass, 0, 1, 1);
 VAR(dbggrass, 0, 0, 1);
@@ -73,7 +74,10 @@ FVARR(grasstest, 0, 0.6f, 1);
 
 static void gengrassquads(grassgroup *&group, const grasswedge &w, const grasstri &g, Texture *tex)
 {
-    float t = camera1->o.dot(w.dir);
+    const auto& activeCamera = Camera::GetActiveCamera();
+    if (!activeCamera) return;
+
+    float t = activeCamera->o.dot(w.dir);
     int tstep = int(ceil(t/grassstep));
     float tstart = tstep*grassstep,
           t0 = w.dir.dot(g.v[0]), t1 = w.dir.dot(g.v[1]), t2 = w.dir.dot(g.v[2]), t3 = w.dir.dot(g.v[3]),
@@ -196,11 +200,14 @@ static void gengrassquads(grassgroup *&group, const grasswedge &w, const grasstr
 
 static void gengrassquads(vtxarray *va)
 {
+    const auto& activeCamera = Camera::GetActiveCamera();
+    if (!activeCamera) return;
+
     loopv(va->grasstris)
     {
         grasstri &g = va->grasstris[i];
         if(isfoggedsphere(g.radius, g.center)) continue;
-        float dist = g.center.dist(camera1->o);
+        float dist = g.center.dist(activeCamera->o);
         if(dist - g.radius > grassdist) continue;
 
         Slot &s = *lookupvslot(g.texture, false).slot;
@@ -224,6 +231,9 @@ void generategrass()
 {
     if(!grass || !grassdist) return;
 
+    const auto& activeCamera = Camera::GetActiveCamera();
+    if (!activeCamera) return;
+
     grassgroups.setsize(0);
     grassverts.setsize(0);
 
@@ -232,8 +242,8 @@ void generategrass()
     loopi(NUMGRASSWEDGES)
     {
         grasswedge &w = grasswedges[i];
-        w.bound1.offset = -camera1->o.dot(w.bound1);
-        w.bound2.offset = -camera1->o.dot(w.bound2);
+        w.bound1.offset = -activeCamera->o.dot(w.bound1);
+        w.bound2.offset = -activeCamera->o.dot(w.bound2);
     }
 
     for(vtxarray *va = visibleva; va; va = va->next)

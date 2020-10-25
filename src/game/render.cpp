@@ -13,11 +13,11 @@ namespace game
         {
 			auto& entity = ents[i];
 			
-			entity->renderImpl(pass);
+			entity->render(pass);
         }
 
         if (player1)
-            player1->renderImpl(pass);
+            player1->render(pass);
     }
 
     VARP(hudgun, 0, 1, 1);

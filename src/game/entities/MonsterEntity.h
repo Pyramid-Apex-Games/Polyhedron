@@ -9,6 +9,7 @@ public:
     void preload();
     void think();
 
+    void render(game::RenderPass pass);
 private:
 
 };

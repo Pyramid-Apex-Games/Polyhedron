@@ -105,10 +105,6 @@ public:
 		on(event);\
 		DERIVED::onImpl(event);\
 	}\
-	void LOCALNAME::renderImpl(game::RenderPass pass) {\
-		DERIVED::renderImpl(pass);\
-		render(pass);\
-	}\
 	const void LOCALNAME::attributeTreeImpl(attributeTree_T& tree) {\
 	    DERIVED::attributeTreeImpl(tree);\
 	    tree.push_back(attributes());\
@@ -138,7 +134,4 @@ public:
 	virtual const void attributeTreeImpl(attributeTree_T& tree);\
 	virtual const attributeTree_T attributeTree();\
 	virtual void onImpl(const Event& event);\
-	void on(const Event& event);\
-	virtual void renderImpl(game::RenderPass pass);\
-	void render(game::RenderPass pass);\
-    virtual ~LOCALNAME() = default;
+	void on(const Event& event);

@@ -20,6 +20,7 @@
 #include "engine/blend.h"
 #include "engine/SoundConfig.h"
 #include "engine/main/Compatibility.h"
+#include "engine/Camera.h"
 
 #include "game/entities/SkeletalEntity.h"
 #include "game/entities/PlayerSpawnEntity.h"
@@ -1162,9 +1163,12 @@ VAR(entautoviewdist, 0, 25, 100);
 SCRIPTEXPORT void entautoview(int *dir)
 {
     if(!haveselent()) return;
+    const auto& activeCamera = Camera::GetActiveCamera();
+    if (!activeCamera) return;
+
     static int s = 0;
     vec v(player->o);
-    v.sub(worldpos);
+    v.sub(activeCamera->GetWorldPos());
     v.normalize();
     v.mul(entautoviewdist);
     int t = s + *dir;

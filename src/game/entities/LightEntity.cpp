@@ -16,9 +16,6 @@ void LightEntity::think() {
 
 }
 
-void LightEntity::render(game::RenderPass pass) {
-
-}
 
 void LightEntity::setState(LightEntity::LIGHT_STATE &_lightState) { lightState = _lightState; }
 void LightEntity::setStyle(LightEntity::LIGHT_STYLE &_lightStyle) { lightStyle = _lightStyle; }

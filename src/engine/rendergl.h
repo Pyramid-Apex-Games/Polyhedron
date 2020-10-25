@@ -28,7 +28,6 @@ extern int wireframe;
 
 extern int xtraverts, xtravertsva;
 
-extern MovableEntity *camera1;                // special ent that acts as camera, same object as player in FPS mode
 
 extern int glerr;
 void glerror(const char *file, int line, GLenum error);

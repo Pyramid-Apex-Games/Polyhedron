@@ -46,7 +46,7 @@ void ModelEntity::render(game::RenderPass pass)
 {
 	if (pass == game::RenderPass::Main)
 	{
-		rendermodel(modelname.c_str(), ANIM_MAPMODEL|ANIM_LOOP|ANIM_START|(animation & (ANIM_INDEX|ANIM_DIR))|((animation<<ANIM_SECONDARY) & (ANIM_INDEX|ANIM_DIR)), o, d.x, d.y, d.z, MDL_NOBATCH/* MDL_NOBATCH | MDL_CULL_VFC | MDL_CULL_DIST | MDL_CULL_OCCLUDED*/, this, nullptr, curtime, curtime, size, color);
+		rendermodel(modelname.c_str(), animation, o, d.x, d.y, d.z, MDL_NOBATCH/* MDL_NOBATCH | MDL_CULL_VFC | MDL_CULL_DIST | MDL_CULL_OCCLUDED*/, this, nullptr, curtime, curtime, size, color);
 	}
 }
 

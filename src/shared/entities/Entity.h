@@ -161,6 +161,8 @@ public:
     void saveToJson(nlohmann::json& document);
     void loadFromJson(const nlohmann::json& document);
 
+    virtual void render(game::RenderPass pass);
+
     PHUI_VEC("Position") vec o {0.0f, 0.0f, 0.0f};
     PHUI_IVEC("Orientation") ivec d {0, 0, 0}; //yaw, pitch, roll
     PHUI_SLIDER("Scale", 0.0f, 300.0f, 5.0f) float scale = 0.0f;

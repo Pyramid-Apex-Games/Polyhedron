@@ -22,6 +22,7 @@
 #include "engine/editor/ui.h"
 #include "shared/entities/EntityFactory.h"
 #include "game/entities/SkeletalEntity.h"
+#include "engine/Camera.h"
 #include "shared/entities/Entity.h"
 #include <SDL.h>
 
@@ -102,15 +103,18 @@ Application::Application(const CommandlineArguments& commandlineArguments)
     //FIXME: move to game
     game::initclient();
     game::player1 = dynamic_cast<SkeletalEntity*>(game::iterdynents(0));
-    camera1 = new MovableEntity();
+    const auto& activeCamera = new Camera();
     if (thirdperson)
     {
         player = game::player1;
+        extern float thirdpersonup;
+        thirdpersonup = 18.f;
     }
     else
     {
-        player = camera1;
+        player = activeCamera;
     }
+    activeCamera->o = vec(0, 0, 9.f);
     player->setAttribute("model", "actors/bones");
     //emptymap(0, true, NULL, false);
 
@@ -144,7 +148,6 @@ Application::~Application()
     m_Python.release();
     m_Renderer.release();
     m_Window.release();
-    delete camera1;
 }
 
 namespace game {

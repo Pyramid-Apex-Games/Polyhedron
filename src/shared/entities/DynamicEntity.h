@@ -13,13 +13,13 @@ public:
 
     bool crouched() const;
 
-    float maxspeed = 25.0f;
-    float radius = 2.4;
-    float eyeheight = 7.0f;
-    float maxheight = 8.0f;
-    float aboveeye = 2.0f;
-    float xradius = 1.67;
-    float yradius = 1.67;
+    float maxspeed = 60.0f;
+    float radius = 3.6f;
+    float eyeheight = 0.f;
+    float maxheight = 25.f;
+    float aboveeye = 18.f;
+    float xradius = 1.67f;
+    float yradius = 1.67f;
     float zmargin = 0;
 
     uchar state = CS_ALIVE;

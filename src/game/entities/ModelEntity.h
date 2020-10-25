@@ -16,6 +16,8 @@ public:
     virtual void onAnimate(int &anim, int &basetime);
 
     virtual bool getBoundingBox(int entselradius, vec &minbb, vec &maxbb) const;
+
+    virtual void render(game::RenderPass pass);
 public:
     void preloadMapModel(const std::string &filename);
     const std::string& getModelName() const;
@@ -24,7 +26,7 @@ public:
 private:
     void loadModelAttributes();
 
-private:
+protected:
     DONTSERIALIZE mapmodelinfo mmi;
     PHUI_INPUT("Animation id") int animation = 5;
     PHUI_INPUT("Size") float size = 1.0f;

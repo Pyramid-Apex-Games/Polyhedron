@@ -60,8 +60,11 @@ struct flarerenderer : partrenderer
     void newflare(vec &o,  const vec &center, uchar r, uchar g, uchar b, float mod, float size, bool sun, bool sparkle)
     {
         if(numflares >= maxflares) return;
+        const auto& activeCamera = Camera::GetActiveCamera();
+        if (!activeCamera) return;
+
         //occlusion check (neccessary as depth testing is turned off)
-        vec dir = vec(camera1->o).sub(o);
+        vec dir = vec(activeCamera->o).sub(o);
         float dist = dir.magnitude();
         dir.mul(1/dist);
         if(raycube(o, dir, dist, RAY_CLIPMAT|RAY_POLY) < dist) return;
@@ -77,9 +80,11 @@ struct flarerenderer : partrenderer
     {
         //frustrum + fog check
         if(isvisiblesphere(0.0f, o) > (sun?VFC_FOGGED:VFC_FULL_VISIBLE)) return;
+        auto activeCamera = Camera::GetActiveCamera();
+        if (!activeCamera) return;
         //find closest point between camera line of sight and flare pos
-        vec flaredir = vec(o).sub(camera1->o);
-        vec center = vec(camdir).mul(flaredir.dot(camdir)).add(camera1->o);
+        vec flaredir = vec(o).sub(activeCamera->o);
+        vec center = vec(activeCamera->GetDirection()).mul(flaredir.dot(activeCamera->GetDirection())).add(activeCamera->o);
         float mod, size;
         if(sun) //fixed size
         {
@@ -113,6 +118,12 @@ struct flarerenderer : partrenderer
 
     void render()
     {
+        auto activeCamera = Camera::GetActiveCamera();
+        if (!activeCamera) return;
+
+        const auto& camright = activeCamera->GetRight();
+        const auto& camup = activeCamera->GetUp();
+
         glDisable(GL_DEPTH_TEST);
         glBindTexture(GL_TEXTURE_2D, tex->id);
         gle::defattrib(gle::ATTRIB_VERTEX, 3, GL_FLOAT);

@@ -4,6 +4,7 @@
 #include "engine/scriptexport.h"
 #include "engine/blend.h"
 #include "engine/GLFeatures.h"
+#include "engine/Camera.h"
 
 enum
 {
@@ -974,8 +975,11 @@ SCRIPTEXPORT void rotateblendbrush(int *val)
 void paintblendmap(bool msg)
 {
     if(!canpaintblendmap(true, false, msg)) return;
+    const auto& activeCamera = Camera::GetActiveCamera();
+    if (!activeCamera) return;
 
     BlendBrush *brush = brushes[curbrush];
+    const auto& worldpos = activeCamera->GetWorldPos();
     int x = (int)floor(clamp(worldpos.x, 0.0f, float(worldsize))/(1<<BM_SCALE) - 0.5f*brush->w),
         y = (int)floor(clamp(worldpos.y, 0.0f, float(worldsize))/(1<<BM_SCALE) - 0.5f*brush->h);
     blitblendmap(brush->data, x, y, brush->w, brush->h, blendpaintmode);
@@ -1079,8 +1083,11 @@ SCRIPTEXPORT_AS(moveblendmap) void moveblendmap_scriptimpl(int *dx, int *dy)
 void renderblendbrush()
 {
     if(!blendpaintmode || !brushes.inrange(curbrush)) return;
+    const auto& activeCamera = Camera::GetActiveCamera();
+    if (!activeCamera) return;
 
     BlendBrush *brush = brushes[curbrush];
+    const vec& worldpos = activeCamera->GetWorldPos();
     int x1 = (int)floor(clamp(worldpos.x, 0.0f, float(worldsize))/(1<<BM_SCALE) - 0.5f*brush->w) << BM_SCALE,
         y1 = (int)floor(clamp(worldpos.y, 0.0f, float(worldsize))/(1<<BM_SCALE) - 0.5f*brush->h) << BM_SCALE,
         x2 = x1 + (brush->w << BM_SCALE),

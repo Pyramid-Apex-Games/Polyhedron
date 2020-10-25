@@ -17,6 +17,7 @@
 #include "engine/rendersky.h"
 #include "engine/menus.h"
 #include "engine/GLFeatures.h"
+#include "engine/Camera.h"
 #include "game/game.h"
 
 
@@ -328,6 +329,9 @@ void viewao()
 void renderao()
 {
     if(!ao) return;
+    auto activeCamera = Camera::GetActiveCamera();
+    if (!activeCamera)
+        return;
 
     timer *aotimer = begintimer("ambient obscurance");
 
@@ -363,6 +367,11 @@ void renderao()
     {
         if(msaasamples) glBindTexture(GL_TEXTURE_2D_MULTISAMPLE, msnormaltex);
         else glBindTexture(GL_TEXTURE_RECTANGLE, gnormaltex);
+
+
+
+        auto& cammatrix = activeCamera->GetMatrix();
+
         LOCALPARAM(normalmatrix, matrix3(cammatrix));
     }
     glActiveTexture_(GL_TEXTURE2);
@@ -1634,7 +1643,7 @@ struct lightinfo
     lightinfo() {}
     lightinfo(const vec &o, const vec &color, float radius, int flags = 0, const vec &dir = vec(0, 0, 0), int spot = 0)
       : ent(-1), shadowmap(-1), flags(flags),
-        o(o), color(color), radius(radius), dist(camera1->o.dist(o)),
+        o(o), color(color), radius(radius), dist(Camera::GetActiveCamera()->o.dist(o)),
         dir(dir), spot(spot), query(NULL)
     {
         if(spot > 0) calcspot();
@@ -1642,7 +1651,7 @@ struct lightinfo
     }
     lightinfo(int i, const LightEntity *e)
 	: ent(i), shadowmap(-1), flags(e->scale),
-	o(e->o), color(vec(e->lightColor.x, e->lightColor.y, e->lightColor.z).max(0)), radius(e->scale), dist(camera1->o.dist(e->o)),
+	o(e->o), color(vec(e->lightColor.x, e->lightColor.y, e->lightColor.z).max(0)), radius(e->scale), dist(Camera::GetActiveCamera()->o.dist(e->o)),
         dir(0, 0, 0), spot(0), query(NULL)
     {
         //FIXME: attached feature / spotlight feature
@@ -2098,6 +2107,10 @@ void cascadedshadowmap::getmodelmatrix()
 
 void cascadedshadowmap::getprojmatrix()
 {
+    auto activeCamera = Camera::GetActiveCamera();
+    if (!activeCamera)
+        return;
+
     lightview = vec(sunlightdir).neg();
 
     // compute the split frustums
@@ -2117,7 +2130,7 @@ void cascadedshadowmap::getprojmatrix()
         const shadowmapinfo &sm = shadowmaps[split.idx];
 
         vec c;
-        float radius = calcfrustumboundsphere(split.nearplane, split.farplane, camera1->o, camdir, c);
+        float radius = calcfrustumboundsphere(split.nearplane, split.farplane, activeCamera->o, activeCamera->GetDirection(), c);
 
         // compute the projected bounding box of the sphere
         vec tc;
@@ -2268,6 +2281,9 @@ void reflectiveshadowmap::getmodelmatrix()
 
 void reflectiveshadowmap::getprojmatrix()
 {
+    const auto& activeCamera = Camera::GetActiveCamera();
+    if (!activeCamera) return;
+
     lightview = vec(sunlightdir).neg();
 
     // find z extent
@@ -2277,7 +2293,7 @@ void reflectiveshadowmap::getprojmatrix()
     maxz += zmargin;
 
     vec c;
-    float radius = calcfrustumboundsphere(rhnearplane, rhfarplane, camera1->o, camdir, c);
+    float radius = calcfrustumboundsphere(rhnearplane, rhfarplane, activeCamera->o, activeCamera->GetDirection(), c);
 
     // compute the projected bounding box of the sphere
     vec tc;
@@ -2394,6 +2410,9 @@ void radiancehints::updatesplitdist()
 
 void radiancehints::setup()
 {
+    const auto& activeCamera = Camera::GetActiveCamera();
+    if (!activeCamera) return;
+
     updatesplitdist();
 
     loopi(rhsplits)
@@ -2401,7 +2420,7 @@ void radiancehints::setup()
         splitinfo &split = splits[i];
 
         vec c;
-        float radius = calcfrustumboundsphere(split.nearplane, split.farplane, camera1->o, camdir, c);
+        float radius = calcfrustumboundsphere(split.nearplane, split.farplane, activeCamera->o, activeCamera->GetDirection(), c);
 
         // compute the projected bounding box of the sphere
         const float pradius = ceil(radius * rhpradiustweak), step = (2*pradius) / rhgrid;
@@ -3051,7 +3070,8 @@ static void renderlightsnobatch(Shader *s, int stencilref, bool transparent, flo
 //            if(GLFeatures::HasDBT() && depthtestlights > 1) glDepthBounds_(l.sz1*0.5f + 0.5f, min(l.sz2*0.5f + 0.5f, depthtestlightsclamp));
 #endif
 
-            if(camera1->o.dist(l.o) <= l.radius*lightradiustweak + nearplane + 1 && depthfaillights)
+            assert(Camera::GetActiveCamera());
+            if(Camera::GetActiveCamera()->o.dist(l.o) <= l.radius*lightradiustweak + nearplane + 1 && depthfaillights)
             {
                 if(outside)
                 {
@@ -3387,7 +3407,8 @@ void rendervolumetric()
             tx2 = int(ceil((l.sx2*0.5f+0.5f)*volw)), ty2 = int(ceil((l.sy2*0.5f+0.5f)*volh));
         glScissor(tx1, ty1, tx2-tx1, ty2-ty1);
 
-        if(camera1->o.dist(l.o) <= l.radius*lightradiustweak + nearplane + 1 && depthfaillights)
+        assert(Camera::GetActiveCamera());
+        if(Camera::GetActiveCamera()->o.dist(l.o) <= l.radius*lightradiustweak + nearplane + 1 && depthfaillights)
         {
             if(outside)
             {
@@ -3581,7 +3602,8 @@ void collectlights()
         if((l.noshadow() && (!oqvol || !l.volumetric())) || l.radius >= worldsize) continue;
         vec bbmin, bbmax;
         l.calcbb(bbmin, bbmax);
-        if(!camera1->o.insidebb(bbmin, bbmax, 2))
+        assert(Camera::GetActiveCamera());
+        if(!Camera::GetActiveCamera()->o.insidebb(bbmin, bbmax, 2))
         {
             l.query = newquery(&l);
             if(l.query)
@@ -4639,6 +4661,12 @@ void rendertransparent()
         return;
     }
 
+    auto activeCamera = Camera::GetActiveCamera();
+    if (!activeCamera)
+        return;
+
+
+
     if(!editmode && particlelayers && ghasstencil) renderparticles(PL_UNDER);
 
     timer *transtimer = begintimer("transparent");
@@ -4685,6 +4713,7 @@ void rendertransparent()
 
     if(ghasstencil) glEnable(GL_STENCIL_TEST);
 
+    auto& cammatrix = activeCamera->GetMatrix();
     matrix4 raymatrix(vec(-0.5f*vieww*projmatrix.a.x, 0, 0.5f*vieww - 0.5f*vieww*projmatrix.c.x),
                       vec(0, -0.5f*viewh*projmatrix.b.y, 0.5f*viewh - 0.5f*viewh*projmatrix.c.y));
     raymatrix.muld(cammatrix);
@@ -4910,7 +4939,8 @@ void preparegbuffer(bool depthclear)
 
     GLOBALPARAMF(ldrscale, ldrscale);
     GLOBALPARAMF(hdrgamma, hdrgamma, 1.0f/hdrgamma);
-    GLOBALPARAM(camera, camera1->o);
+    assert(Camera::GetActiveCamera());
+    GLOBALPARAM(camera, Camera::GetActiveCamera()->o);
     GLOBALPARAMF(millis, lastmillis/1000.0f);
 
     GLERROR;

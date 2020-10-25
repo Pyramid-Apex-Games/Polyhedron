@@ -9,6 +9,7 @@
 #include "engine/renderva.h"
 #include "engine/main/Compatibility.h"
 #include "engine/main/Renderer.h"
+#include "engine/Camera.h"
 #include "game/entities/ModelEntity.h"
 
 //extern from command.h
@@ -653,9 +654,11 @@ static inline void enablecullmodelquery()
 
 static inline void rendercullmodelquery(model *m, MovableEntity *d, const vec &center, float radius)
 {
-	if(fabs(camera1->o.x-center.x) < radius+1 &&
-	   fabs(camera1->o.y-center.y) < radius+1 &&
-	   fabs(camera1->o.z-center.z) < radius+1)
+    assert(Camera::GetActiveCamera());
+    const auto& o = Camera::GetActiveCamera()->o;
+	if(fabs(o.x-center.x) < radius+1 &&
+	   fabs(o.y-center.y) < radius+1 &&
+	   fabs(o.z-center.z) < radius+1)
 	{
 		d->query = NULL;
 		return;
@@ -675,7 +678,8 @@ static inline void disablecullmodelquery()
 
 static inline int cullmodel(model *m, const vec &center, float radius, int flags, ModelEntity *d = NULL)
 {
-	if(flags&MDL_CULL_DIST && center.dist(camera1->o)/radius>maxmodelradiusdistance) return MDL_CULL_DIST;
+    assert(Camera::GetActiveCamera());
+	if(flags&MDL_CULL_DIST && center.dist(Camera::GetActiveCamera()->o)/radius>maxmodelradiusdistance) return MDL_CULL_DIST;
 	if(flags&MDL_CULL_VFC && isfoggedsphere(radius, center)) return MDL_CULL_VFC;
 	if(flags&MDL_CULL_OCCLUDED && modeloccluded(center, radius)) return MDL_CULL_OCCLUDED;
 	else if(flags&MDL_CULL_QUERY && d->query && d->query->owner==d && checkquery(d->query)) return MDL_CULL_QUERY;

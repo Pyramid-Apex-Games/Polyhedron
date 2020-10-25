@@ -15,11 +15,6 @@ void PlayerSpawnEntity::think()
 
 }
 
-void PlayerSpawnEntity::render(game::RenderPass pass)
-{
-
-}
-
 void PlayerSpawnEntity::reset()
 {
 

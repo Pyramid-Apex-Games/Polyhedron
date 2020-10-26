@@ -426,11 +426,26 @@ void recomputecamera()
 
     bool allowthirdperson = true;
     bool shoulddetach = (allowthirdperson && thirdperson > 1) || game::detachcamera();
+
+    matrix3 orient;
+    orient.identity();
+    orient.rotate_around_z(activeCamera->d.x *  RAD);
+    orient.rotate_around_x(activeCamera->d.y *  RAD);
+    orient.rotate_around_y(activeCamera->d.z * -RAD);
+
+    vec dir = vec(orient.b).neg(), side = vec(orient.a).neg(), up = orient.c;
+
     if((!allowthirdperson || !thirdperson) && !shoulddetach)
     {
         activeCamera->o = player->o;
 
         detachedcamera = false;
+
+        if(thirdpersonup)
+        {
+            activeCamera->o.add(vec(0,0,1).mul(thirdpersonup));
+            activeCamera->o.add(dir.mul(-2.0f));
+        }
     }
     else
     {
@@ -442,16 +457,11 @@ void recomputecamera()
 
             detachedcamera = shoulddetach;
         }
+
 //        prepCamera1->ent_type = ENT_CAMERA;
 //        activeCamera->move = -4;
 //        activeCamera->eyeheight = activeCamera->aboveeye = activeCamera->radius = activeCamera->xradius = activeCamera->yradius = 2;
 
-        matrix3 orient;
-        orient.identity();
-        orient.rotate_around_z(activeCamera->d.x *  RAD);
-        orient.rotate_around_x(activeCamera->d.y *  RAD);
-        orient.rotate_around_y(activeCamera->d.z * -RAD);
-        vec dir = vec(orient.b).neg(), side = vec(orient.a).neg(), up = orient.c;
 
         if(game::collidecamera())
         {

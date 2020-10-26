@@ -1,4 +1,5 @@
 #pragma once
+#ifdef BUILD_WITH_PYTHON
 #include <string>
 
 class PythonScript {
@@ -12,4 +13,4 @@ public:
     void Update();
 private:
 };
-
+#endif

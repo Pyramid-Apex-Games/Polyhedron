@@ -222,16 +222,23 @@ list(APPEND fileListShared
     shared/iengine.h
     shared/igame.h
     shared/pch.cpp
-    shared/python/PythonScript.cpp
-    shared/python/PythonScript.h
-    shared/python/PythonPipeIO.cpp
-    shared/python/PythonPipeIO.h
+
     shared/stream.cpp
     # shared/tessfont.c
     shared/tools.cpp
     shared/tools.h
     shared/zip.cpp
 )
+
+if (WITH_PYTHON)
+    list(APPEND fileListShared
+        shared/python/PythonScript.cpp
+        shared/python/PythonScript.h
+        shared/python/PythonPipeIO.cpp
+        shared/python/PythonPipeIO.h
+    )
+endif()
+
 
 list(APPEND fileListSharedGeom
     shared/geom/bvec.cpp

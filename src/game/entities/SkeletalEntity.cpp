@@ -216,17 +216,20 @@ void SkeletalEntity::render(game::RenderPass pass)
 
     if (pass == game::RenderPass::Main)
     {
-        auto [anim, basetime] = CalculateAnimation();
+        if(this==game::player1 && thirdperson)
+        {
+            auto [anim, basetime] = CalculateAnimation();
 
-        if(this!=game::player1) flags |= MDL_CULL_VFC | MDL_CULL_OCCLUDED | MDL_CULL_QUERY;
-//        if(type==ENT_PLAYER) flags |= MDL_FULLBRIGHT;
-//        else
-            flags |= MDL_CULL_DIST;
-//        if(!mainpass) flags &= ~(MDL_FULLBRIGHT | MDL_CULL_VFC | MDL_CULL_OCCLUDED | MDL_CULL_QUERY | MDL_CULL_DIST);
-        float trans = state == CS_LAGGED ? 0.5f : 1.0f;
-        animation = anim;
-        rendermodel(modelname.c_str(), anim, o, d.x, d.y, d.z, flags, this, nullptr, basetime, 0, size, vec4(color.x, color.y, color.z, trans));
-        //rendermodel(mdlname, anim, o, syaw, pitch, 0, flags, d, a[0].tag ? a : NULL, basetime, 0, fade, vec4(vec::hexcolor(color), trans));
+            if(this!=game::player1) flags |= MDL_CULL_VFC | MDL_CULL_OCCLUDED | MDL_CULL_QUERY;
+    //        if(type==ENT_PLAYER) flags |= MDL_FULLBRIGHT;
+    //        else
+                flags |= MDL_CULL_DIST;
+    //        if(!mainpass) flags &= ~(MDL_FULLBRIGHT | MDL_CULL_VFC | MDL_CULL_OCCLUDED | MDL_CULL_QUERY | MDL_CULL_DIST);
+            float trans = state == CS_LAGGED ? 0.5f : 1.0f;
+            animation = anim;
+            rendermodel(modelname.c_str(), anim, o, d.x, d.y, d.z, flags, this, nullptr, basetime, 0, size, vec4(color.x, color.y, color.z, trans));
+            //rendermodel(mdlname, anim, o, syaw, pitch, 0, flags, d, a[0].tag ? a : NULL, basetime, 0, fade, vec4(vec::hexcolor(color), trans));
+        }
     }
 }
 

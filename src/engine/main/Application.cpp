@@ -86,8 +86,9 @@ Application::Application(const CommandlineArguments& commandlineArguments)
 
     m_Renderer->Initialize();
 
+#ifdef BUILD_WITH_PYTHON
     m_Python = std::make_unique<PythonScript>(commandlineArguments.Get(Argument::Any));
-
+#endif
 //    gl_setupframe(true);
     engine::nui::Initialize();
     EditorUI::Initialize();
@@ -127,6 +128,7 @@ Application::Application(const CommandlineArguments& commandlineArguments)
 
     initmumble();
 
+#ifdef BUILD_WITH_PYTHON
     m_Python->RunString("from time import time,ctime\n"
                        "print('Hello from Python, today is', ctime(time()))\n");
 
@@ -141,11 +143,14 @@ Application::Application(const CommandlineArguments& commandlineArguments)
 
     m_Python->RunString("import sys\n"
                        "print('error message!', file=sys.stderr)\n");
+#endif
 }
 
 Application::~Application()
 {
+#ifdef BUILD_WITH_PYTHON
     m_Python.release();
+#endif
     m_Renderer.release();
     m_Window.release();
 }
@@ -159,7 +164,9 @@ void Application::RunFrame()
     ClockFrame();
 
     ProcessEvents();
+#ifdef BUILD_WITH_PYTHON
     m_Python->Update();
+#endif
     m_Console->Update();
 
     UI::update();

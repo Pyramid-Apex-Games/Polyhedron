@@ -39,7 +39,9 @@ public:
     Input& GetInput() const;
     SoundConfig& GetSoundConfig() const;
     const AppState& GetAppState() const;
+#ifdef BUILD_WITH_PYTHON
     PythonScript& GetPython() const;
+#endif
     Console& GetConsole() const;
 
     void RunFrame();
@@ -61,7 +63,9 @@ private:
     std::unique_ptr<Renderer> m_Renderer;
     std::unique_ptr<Input> m_Input;
     std::unique_ptr<SoundConfig> m_SoundConfig;
+#ifdef BUILD_WITH_PYTHON
     std::unique_ptr<PythonScript> m_Python;
+#endif
     std::unique_ptr<Console> m_Console;
 
     std::list<SDL_Event> m_CachedEvents;

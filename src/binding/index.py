@@ -85,16 +85,21 @@ def refactor(buildFolder, file, outputFolder, classPattern):
         generatedHeader = ClassHeaderSourceSplitter.Generate(rootNode, className)
 
 
-def generate_code(buildFolder, file, outputfile):
+def generate_code(buildFolder, file, outputfile, with_python=False, with_cubescript=True, with_json=True):
     outputFileAbs = os.path.abspath(outputfile)
 
     parser = CppParser(buildFolder, file)
     parser.start(outputFileAbs)
     parser.cppmodel_generate()
-
-    generatedCubeScript = CubeScriptBinding.GenerateWithoutMacros(parser.cppmodel())
-    generatedJsonSerializer = JsonSerializer.Generate(parser.cppmodel())
-    generatedPythonBinding = PythonScriptBinding.Generate(parser.cppmodel())
+    generatedCubeScript = ""
+    generatedJsonSerializer = ""
+    generatedPythonBinding = ""
+    if with_cubescript:
+        generatedCubeScript = CubeScriptBinding.GenerateWithoutMacros(parser.cppmodel())
+    if with_json:
+        generatedJsonSerializer = JsonSerializer.Generate(parser.cppmodel())
+    if with_python:
+        generatedPythonBinding = PythonScriptBinding.Generate(parser.cppmodel())
 
     if (generatedCubeScript and generatedCubeScript != "\n") or (generatedJsonSerializer and generatedJsonSerializer != "\n") or (generatedPythonBinding and generatedPythonBinding != "\n"):
         file_write_data(outputFileAbs, generatedCubeScript + "\n\n" + generatedJsonSerializer + "\n\n" + generatedPythonBinding)
@@ -158,9 +163,33 @@ if __name__ == "__main__":
     #     print ("{}\n\t{}".format(file, " ".join(flags)))
 
     args = sys.argv[1:]
-    if len(args) == 5:
+    if len(args) >= 5:
         if args[0] == "refactor":
             refactor(args[1], args[2], args[3], args[4])
+        if args[0] == "gen":
+            try:
+                with_python_index = args.index("--with-python")
+                with_python = True
+            except ValueError:
+                with_python = False
+                pass
+
+            try:
+                with_cubescript_index = args.index("--without-cubescript")
+                with_cubescript = False
+            except ValueError:
+                with_cubescript = True
+                pass
+            try:
+                with_json_index = args.index("--without-json")
+                with_json = False
+            except ValueError:
+                with_json = True
+                pass
+
+            generate_code(args[1], args[2], args[3],
+                  with_json=with_json, with_python=with_python, with_cubescript=with_cubescript)
+
         else:
             usage()
     elif len(args) == 4:

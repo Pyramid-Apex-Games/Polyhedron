@@ -1,5 +1,6 @@
 #pragma once
 #include <cstring>
+#include <string>
 
 
 template<class T>
@@ -10,6 +11,7 @@ struct sortless
     template<class T> bool operator()(const T &x, const T &y) const { return x < y; }
     bool operator()(char *x, char *y) const { return strcmp(x, y) < 0; }
     bool operator()(const char *x, const char *y) const { return strcmp(x, y) < 0; }
+    bool operator()(const std::string& x, const std::string& y) const { return strcmp(x.c_str(), y.c_str()) < 0; }
 };
 
 struct sortnameless

@@ -111,7 +111,7 @@ void flushvbo(int type = -1)
     vector<uchar> &data = vbodata[type];
     if(data.empty()) return;
     vector<vtxarray *> &vas = vbovas[type];
-    genvbo(type, data.getbuf(), data.length(), vas.getbuf(), vas.length());
+    genvbo(type, data.data(), data.size(), vas.data(), vas.size());
     data.setsize(0);
     vas.setsize(0);
     vbosize[type] = 0;
@@ -132,10 +132,10 @@ uchar *addvbo(vtxarray *va, int type, int numelems, int elemsize)
     vector<uchar> &data = vbodata[type];
     vector<vtxarray *> &vas = vbovas[type];
 
-    vas.add(va);
+    vas.emplace_back(va);
 
     int len = numelems*elemsize;
-    uchar *buf = data.reserve(len).buf;
+    uchar *buf = data.reserve_raw_return(len).buf;
     data.advance(len);
     return buf;
 }
@@ -165,10 +165,10 @@ struct verthash
             if(c.pos==v.pos && c.tc==v.tc && c.norm==v.norm && c.tangent==v.tangent)
                  return i;
         }
-        if(verts.length() >= USHRT_MAX) return -1;
-        verts.add(v);
-        chain.add(table[h]);
-        return table[h] = verts.length()-1;
+        if(verts.size() >= USHRT_MAX) return -1;
+        verts.emplace_back(v);
+        chain.emplace_back(table[h]);
+        return table[h] = verts.size()-1;
     }
 
     int addvert(const vec &pos, const vec &tc = vec(0, 0, 0), const bvec &norm = bvec(128, 128, 128), const bvec4 &tangent = bvec4(128, 128, 128, 128))
@@ -219,8 +219,8 @@ struct sortkey
         VSlot &xs = lookupvslot(x.tex, false), &ys = lookupvslot(y.tex, false);
         if(xs.slot->shader < ys.slot->shader) return true;
         if(xs.slot->shader > ys.slot->shader) return false;
-        if(xs.slot->params.length() < ys.slot->params.length()) return true;
-        if(xs.slot->params.length() > ys.slot->params.length()) return false;
+        if(xs.slot->params.size() < ys.slot->params.size()) return true;
+        if(xs.slot->params.size() > ys.slot->params.size()) return false;
         if(x.tex < y.tex) return true;
         else return false;
     }
@@ -259,8 +259,8 @@ struct decalkey
         DecalSlot &xs = lookupdecalslot(x.tex, false), &ys = lookupdecalslot(y.tex, false);
         if(xs.slot->shader < ys.slot->shader) return true;
         if(xs.slot->shader > ys.slot->shader) return false;
-        if(xs.slot->params.length() < ys.slot->params.length()) return true;
-        if(xs.slot->params.length() > ys.slot->params.length()) return false;
+        if(xs.slot->params.size() < ys.slot->params.size()) return true;
+        if(xs.slot->params.size() > ys.slot->params.size()) return false;
         if(x.tex < y.tex) return true;
         else return false;
     }
@@ -325,11 +325,11 @@ struct vacollect : verthash
     {
         enumeratekt(indices, sortkey, k, sortval, t,
         {
-            if(t.tris.length()) texs.add(k);
+            if(t.tris.size()) texs.emplace_back(k);
         });
-        texs.sort(sortkey::sort);
+        std::sort(texs.begin(), texs.end(), &sortkey::sort);
 
-        matsurfs.shrink(optimizematsurfs(matsurfs.getbuf(), matsurfs.length()));
+        matsurfs.shrink(optimizematsurfs(matsurfs.data(), matsurfs.size()));
     }
 
 #define GENVERTS(type, ptr, body) do \
@@ -374,7 +374,7 @@ struct vacollect : verthash
             if(t.tris.empty()) continue;
             decalkey tkey(key);
             if(shouldreuseparams(s, lookupvslot(k.tex, false))) tkey.reuse = k.tex;
-            for(int j = 0; j < t.tris.length(); j += 3)
+            for(int j = 0; j < t.tris.size(); j += 3)
             {
                 const vertex &t0 = verts[t.tris[j]], &t1 = verts[t.tris[j+1]], &t2 = verts[t.tris[j+2]];
                 vec v0 = t0.pos, v1 = t1.pos, v2 = t2.pos;
@@ -417,9 +417,9 @@ struct vacollect : verthash
                 vector<ushort> &tris = decalindices[tkey].tris;
                 loopk(nump-2) if(idx[0] != idx[k+1] && idx[k+1] != idx[k+2] && idx[k+2] != idx[0])
                 {
-                    tris.add(idx[0]);
-                    tris.add(idx[k+1]);
-                    tris.add(idx[k+2]);
+                    tris.emplace_back(idx[0]);
+                    tris.emplace_back(idx[k + 1]);
+                    tris.emplace_back(idx[k + 2]);
                     decaltris += 3;
                 }
             }
@@ -428,7 +428,7 @@ struct vacollect : verthash
 
     void gendecals()
     {
-        if(decals.length()) extdecals.put(decals.getbuf(), decals.length());
+        if(decals.size()) extdecals.put(decals.data(), decals.size());
         if(extdecals.empty()) return;
         const auto& ents = getents();
         loopv(extdecals)
@@ -463,9 +463,9 @@ struct vacollect : verthash
         }
         enumeratekt(decalindices, decalkey, k, sortval, t,
         {
-            if(t.tris.length()) decaltexs.add(k);
+            if(t.tris.size()) decaltexs.emplace_back(k);
         });
-        decaltexs.sort(decalkey::sort);
+        std::sort(decaltexs.begin(), decaltexs.end(), &decalkey::sort);
     }
 
     void setupdata(vtxarray *va)
@@ -473,7 +473,7 @@ struct vacollect : verthash
         optimize();
         gendecals();
 
-        va->verts = verts.length();
+        va->verts = verts.size();
         va->tris = worldtris/3;
         va->vbuf = 0;
         va->vdata = 0;
@@ -482,7 +482,7 @@ struct vacollect : verthash
         va->voffset = 0;
         if(va->verts)
         {
-            if(vbosize[VBO_VBUF] + verts.length() > maxvbosize ||
+            if(vbosize[VBO_VBUF] + verts.size() > maxvbosize ||
                vbosize[VBO_EBUF] + worldtris > USHRT_MAX ||
                vbosize[VBO_SKYBUF] + skytris > USHRT_MAX ||
                vbosize[VBO_DECALBUF] + decaltris > USHRT_MAX)
@@ -495,12 +495,12 @@ struct vacollect : verthash
         }
 
         va->matbuf = NULL;
-        va->matsurfs = matsurfs.length();
+        va->matsurfs = matsurfs.size();
         va->matmask = 0;
         if(va->matsurfs)
         {
-            va->matbuf = new materialsurface[matsurfs.length()];
-            memcpy(va->matbuf, matsurfs.getbuf(), matsurfs.length()*sizeof(materialsurface));
+            va->matbuf = new materialsurface[matsurfs.size()];
+            memcpy(va->matbuf, matsurfs.data(), matsurfs.size()*sizeof(materialsurface));
             loopv(matsurfs)
             {
                 materialsurface &m = matsurfs[i];
@@ -517,16 +517,16 @@ struct vacollect : verthash
         va->skybuf = 0;
         va->skydata = 0;
         va->skyoffset = 0;
-        va->sky = skyindices.length();
+        va->sky = skyindices.size();
         if(va->sky)
         {
             ushort *skydata = (ushort *)addvbo(va, VBO_SKYBUF, va->sky, sizeof(ushort));
-            memcpy(skydata, skyindices.getbuf(), va->sky*sizeof(ushort));
+            memcpy(skydata, skyindices.data(), va->sky*sizeof(ushort));
             if(va->voffset) loopi(va->sky) skydata[i] += va->voffset;
         }
 
         va->texelems = NULL;
-        va->texs = texs.length();
+        va->texs = texs.size();
         va->blendtris = 0;
         va->blends = 0;
         va->alphabacktris = 0;
@@ -555,9 +555,9 @@ struct vacollect : verthash
                 e.minvert = USHRT_MAX;
                 e.maxvert = 0;
 
-                if(t.tris.length())
+                if(t.tris.size())
                 {
-                    memcpy(curbuf, t.tris.getbuf(), t.tris.length() * sizeof(ushort));
+                    memcpy(curbuf, t.tris.data(), t.tris.size() * sizeof(ushort));
 
                     loopvj(t.tris)
                     {
@@ -566,7 +566,7 @@ struct vacollect : verthash
                         e.maxvert = max(e.maxvert, curbuf[j]);
                     }
 
-                    curbuf += t.tris.length();
+                    curbuf += t.tris.size();
                 }
                 e.length = curbuf-startbuf;
 
@@ -592,7 +592,7 @@ struct vacollect : verthash
         va->decaldata = 0;
         va->decaloffset = 0;
         va->decalelems = NULL;
-        va->decaltexs = decaltexs.length();
+        va->decaltexs = decaltexs.size();
         va->decaltris = decaltris/3;
         if(va->decaltexs)
         {
@@ -610,9 +610,9 @@ struct vacollect : verthash
                 e.minvert = USHRT_MAX;
                 e.maxvert = 0;
 
-                if(t.tris.length())
+                if(t.tris.size())
                 {
-                    memcpy(curbuf, t.tris.getbuf(), t.tris.length() * sizeof(ushort));
+                    memcpy(curbuf, t.tris.data(), t.tris.size() * sizeof(ushort));
 
                     loopvj(t.tris)
                     {
@@ -621,20 +621,20 @@ struct vacollect : verthash
                         e.maxvert = max(e.maxvert, curbuf[j]);
                     }
 
-                    curbuf += t.tris.length();
+                    curbuf += t.tris.size();
                 }
                 e.length = curbuf-startbuf;
             }
         }
 
-        if(grasstris.length())
+        if(grasstris.size())
         {
-            va->grasstris.move(grasstris);
+            va->grasstris = std::move(grasstris);
             loadgrassshaders();
         }
 
-        if(mapmodels.length()) va->mapmodels.put(mapmodels.getbuf(), mapmodels.length());
-        if(decals.length()) va->decals.put(decals.getbuf(), decals.length());
+        if(mapmodels.size()) va->mapmodels.put(mapmodels.data(), mapmodels.size());
+        if(decals.size()) va->decals.put(decals.data(), decals.size());
     }
 
     bool emptyva()
@@ -712,9 +712,9 @@ void addtris(VSlot &vslot, int orient, const sortkey &key, vertex *verts, int *i
             {
                 if(total + 3 > USHRT_MAX) return;
                 total += 3;
-                idxs.add(i0);
-                idxs.add(i1);
-                idxs.add(i2);
+                idxs.emplace_back(i0);
+                idxs.emplace_back(i1);
+                idxs.emplace_back(i2);
                 i1 = i2;
             }
             if(cedge >= 0)
@@ -765,9 +765,9 @@ void addtris(VSlot &vslot, int orient, const sortkey &key, vertex *verts, int *i
                     {
                         if(total + 3 > USHRT_MAX) return;
                         total += 3;
-                        idxs.add(i0);
-                        idxs.add(i1);
-                        idxs.add(i2);
+                        idxs.emplace_back(i0);
+                        idxs.emplace_back(i1);
+                        idxs.emplace_back(i2);
                         i1 = i2;
                     }
                     else start = i0 = i2;
@@ -780,7 +780,7 @@ void addtris(VSlot &vslot, int orient, const sortkey &key, vertex *verts, int *i
 
 void addgrasstri(int face, vertex *verts, int numv, ushort texture, int layer)
 {
-    grasstri &g = vc.grasstris.add();
+    grasstri &g = vc.grasstris.emplace_back();
     int i1, i2, i3, i4;
     if(numv <= 3 && face%2) { i1 = face+1; i2 = face+2; i3 = i4 = 0; }
     else { i1 = 0; i2 = face+1; i3 = face+2; i4 = numv > 3 ? face+3 : i3; }
@@ -791,7 +791,7 @@ void addgrasstri(int face, vertex *verts, int numv, ushort texture, int layer)
     g.numv = numv;
 
     g.surface.toplane(g.v[0], g.v[1], g.v[2]);
-    if(g.surface.z <= 0) { vc.grasstris.pop(); return; }
+    if(g.surface.z <= 0) { vc.grasstris.pop_back(); return; }
 
     g.minz = min(min(g.v[0].z, g.v[1].z), min(g.v[2].z, g.v[3].z));
     g.maxz = max(max(g.v[0].z, g.v[1].z), max(g.v[2].z, g.v[3].z));
@@ -1077,13 +1077,13 @@ void gencubeedges(cube &c, const ivec &co, int size)
                         if(ce.offset+ce.size==p.offset) { ce.flags &= ~CE_END; break; }
                         cur = p.next;
                     }
-                    if(prev>=0) cubeedges[prev].next = cubeedges.length();
-                    else *exists = cubeedges.length();
+                    if(prev>=0) cubeedges[prev].next = cubeedges.size();
+                    else *exists = cubeedges.size();
                 }
             }
-            else edgegroups[g] = cubeedges.length();
+            else edgegroups[g] = cubeedges.size();
 
-            if(insert) cubeedges.add(ce);
+            if(insert) cubeedges.emplace_back(ce);
         }
     }
 }
@@ -1202,7 +1202,7 @@ vtxarray *newva(const ivec &o, int size)
     wverts += va->verts;
     wtris  += va->tris + va->blends + va->alphabacktris + va->alphafronttris + va->refracttris + va->decaltris;
     allocva++;
-    valist.add(va);
+    valist.emplace_back(va);
 
     return va;
 }
@@ -1221,7 +1221,7 @@ void destroyva(vtxarray *va, bool reparent)
         {
             vtxarray *child = va->children[i];
             child->parent = va->parent;
-            if(child->parent) child->parent->children.add(child);
+            if(child->parent) child->parent->children.emplace_back(child);
         }
     }
     if(va->vbuf) destroyvbo(va->vbuf);
@@ -1302,7 +1302,8 @@ void updatevabbs(bool force)
             worldmax = ivec(worldsize, worldsize, worldsize);
         }
     }
-    else loopv(varoot) updatevabb(varoot[i]);
+    else
+        loopv(varoot) updatevabb(varoot[i]);
 }
 
 struct mergedface
@@ -1352,14 +1353,14 @@ int genmergedfaces(cube &c, const ivec &co, int size, int minlevel = -1)
                 mf.envmap = vslot.slot->texmask&(1<<TEX_ENVMAP) ? EMID_CUSTOM : closestenvmap(i, co, size);
             ushort envmap2 = layer && layer->slot->shader->type&SHADER_ENVMAP ? (layer->slot->texmask&(1<<TEX_ENVMAP) ? EMID_CUSTOM : closestenvmap(i, co, size)) : EMID_NONE;
 
-            if(surf.numverts&LAYER_TOP) vamerges[level].add(mf);
+            if(surf.numverts&LAYER_TOP) vamerges[level].emplace_back(mf);
             if(surf.numverts&LAYER_BOTTOM)
             {
                 mf.tex = vslot.layer;
                 mf.envmap = envmap2;
                 mf.numverts &= ~LAYER_BLEND;
                 mf.numverts |= surf.numverts&LAYER_TOP ? LAYER_BOTTOM : LAYER_TOP;
-                vamerges[level].add(mf);
+                vamerges[level].emplace_back(mf);
             }
         }
     }
@@ -1416,7 +1417,7 @@ static inline void finddecals(vtxarray *va)
 {
     if(va->hasmerges&(MERGE_ORIGIN|MERGE_PART))
     {
-        loopv(va->decals) vc.extdecals.add(va->decals[i]);
+        loopv(va->decals) vc.extdecals.emplace_back(va->decals[i]);
         loopv(va->children) finddecals(va->children[i]);
     }
 }
@@ -1446,12 +1447,12 @@ void rendercube(cube &c, const ivec &co, int size, int csi, int &maxlevel) // cr
         }
         --neighbourdepth;
 
-        if(csi <= MAXMERGELEVEL && vamerges[csi].length()) addmergedverts(csi, co);
+        if(csi <= MAXMERGELEVEL && vamerges[csi].size()) addmergedverts(csi, co);
 
         if(c.ext && c.ext->ents)
         {
-            if(c.ext->ents->mapmodels.size()) vc.mapmodels.add(c.ext->ents);
-            if(c.ext->ents->decals.size()) vc.decals.add(c.ext->ents);
+            if(c.ext->ents->mapmodels.size()) vc.mapmodels.emplace_back(c.ext->ents);
+            if(c.ext->ents->decals.size()) vc.decals.emplace_back(c.ext->ents);
         }
         return;
     }
@@ -1473,11 +1474,11 @@ void rendercube(cube &c, const ivec &co, int size, int csi, int &maxlevel) // cr
 
     if(c.ext && c.ext->ents)
     {
-        if(c.ext->ents->mapmodels.size()) vc.mapmodels.add(c.ext->ents);
-        if(c.ext->ents->decals.size()) vc.decals.add(c.ext->ents);
+        if(c.ext->ents->mapmodels.size()) vc.mapmodels.emplace_back(c.ext->ents);
+        if(c.ext->ents->decals.size()) vc.decals.emplace_back(c.ext->ents);
     }
 
-    if(csi <= MAXMERGELEVEL && vamerges[csi].length()) addmergedverts(csi, co);
+    if(csi <= MAXMERGELEVEL && vamerges[csi].size()) addmergedverts(csi, co);
 }
 
 void calcgeombb(const ivec &co, int size, ivec &bbmin, ivec &bbmax)
@@ -1504,7 +1505,7 @@ void setva(cube &c, const ivec &co, int size, int csi)
     ASSERT(size <= 0x1000);
 
     int vamergeoffset[MAXMERGELEVEL+1];
-    loopi(MAXMERGELEVEL+1) vamergeoffset[i] = vamerges[i].length();
+    loopi(MAXMERGELEVEL+1) vamergeoffset[i] = vamerges[i].size();
 
     vc.origin = co;
     vc.size = size;
@@ -1512,7 +1513,7 @@ void setva(cube &c, const ivec &co, int size, int csi)
     loopi(entdepth+1)
     {
         octaentities *oe = entstack[i];
-        if(oe->decals.size()) vc.extdecals.add(oe);
+        if(oe->decals.size()) vc.extdecals.emplace_back(oe);
     }
 
     int maxlevel = -1;
@@ -1572,13 +1573,13 @@ int updateva(cube *c, const ivec &co, int size, int csi)
     neighbourstack[++neighbourdepth] = c;
     loopi(8)                                    // counting number of semi-solid/solid children cubes
     {
-        int count = 0, childpos = varoot.length();
+        int count = 0, childpos = varoot.size();
         ivec o(i, co, size);
         vamergemax = 0;
         vahasmerges = 0;
         if(c[i].ext && c[i].ext->va)
         {
-            varoot.add(c[i].ext->va);
+            varoot.emplace_back(c[i].ext->va);
             if(c[i].ext->va->hasmerges&MERGE_ORIGIN) findmergedfaces(c[i], o, size, csi, csi);
         }
         else
@@ -1590,20 +1591,20 @@ int updateva(cube *c, const ivec &co, int size, int csi)
                 if(c[i].ext && c[i].ext->ents) --entdepth;
             }
             else count += setcubevisibility(c[i], o, size);
-            int tcount = count + (csi <= MAXMERGELEVEL ? vamerges[csi].length() : 0);
+            int tcount = count + (csi <= MAXMERGELEVEL ? vamerges[csi].size() : 0);
             if(tcount > vafacemax || (tcount >= vafacemin && size >= vacubesize) || size == min(0x1000, worldsize/2))
             {
                 loadprogress = clamp(recalcprogress/float(allocnodes), 0.0f, 1.0f);
                 setva(c[i], o, size, csi);
                 if(c[i].ext && c[i].ext->va)
                 {
-                    while(varoot.length() > childpos)
+                    while(varoot.size() > childpos)
                     {
-                        vtxarray *child = varoot.pop();
-                        c[i].ext->va->children.add(child);
+                        vtxarray *child = varoot.pop_back();
+                        c[i].ext->va->children.emplace_back(child);
                         child->parent = c[i].ext->va;
                     }
-                    varoot.add(c[i].ext->va);
+                    varoot.emplace_back(c[i].ext->va);
                     if(vamergemax > size)
                     {
                         cmergemax = max(cmergemax, vamergemax);
@@ -1614,7 +1615,10 @@ int updateva(cube *c, const ivec &co, int size, int csi)
                 else count = 0;
             }
         }
-        if(csi+1 <= MAXMERGELEVEL && vamerges[csi].length()) vamerges[csi+1].move(vamerges[csi]);
+        if(csi+1 <= MAXMERGELEVEL && vamerges[csi].size())
+        {
+            vamerges[csi+1] = std::move(vamerges[csi]);
+        }
         cmergemax = max(cmergemax, vamergemax);
         chasmerges |= vahasmerges;
         ccount += count;
@@ -1629,7 +1633,7 @@ int updateva(cube *c, const ivec &co, int size, int csi)
 void addtjoint(const edgegroup &g, const cubeedge &e, int offset)
 {
     int vcoord = (g.slope[g.axis]*offset + g.origin[g.axis]) & 0x7FFF;
-    tjoint &tj = tjoints.add();
+    tjoint &tj = tjoints.emplace_back();
     tj.offset = vcoord / g.slope[g.axis];
     tj.edge = e.index;
 
@@ -1643,8 +1647,8 @@ void addtjoint(const edgegroup &g, const cubeedge &e, int offset)
     }
 
     tj.next = cur;
-    if(prev < 0) e.c->ext->tjoints = tjoints.length()-1;
-    else tjoints[prev].next = tjoints.length()-1;
+    if(prev < 0) e.c->ext->tjoints = tjoints.size() - 1;
+    else tjoints[prev].next = tjoints.size() - 1;
 }
 
 void findtjoints(int cur, const edgegroup &g)
@@ -1731,17 +1735,17 @@ void precachetextures()
             int tex = va->texelems[j].texture;
             if(texs.find(tex) < 0)
             {
-                texs.add(tex);
+                texs.emplace_back(tex);
 
                 VSlot &vslot = lookupvslot(tex, false);
-                if(vslot.layer && texs.find(vslot.layer) < 0) texs.add(vslot.layer);
-                if(vslot.detail && texs.find(vslot.detail) < 0) texs.add(vslot.detail);
+                if(vslot.layer && texs.find(vslot.layer) < 0) texs.emplace_back(vslot.layer);
+                if(vslot.detail && texs.find(vslot.detail) < 0) texs.emplace_back(vslot.detail);
             }
         }
     }
     loopv(texs)
     {
-        loadprogress = float(i+1)/texs.length();
+        loadprogress = float(i+1)/ texs.size();
         lookupvslot(texs[i]);
     }
     loadprogress = 0;

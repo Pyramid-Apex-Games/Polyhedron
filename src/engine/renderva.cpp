@@ -186,7 +186,7 @@ static inline void findvisiblevas(vector<vtxarray *> &vas)
                 v.query = NULL;
             }
             addvisibleva(&v);
-            if(v.children.length())
+            if(v.children.size())
             {
                 if(fullvis || v.curvfc == VFC_FULL_VISIBLE)
                 {
@@ -975,11 +975,11 @@ void findshadowvas(vector<vtxarray *> &vas)
         float dist = vadist(&v, shadoworigin);
         if(dist < shadowradius || !smdistcull)
         {
-            v.shadowmask = !smbbcull ? 0x3F : (v.children.length() || v.mapmodels.length() ?
+            v.shadowmask = !smbbcull ? 0x3F : (v.children.size() || v.mapmodels.size() ?
                                 calcbbsidemask(v.bbmin, v.bbmax, shadoworigin, shadowradius, shadowbias) :
                                 calcbbsidemask(v.geommin, v.geommax, shadoworigin, shadowradius, shadowbias));
             addshadowva(&v, dist);
-            if(v.children.length()) findshadowvas(v.children);
+            if(v.children.size()) findshadowvas(v.children);
         }
     }
 }
@@ -990,14 +990,14 @@ void findcsmshadowvas(vector<vtxarray *> &vas)
     {
         vtxarray &v = *vas[i];
         ivec bbmin, bbmax;
-        if(v.children.length() || v.mapmodels.length()) { bbmin = v.bbmin; bbmax = v.bbmax; }
+        if(v.children.size() || v.mapmodels.size()) { bbmin = v.bbmin; bbmax = v.bbmax; }
         else { bbmin = v.geommin; bbmax = v.geommax; }
         v.shadowmask = calcbbcsmsplits(bbmin, bbmax);
         if(v.shadowmask)
         {
             float dist = shadowdir.project_bb(bbmin, bbmax) - shadowbias;
             addshadowva(&v, dist);
-            if(v.children.length()) findcsmshadowvas(v.children);
+            if(v.children.size()) findcsmshadowvas(v.children);
         }
     }
 }
@@ -1008,14 +1008,14 @@ void findrsmshadowvas(vector<vtxarray *> &vas)
     {
         vtxarray &v = *vas[i];
         ivec bbmin, bbmax;
-        if(v.children.length() || v.mapmodels.length()) { bbmin = v.bbmin; bbmax = v.bbmax; }
+        if(v.children.size() || v.mapmodels.size()) { bbmin = v.bbmin; bbmax = v.bbmax; }
         else { bbmin = v.geommin; bbmax = v.geommax; }
         v.shadowmask = calcbbrsmsplits(bbmin, bbmax);
         if(v.shadowmask)
         {
             float dist = shadowdir.project_bb(bbmin, bbmax) - shadowbias;
             addshadowva(&v, dist);
-            if(v.children.length()) findrsmshadowvas(v.children);
+            if(v.children.size()) findrsmshadowvas(v.children);
         }
     }
 }
@@ -1028,11 +1028,11 @@ void findspotshadowvas(vector<vtxarray *> &vas)
         float dist = vadist(&v, shadoworigin);
         if(dist < shadowradius || !smdistcull)
         {
-            v.shadowmask = !smbbcull || (v.children.length() || v.mapmodels.length() ?
+            v.shadowmask = !smbbcull || (v.children.size() || v.mapmodels.size() ?
                                 bbinsidespot(shadoworigin, shadowdir, shadowspot, v.bbmin, v.bbmax) :
                                 bbinsidespot(shadoworigin, shadowdir, shadowspot, v.geommin, v.geommax)) ? 1 : 0;
             addshadowva(&v, dist);
-            if(v.children.length()) findspotshadowvas(v.children);
+            if(v.children.size()) findspotshadowvas(v.children);
         }
     }
 }
@@ -1259,8 +1259,8 @@ struct geombatch
         if(es.texture > b.es.texture) return 1;
         if(es.envmap < b.es.envmap) return -1;
         if(es.envmap > b.es.envmap) return 1;
-        if(vslot.slot->params.length() < b.vslot.slot->params.length()) return -1;
-        if(vslot.slot->params.length() > b.vslot.slot->params.length()) return 1;
+        if(vslot.slot->params.size() < b.vslot.slot->params.size()) return -1;
+        if(vslot.slot->params.size() > b.vslot.slot->params.size()) return 1;
         if(es.orient < b.es.orient) return -1;
         if(es.orient > b.es.orient) return 1;
         return 0;
@@ -1287,21 +1287,21 @@ static void mergetexs(renderstate &cur, vtxarray *va, elementset *texs = NULL, i
 
     if(firstbatch < 0)
     {
-        firstbatch = geombatches.length();
+        firstbatch = geombatches.size();
         numbatches = numtexs;
         loopi(numtexs-1)
         {
-            geombatches.add(geombatch(texs[i], offset, va)).next = i+1;
+            geombatches.emplace_back(geombatch(texs[i], offset, va)).next = i + 1;
             offset += texs[i].length;
         }
-        geombatches.add(geombatch(texs[numtexs-1], offset, va));
+        geombatches.emplace_back(geombatch(texs[numtexs - 1], offset, va));
         return;
     }
 
     int prevbatch = -1, curbatch = firstbatch, curtex = 0;
     do
     {
-        geombatch &b = geombatches.add(geombatch(texs[curtex], offset, va));
+        geombatch &b = geombatches.emplace_back(geombatch(texs[curtex], offset, va));
         offset += texs[curtex].length;
         int dir = -1;
         while(curbatch >= 0)
@@ -1324,23 +1324,23 @@ static void mergetexs(renderstate &cur, vtxarray *va, elementset *texs = NULL, i
             {
                 b.batch = curbatch;
                 b.next = geombatches[curbatch].next;
-                if(prevbatch < 0) firstbatch = geombatches.length()-1;
-                else geombatches[prevbatch].next = geombatches.length()-1;
-                curbatch = geombatches.length()-1;
+                if(prevbatch < 0) firstbatch = geombatches.size()-1;
+                else geombatches[prevbatch].next = geombatches.size()-1;
+                curbatch = geombatches.size()-1;
             }
             else
             {
                 b.batch = next;
-                geombatches[last].batch = geombatches.length()-1;
+                geombatches[last].batch = geombatches.size()-1;
             }
         }
         else
         {
             numbatches++;
             b.next = curbatch;
-            if(prevbatch < 0) firstbatch = geombatches.length()-1;
-            else geombatches[prevbatch].next = geombatches.length()-1;
-            prevbatch = geombatches.length()-1;
+            if(prevbatch < 0) firstbatch = geombatches.size()-1;
+            else geombatches[prevbatch].next = geombatches.size()-1;
+            prevbatch = geombatches.size()-1;
         }
     }
     while(++curtex < numtexs);
@@ -1710,17 +1710,17 @@ void renderva(renderstate &cur, vtxarray *va, int pass = RENDERPASS_GBUFFER, boo
     {
         case RENDERPASS_GBUFFER:
             if(!cur.alphaing) vverts += va->verts;
-            if(doquery) startvaquery(va, { if(geombatches.length()) renderbatches(cur, pass); });
+            if(doquery) startvaquery(va, { if(geombatches.size()) renderbatches(cur, pass); });
             mergetexs(cur, va);
-            if(doquery) endvaquery(va, { if(geombatches.length()) renderbatches(cur, pass); });
-            else if(!batchgeom && geombatches.length()) renderbatches(cur, pass);
+            if(doquery) endvaquery(va, { if(geombatches.size()) renderbatches(cur, pass); });
+            else if(!batchgeom && geombatches.size()) renderbatches(cur, pass);
             break;
 
         case RENDERPASS_GBUFFER_BLEND:
-            if(doquery) startvaquery(va, { if(geombatches.length()) renderbatches(cur, RENDERPASS_GBUFFER); });
+            if(doquery) startvaquery(va, { if(geombatches.size()) renderbatches(cur, RENDERPASS_GBUFFER); });
             mergetexs(cur, va, &va->texelems[va->texs], va->blends, 3*va->tris);
-            if(doquery) endvaquery(va, { if(geombatches.length()) renderbatches(cur, RENDERPASS_GBUFFER); });
-            else if(!batchgeom && geombatches.length()) renderbatches(cur, RENDERPASS_GBUFFER);
+            if(doquery) endvaquery(va, { if(geombatches.size()) renderbatches(cur, RENDERPASS_GBUFFER); });
+            else if(!batchgeom && geombatches.size()) renderbatches(cur, RENDERPASS_GBUFFER);
             break;
 
         case RENDERPASS_CAUSTICS:
@@ -1738,12 +1738,12 @@ void renderva(renderstate &cur, vtxarray *va, int pass = RENDERPASS_GBUFFER, boo
 
         case RENDERPASS_RSM:
             mergetexs(cur, va);
-            if(!batchgeom && geombatches.length()) renderbatches(cur, pass);
+            if(!batchgeom && geombatches.size()) renderbatches(cur, pass);
             break;
 
         case RENDERPASS_RSM_BLEND:
             mergetexs(cur, va, &va->texelems[va->texs], va->blends, 3*va->tris);
-            if(!batchgeom && geombatches.length()) renderbatches(cur, RENDERPASS_RSM);
+            if(!batchgeom && geombatches.size()) renderbatches(cur, RENDERPASS_RSM);
             break;
     }
 }
@@ -1837,7 +1837,7 @@ void rendergeom()
             blends += va->blends;
             renderva(cur, va, RENDERPASS_GBUFFER);
         }
-        if(geombatches.length()) { renderbatches(cur, RENDERPASS_GBUFFER); glCheckError(glFlush()); }
+        if(geombatches.size()) { renderbatches(cur, RENDERPASS_GBUFFER); glCheckError(glFlush()); }
         for(vtxarray *va = visibleva; va; va = va->next) if(va->texs && va->occluded >= OCCLUDE_GEOM)
         {
             if((va->parent && va->parent->occluded >= OCCLUDE_BB) || (va->query && checkquery(va->query)))
@@ -1854,7 +1854,7 @@ void rendergeom()
             blends += va->blends;
             renderva(cur, va, RENDERPASS_GBUFFER);
         }
-        if(geombatches.length()) renderbatches(cur, RENDERPASS_GBUFFER);
+        if(geombatches.size()) renderbatches(cur, RENDERPASS_GBUFFER);
     }
     else
     {
@@ -1868,7 +1868,7 @@ void rendergeom()
             blends += va->blends;
             renderva(cur, va, RENDERPASS_GBUFFER);
         }
-        if(geombatches.length()) renderbatches(cur, RENDERPASS_GBUFFER);
+        if(geombatches.size()) renderbatches(cur, RENDERPASS_GBUFFER);
     }
 
     if(blends)
@@ -1887,7 +1887,7 @@ void rendergeom()
         {
             renderva(cur, va, RENDERPASS_GBUFFER_BLEND);
         }
-        if(geombatches.length()) renderbatches(cur, RENDERPASS_GBUFFER);
+        if(geombatches.size()) renderbatches(cur, RENDERPASS_GBUFFER);
 
         maskgbuffer("cnd");
         glCheckError(glDisable(GL_BLEND));
@@ -1960,7 +1960,7 @@ void renderrsmgeom(bool dyntex)
         renderva(cur, va, RENDERPASS_RSM);
     }
 
-    if(geombatches.length()) renderbatches(cur, RENDERPASS_RSM);
+    if(geombatches.size()) renderbatches(cur, RENDERPASS_RSM);
 
     bool multipassing = false;
 
@@ -1979,7 +1979,7 @@ void renderrsmgeom(bool dyntex)
         {
             renderva(cur, va, RENDERPASS_RSM_BLEND);
         }
-        if(geombatches.length()) renderbatches(cur, RENDERPASS_RSM);
+        if(geombatches.size()) renderbatches(cur, RENDERPASS_RSM);
 
         glCheckError(glDisable(GL_BLEND));
         glCheckError(glDepthMask(GL_TRUE));
@@ -2011,7 +2011,7 @@ int findalphavas()
         if(va->curvfc==VFC_FOGGED) continue;
         float sx1 = -1, sx2 = 1, sy1 = -1, sy2 = 1;
         if(!calcbbscissor(va->alphamin, va->alphamax, sx1, sy1, sx2, sy2)) continue;
-        alphavas.add(va);
+        alphavas.emplace_back(va);
         masktiles(alphatiles, sx1, sy1, sx2, sy2);
         alphafrontsx1 = min(alphafrontsx1, sx1);
         alphafrontsy1 = min(alphafrontsy1, sy1);
@@ -2035,7 +2035,7 @@ int findalphavas()
             alpharefractsy2 = max(alpharefractsy2, sy2);
         }
     }
-    return (alpharefractvas ? 4 : 0) | (alphavas.length() ? 2 : 0) | (alphabackvas ? 1 : 0);
+    return (alpharefractvas ? 4 : 0) | (alphavas.size() ? 2 : 0) | (alphabackvas ? 1 : 0);
 }
 
 void renderrefractmask()
@@ -2080,13 +2080,13 @@ void renderalphageom(int side)
     if(side == 2)
     {
         loopv(alphavas) renderva(cur, alphavas[i], RENDERPASS_GBUFFER);
-        if(geombatches.length()) renderbatches(cur, RENDERPASS_GBUFFER);
+        if(geombatches.size()) renderbatches(cur, RENDERPASS_GBUFFER);
     }
     else
     {
         glCheckError(glCullFace(GL_FRONT));
         loopv(alphavas) if(alphavas[i]->alphabacktris) renderva(cur, alphavas[i], RENDERPASS_GBUFFER);
-        if(geombatches.length()) renderbatches(cur, RENDERPASS_GBUFFER);
+        if(geombatches.size()) renderbatches(cur, RENDERPASS_GBUFFER);
         glCheckError(glCullFace(GL_BACK));
     }
 
@@ -2200,8 +2200,8 @@ struct decalbatch
         if(es.texture > b.es.texture) return 1;
         if(es.envmap < b.es.envmap) return -1;
         if(es.envmap > b.es.envmap) return 1;
-        if(slot.Slot::params.length() < b.slot.Slot::params.length()) return -1;
-        if(slot.Slot::params.length() > b.slot.Slot::params.length()) return 1;
+        if(slot.Slot::params.size() < b.slot.Slot::params.size()) return -1;
+        if(slot.Slot::params.size() > b.slot.Slot::params.size()) return 1;
         if(es.reuse < b.es.reuse) return -1;
         if(es.reuse > b.es.reuse) return 1;
         return 0;
@@ -2217,21 +2217,21 @@ static void mergedecals(decalrenderer &cur, vtxarray *va)
 
     if(firstbatch < 0)
     {
-        firstbatch = decalbatches.length();
+        firstbatch = decalbatches.size();
         numbatches = numtexs;
         loopi(numtexs-1)
         {
-            decalbatches.add(decalbatch(texs[i], offset, va)).next = i+1;
+            decalbatches.emplace_back(decalbatch(texs[i], offset, va)).next = i + 1;
             offset += texs[i].length;
         }
-        decalbatches.add(decalbatch(texs[numtexs-1], offset, va));
+        decalbatches.emplace_back(decalbatch(texs[numtexs - 1], offset, va));
         return;
     }
 
     int prevbatch = -1, curbatch = firstbatch, curtex = 0;
     do
     {
-        decalbatch &b = decalbatches.add(decalbatch(texs[curtex], offset, va));
+        decalbatch &b = decalbatches.emplace_back(decalbatch(texs[curtex], offset, va));
         offset += texs[curtex].length;
         int dir = -1;
         while(curbatch >= 0)
@@ -2254,23 +2254,23 @@ static void mergedecals(decalrenderer &cur, vtxarray *va)
             {
                 b.batch = curbatch;
                 b.next = decalbatches[curbatch].next;
-                if(prevbatch < 0) firstbatch = decalbatches.length()-1;
-                else decalbatches[prevbatch].next = decalbatches.length()-1;
-                curbatch = decalbatches.length()-1;
+                if(prevbatch < 0) firstbatch = decalbatches.size() - 1;
+                else decalbatches[prevbatch].next = decalbatches.size() - 1;
+                curbatch = decalbatches.size() - 1;
             }
             else
             {
                 b.batch = next;
-                decalbatches[last].batch = decalbatches.length()-1;
+                decalbatches[last].batch = decalbatches.size() - 1;
             }
         }
         else
         {
             numbatches++;
             b.next = curbatch;
-            if(prevbatch < 0) firstbatch = decalbatches.length()-1;
-            else decalbatches[prevbatch].next = decalbatches.length()-1;
-            prevbatch = decalbatches.length()-1;
+            if(prevbatch < 0) firstbatch = decalbatches.size() - 1;
+            else decalbatches[prevbatch].next = decalbatches.size() - 1;
+            prevbatch = decalbatches.size() - 1;
         }
     }
     while(++curtex < numtexs);
@@ -2475,9 +2475,9 @@ void renderdecals()
         for(vtxarray *va = decalva; va; va = va->next) if(va->decaltris && va->occluded < OCCLUDE_BB)
         {
             mergedecals(cur, va);
-            if(!batchdecals && decalbatches.length()) renderdecalbatches(cur, 0);
+            if(!batchdecals && decalbatches.size()) renderdecalbatches(cur, 0);
         }
-        if(decalbatches.length()) renderdecalbatches(cur, 0);
+        if(decalbatches.size()) renderdecalbatches(cur, 0);
 
         if(usepacknorm())
         {
@@ -2493,9 +2493,9 @@ void renderdecals()
         for(vtxarray *va = decalva; va; va = va->next) if(va->decaltris && va->occluded < OCCLUDE_BB)
         {
             mergedecals(cur, va);
-            if(!batchdecals && decalbatches.length()) renderdecalbatches(cur, 1);
+            if(!batchdecals && decalbatches.size()) renderdecalbatches(cur, 1);
         }
-        if(decalbatches.length()) renderdecalbatches(cur, 1);
+        if(decalbatches.size()) renderdecalbatches(cur, 1);
     }
     else
     {
@@ -2505,9 +2505,9 @@ void renderdecals()
         for(vtxarray *va = decalva; va; va = va->next) if(va->decaltris && va->occluded < OCCLUDE_BB)
         {
             mergedecals(cur, va);
-            if(!batchdecals && decalbatches.length()) renderdecalbatches(cur, 0);
+            if(!batchdecals && decalbatches.size()) renderdecalbatches(cur, 0);
         }
-        if(decalbatches.length()) renderdecalbatches(cur, 0);
+        if(decalbatches.size()) renderdecalbatches(cur, 0);
     }
 
     cleanupdecals(cur);
@@ -2550,10 +2550,10 @@ struct shadowverts
     {
         uint h = hthash(v)&(SIZE-1);
         for(int i = table[h]; i>=0; i = chain[i]) if(verts[i] == v) return i;
-        if(verts.length() >= USHRT_MAX) return -1;
-        verts.add(v);
-        chain.add(table[h]);
-        return table[h] = verts.length()-1;
+        if(verts.size() >= USHRT_MAX) return -1;
+        verts.emplace_back(v);
+        chain.emplace_back(table[h]);
+        return table[h] = verts.size() - 1;
     }
 } shadowverts;
 vector<ushort> shadowtris[6];
@@ -2574,7 +2574,7 @@ struct shadowdrawinfo
 static void flushshadowmeshdraws(shadowmesh &m, int sides, shadowdrawinfo draws[6])
 {
     int numindexes = 0;
-    loopi(sides) numindexes += shadowtris[i].length();
+    loopi(sides) numindexes += shadowtris[i].size();
     if(!numindexes) return;
 
     GLuint ebuf = 0, vbuf = 0;
@@ -2582,23 +2582,23 @@ static void flushshadowmeshdraws(shadowmesh &m, int sides, shadowdrawinfo draws[
     glCheckError(glGenBuffers_(1, &vbuf));
     ushort *indexes = new ushort[numindexes];
     int offset = 0;
-    loopi(sides) if(shadowtris[i].length())
+    loopi(sides) if(shadowtris[i].size())
     {
-        if(draws[i].last < 0) m.draws[i] = shadowdraws.length();
-        else shadowdraws[draws[i].last].next = shadowdraws.length();
-        draws[i].last = shadowdraws.length();
+        if(draws[i].last < 0) m.draws[i] = shadowdraws.size();
+        else shadowdraws[draws[i].last].next = shadowdraws.size();
+        draws[i].last = shadowdraws.size();
 
-        shadowdraw &d = shadowdraws.add();
+        shadowdraw &d = shadowdraws.emplace_back();
         d.ebuf = ebuf;
         d.vbuf = vbuf;
         d.offset = offset;
-        d.tris = shadowtris[i].length()/3;
+        d.tris = shadowtris[i].size() / 3;
         d.minvert = draws[i].minvert;
         d.maxvert = draws[i].maxvert;
         d.next = -1;
 
-        memcpy(indexes + offset, shadowtris[i].getbuf(), shadowtris[i].length()*sizeof(ushort));
-        offset += shadowtris[i].length();
+        memcpy(indexes + offset, shadowtris[i].data(), shadowtris[i].size() * sizeof(ushort));
+        offset += shadowtris[i].size();
 
         shadowtris[i].setsize(0);
         draws[i].reset();
@@ -2610,12 +2610,12 @@ static void flushshadowmeshdraws(shadowmesh &m, int sides, shadowdrawinfo draws[
     delete[] indexes;
 
     gle::bindvbo(vbuf);
-    glCheckError(glBufferData_(GL_ARRAY_BUFFER, shadowverts.verts.length()*sizeof(vec), shadowverts.verts.getbuf(), GL_STATIC_DRAW));
+    glCheckError(glBufferData_(GL_ARRAY_BUFFER, shadowverts.verts.size() * sizeof(vec), shadowverts.verts.data(), GL_STATIC_DRAW));
     gle::clearvbo();
     shadowverts.clear();
 
-    shadowvbos.add(ebuf);
-    shadowvbos.add(vbuf);
+    shadowvbos.emplace_back(ebuf);
+    shadowvbos.emplace_back(vbuf);
 }
 
 static inline void addshadowmeshtri(shadowmesh &m, int sides, shadowdrawinfo draws[6], const vec &v0, const vec &v1, const vec &v2)
@@ -2634,7 +2634,7 @@ static inline void addshadowmeshtri(shadowmesh &m, int sides, shadowdrawinfo dra
         case SM_CUBEMAP: sidemask = calctrisidemask(l0.div(shadowradius), l1.div(shadowradius), l2.div(shadowradius), shadowbias); break;
     }
     if(!sidemask) return;
-    if(shadowverts.verts.length() + 3 >= USHRT_MAX) flushshadowmeshdraws(m, sides, draws);
+    if(shadowverts.verts.size() + 3 >= USHRT_MAX) flushshadowmeshdraws(m, sides, draws);
     int i0 = shadowverts.add(v0), i1 = shadowverts.add(v1), i2 = shadowverts.add(v2);
     ushort minvert = min(i0, min(i1, i2)), maxvert = max(i0, max(i1, i2));
     loopk(sides) if(sidemask&(1<<k))
@@ -2642,9 +2642,9 @@ static inline void addshadowmeshtri(shadowmesh &m, int sides, shadowdrawinfo dra
         shadowdrawinfo &d = draws[k];
         d.minvert = min(d.minvert, minvert);
         d.maxvert = max(d.maxvert, maxvert);
-        shadowtris[k].add(i0);
-        shadowtris[k].add(i1);
-        shadowtris[k].add(i2);
+        shadowtris[k].emplace_back(i0);
+        shadowtris[k].emplace_back(i1);
+        shadowtris[k].emplace_back(i2);
     }
 }
 
@@ -2728,7 +2728,7 @@ static void genshadowmesh(int idx, Entity *e)
 
 void clearshadowmeshes()
 {
-    if(shadowvbos.length()) { glCheckError(glDeleteBuffers_(shadowvbos.length(), shadowvbos.getbuf()); shadowvbos.setsize(0)); }
+    if(shadowvbos.size()) { glCheckError(glDeleteBuffers_(shadowvbos.size(), shadowvbos.data()); shadowvbos.setsize(0)); }
     if(shadowmeshes.numelems)
     {
         auto &ents = getents();

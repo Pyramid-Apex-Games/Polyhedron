@@ -248,9 +248,9 @@ BIH::BIH(vector<mesh> &buildmeshes)
     loopv(buildmeshes) numtris += buildmeshes[i].numtris;
     if(!numtris) return;
 
-    nummeshes = buildmeshes.length();
+    nummeshes = buildmeshes.size();
     meshes = new mesh[nummeshes];
-    memcpy(meshes, buildmeshes.getbuf(), sizeof(mesh)*buildmeshes.length());
+    memcpy(meshes, buildmeshes.data(), sizeof(mesh)*buildmeshes.size());
     tribbs = new tribb[numtris];
     tribb *dsttri = tribbs;
     loopi(nummeshes)

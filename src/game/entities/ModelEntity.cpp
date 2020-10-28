@@ -97,7 +97,7 @@ void ModelEntity::preloadMapModel(const std::string &modelname)
 				if (auto animModelPtr = dynamic_cast<animmodel*>(modelPtr); animModelPtr)
                 {
 				    //find the animation names
-				    for (int i = 0; i < animModelPtr->parts.length(); ++i)
+				    for (int i = 0; i < animModelPtr->parts.size(); ++i)
                     {
 
                     }

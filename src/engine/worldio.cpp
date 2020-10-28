@@ -129,7 +129,7 @@ bool loadents(const char *fname, vector<MovableEntity> &ents, uint *crc)
 
     loopi(min(hdr.numents, MAXENTS))
     {
-        entity *e = ents.add();
+        entity *e = ents.emplace_back();
         f->read(e, sizeof(entity));
         lilswap(&e->o.x, 3);
         lilswap(&e->attr1, 5);
@@ -468,7 +468,7 @@ void savevslot(stream *f, VSlot &vs, int prev)
     f->putlil<int>(prev);
     if(vs.changed & (1<<VSLOT_SHPARAM))
     {
-        f->putlil<ushort>(vs.params.length());
+        f->putlil<ushort>(vs.params.size());
         loopv(vs.params)
         {
             SlotShaderParam &p = vs.params[i];
@@ -544,7 +544,7 @@ void loadvslot(stream *f, VSlot &vs, int changed)
         cubestr name;
         loopi(numparams)
         {
-            SlotShaderParam &p = vs.params.add();
+            SlotShaderParam &p = vs.params.emplace_back();
             int nlen = f->getlil<ushort>();
             f->read(name, min(nlen, MAXSTRLEN-1));
             name[min(nlen, MAXSTRLEN-1)] = '\0';
@@ -592,13 +592,13 @@ void loadvslots(stream *f, int numvslots)
         int changed = f->getlil<int>();
         if(changed < 0)
         {
-            loopi(-changed) vslots.add(new VSlot(NULL, vslots.length()));
+            loopi(-changed) vslots.emplace_back(new VSlot(NULL, vslots.size()));
             numvslots += changed;
         }
         else
         {
-            prev[vslots.length()] = f->getlil<int>();
-            loadvslot(f, *vslots.add(new VSlot(NULL, vslots.length())), changed);
+            prev[vslots.size()] = f->getlil<int>();
+            loadvslot(f, *vslots.emplace_back(new VSlot(NULL, vslots.size())), changed);
             numvslots--;
         }
     }
@@ -614,7 +614,7 @@ bool save_world(const char *mname, bool nolms)
     stream *f = opengzfile(ogzname, "wb");
     if(!f) { conoutf(CON_WARN, "could not write map to %s", ogzname); return false; }
 
-    int numvslots = vslots.length();
+    int numvslots = vslots.size();
     if(!nolms && !multiplayer(false))
     {
         numvslots = compactvslots();
@@ -676,10 +676,10 @@ bool save_world(const char *mname, bool nolms)
     //f->putlil<ushort>(extraentinfosize());
     vector<char> extras;
     game::writegamedata(extras);
-    f->putlil<ushort>(extras.length());
-    f->write(extras.getbuf(), extras.length());
+    f->putlil<ushort>(extras.size());
+    f->write(extras.data(), extras.size());
 
-    f->putlil<ushort>(texmru.length());
+    f->putlil<ushort>(texmru.size());
     loopv(texmru) f->putlil<ushort>(texmru[i]);
 
     // JSON Entity storage.
@@ -821,7 +821,7 @@ bool load_world(const char *mname, const char *cname)        // Does not support
     int eif = f->getlil<ushort>();
     texmru.shrink(0);
     ushort nummru = f->getlil<ushort>();
-    loopi(nummru) texmru.add(f->getlil<ushort>());
+    loopi(nummru) texmru.emplace_back(f->getlil<ushort>());
 
     renderprogress(0, "loading entities...");
 
@@ -955,23 +955,23 @@ SCRIPTEXPORT void writeobj(char *name)
         loopj(va.texs)
         {
             elementset &es = va.texelems[j];
-            if(usedmtl.find(es.texture) < 0) usedmtl.add(es.texture);
+            if(usedmtl.find(es.texture) < 0) usedmtl.emplace_back(es.texture);
             vector<ivec2> &keys = mtls[es.texture];
             loopk(es.length)
             {
                 const vertex &v = vdata[idx[k]];
                 const vec &pos = v.pos;
                 const vec &tc = v.tc;
-                ivec2 &key = keys.add();
-                key.x = shareverts.access(pos, verts.length());
-                if(key.x == verts.length())
+                ivec2 &key = keys.emplace_back();
+                key.x = shareverts.access(pos, verts.size());
+                if(key.x == verts.size())
                 {
-                    verts.add(pos);
+                    verts.emplace_back(pos);
                     bbmin.min(pos);
                     bbmax.max(pos);
                 }
-                key.y = sharetc.access(tc, texcoords.length());
-                if(key.y == texcoords.length()) texcoords.add(tc);
+                key.y = sharetc.access(tc, texcoords.size());
+                if(key.y == texcoords.size()) texcoords.emplace_back(tc);
             }
             idx += es.length;
         }
@@ -994,13 +994,13 @@ SCRIPTEXPORT void writeobj(char *name)
     }
     f->printf("\n");
 
-    usedmtl.sort();
+    std::sort(usedmtl.begin(), usedmtl.end());
     loopv(usedmtl)
     {
         vector<ivec2> &keys = mtls[usedmtl[i]];
         f->printf("g slot%d\n", usedmtl[i]);
         f->printf("usemtl slot%d\n\n", usedmtl[i]);
-        for(int i = 0; i < keys.length(); i += 3)
+        for(int i = 0; i < keys.size(); i += 3)
         {
             f->printf("f");
             loopk(3) f->printf(" %d/%d", keys[i+2-k].x+1, keys[i+2-k].y+1);
@@ -1099,15 +1099,15 @@ SCRIPTEXPORT void writecollideobj(char *name)
                 const vec &v0 = vdata[idx[k]].pos, &v1 = vdata[idx[k+1]].pos, &v2 = vdata[idx[k+2]].pos;
                 if(!v0.insidebb(selmin, selmax) || !v1.insidebb(selmin, selmax) || !v2.insidebb(selmin, selmax))
                     continue;
-                int i0 = shareverts.access(v0, verts.length());
-                if(i0 == verts.length()) verts.add(v0);
-                tris.add(i0);
-                int i1 = shareverts.access(v1, verts.length());
-                if(i1 == verts.length()) verts.add(v1);
-                tris.add(i1);
-                int i2 = shareverts.access(v2, verts.length());
-                if(i2 == verts.length()) verts.add(v2);
-                tris.add(i2);
+                int i0 = shareverts.access(v0, verts.size());
+                if(i0 == verts.size()) verts.emplace_back(v0);
+                tris.emplace_back(i0);
+                int i1 = shareverts.access(v1, verts.size());
+                if(i1 == verts.size()) verts.emplace_back(v1);
+                tris.emplace_back(i1);
+                int i2 = shareverts.access(v2, verts.size());
+                if(i2 == verts.size()) verts.emplace_back(v2);
+                tris.emplace_back(i2);
             }
             idx += es.length;
         }
@@ -1125,7 +1125,7 @@ SCRIPTEXPORT void writecollideobj(char *name)
         if(v.x != floor(v.x)) f->printf("%.3f\n", v.x); else f->printf("%d\n", int(v.x));
     }
     f->printf("\n");
-    for(int i = 0; i < tris.length(); i += 3)
+    for(int i = 0; i < tris.size(); i += 3)
        f->printf("f %d %d %d\n", tris[i+2]+1, tris[i+1]+1, tris[i]+1);
     f->printf("\n");
 

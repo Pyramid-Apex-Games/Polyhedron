@@ -1661,7 +1661,7 @@ bool mergepolys(int orient, hashset<plink> &links, vector<plink *> &queue, int o
         plink &l = links.access(e, e);
         bool shouldqueue = l.polys[order] < 0 && l.polys[order^1] >= 0;
         l.polys[order] = owner;
-        if(shouldqueue) queue.add(&l);
+        if(shouldqueue) queue.emplace_back(&l);
         prev = j;
     }
 
@@ -1734,8 +1734,8 @@ void addmerges(int orient, const ivec &co, const ivec &n, int offset, vector<pol
 
 void mergepolys(int orient, const ivec &co, const ivec &n, int offset, vector<poly> &polys)
 {
-    if(polys.length() <= 1) { addmerges(orient, co, n, offset, polys); return; }
-    hashset<plink> links(polys.length() <= 32 ? 128 : 1024);
+    if(polys.size() <= 1) { addmerges(orient, co, n, offset, polys); return; }
+    hashset<plink> links(polys.size() <= 32 ? 128 : 1024);
     vector<plink *> queue;
     loopv(polys)
     {
@@ -1748,12 +1748,12 @@ void mergepolys(int orient, const ivec &co, const ivec &n, int offset, vector<po
             if(order) swap(e.from, e.to);
             plink &l = links.access(e, e);
             l.polys[order] = i;
-            if(l.polys[0] >= 0 && l.polys[1] >= 0) queue.add(&l);
+            if(l.polys[0] >= 0 && l.polys[1] >= 0) queue.emplace_back(&l);
             prev = j;
         }
     }
     vector<plink *> nextqueue;
-    while(queue.length())
+    while(queue.size())
     {
         loopv(queue)
         {
@@ -1762,7 +1762,7 @@ void mergepolys(int orient, const ivec &co, const ivec &n, int offset, vector<po
                 mergepolys(orient, links, nextqueue, l.polys[0], polys[l.polys[0]], polys[l.polys[1]], l);
         }
         queue.setsize(0);
-        queue.move(nextqueue);
+        queue = std::move(nextqueue);
     }
     addmerges(orient, co, n, offset, polys);
 }
@@ -1796,7 +1796,7 @@ void genmerges(cube *c = worldroot, const ivec &o = ivec(0, 0, 0), int size = wo
                     k.orient = j;
                     k.tex = c[i].texture[j];
                     k.material = c[i].material&MAT_ALPHA;
-                    cpolys[k].polys.add(p);
+                    cpolys[k].polys.emplace_back(p);
                     continue;
                 }
             }

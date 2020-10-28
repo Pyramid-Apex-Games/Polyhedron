@@ -39,7 +39,7 @@ int resolverloop(void * data)
     {
         SDL_LockMutex(resolvermutex);
         while(resolverqueries.empty()) SDL_CondWait(querycond, resolvermutex);
-        rt->query = resolverqueries.pop();
+        rt->query = resolverqueries.pop_back();
         rt->starttime = totalmillis;
         SDL_UnlockMutex(resolvermutex);
 
@@ -49,7 +49,7 @@ int resolverloop(void * data)
         SDL_LockMutex(resolvermutex);
         if(rt->query && thread == rt->thread)
         {
-            resolverresult &rr = resolverresults.add();
+            resolverresult &rr = resolverresults.emplace_back();
             rr.query = rt->query;
             rr.address = address;
             rt->query = NULL;
@@ -70,7 +70,7 @@ void resolverinit()
     SDL_LockMutex(resolvermutex);
     loopi(RESOLVERTHREADS)
     {
-        resolverthread &rt = resolverthreads.add();
+        resolverthread &rt = resolverthreads.emplace_back();
         rt.query = NULL;
         rt.starttime = 0;
         rt.thread = SDL_CreateThread(resolverloop, "resolver", &rt);
@@ -113,7 +113,7 @@ void resolverquery(const char *name)
     if(resolverthreads.empty()) resolverinit();
 
     SDL_LockMutex(resolvermutex);
-    resolverqueries.add(name);
+    resolverqueries.emplace_back(name);
     SDL_CondSignal(querycond);
     SDL_UnlockMutex(resolvermutex);
 }
@@ -124,7 +124,7 @@ bool resolvercheck(const char **name, ENetAddress *address)
     SDL_LockMutex(resolvermutex);
     if(!resolverresults.empty())
     {
-        resolverresult &rr = resolverresults.pop();
+        resolverresult &rr = resolverresults.pop_back();
         *name = rr.query;
         address->host = rr.address.host;
         resolved = true;
@@ -151,7 +151,7 @@ bool resolverwait(const char *name, ENetAddress *address)
     renderprogress(0, text);
 
     SDL_LockMutex(resolvermutex);
-    resolverqueries.add(name);
+    resolverqueries.emplace_back(name);
     SDL_CondSignal(querycond);
     int starttime = SDL_GetTicks(), timeout = 0;
     bool resolved = false;
@@ -386,7 +386,7 @@ static serverinfo *newserver(const char *name, int port, uint ip = ENET_HOST_ANY
 
     }
 
-    servers.add(si);
+    servers.emplace_back(si);
 
     return si;
 }
@@ -448,11 +448,11 @@ void pingservers()
     uchar ping[MAXTRANS];
 
     static int lastping = 0;
-    if(lastping >= servers.length()) lastping = 0;
-    loopi(maxservpings ? min(servers.length(), maxservpings) : servers.length())
+    if(lastping >= servers.size()) lastping = 0;
+    loopi(maxservpings ? min(servers.size(), maxservpings) : servers.size())
     {
         serverinfo &si = *servers[lastping];
-        if(++lastping >= servers.length()) lastping = 0;
+        if(++lastping >= servers.size()) lastping = 0;
         if(si.address.host == ENET_HOST_ANY) continue;
         buildping(buf, ping, si);
         enet_socket_send(pingsock, &si.address, &buf, 1);
@@ -541,7 +541,8 @@ void checkpings()
         si->maxplayers = getint(p);
         int numattr = getint(p);
         si->attr.setsize(0);
-        loopj(numattr) { int attr = getint(p); if(p.overread()) break; si->attr.add(attr); }
+        loopj(numattr) { int attr = getint(p); if(p.overread()) break;
+            si->attr.emplace_back(attr); }
         getcubestr(text, p);
         filtertext(si->map, text, false);
         getcubestr(text, p);
@@ -551,7 +552,7 @@ void checkpings()
 
 SCRIPTEXPORT void sortservers()
 {
-    servers.sort(serverinfo::compare);
+    std::sort(servers.begin(), servers.end(), &serverinfo::compare);
 }
 
 VARP(autosortservers, 0, 1, 1);
@@ -570,13 +571,13 @@ SCRIPTEXPORT void refreshservers()
 
     checkresolver();
     checkpings();
-    if(totalmillis - lastinfo >= servpingrate/(maxservpings ? max(1, (servers.length() + maxservpings - 1) / maxservpings) : 1)) pingservers();
+    if(totalmillis - lastinfo >= servpingrate/(maxservpings ? max(1, (servers.size() + maxservpings - 1) / maxservpings) : 1)) pingservers();
     if(autosortservers) sortservers();
 }
 
 SCRIPTEXPORT void numservers()
 {
-    intret(servers.length());
+    intret(servers.size());
 }
 
 #define GETSERVERINFO_(idx, si, body) \
@@ -668,7 +669,7 @@ servinfo *getservinfo(int i)
 void clearservers(bool full = false)
 {
     resolverclear();
-    if(full) servers.deletecontents();
+    if(full) servers.clear();
     else loopvrev(servers) if(!servers[i]->keep) delete servers.remove(i);
 }
 
@@ -711,9 +712,9 @@ void retrieveservers(vector<char> &data)
         enet_uint32 events = ENET_SOCKET_WAIT_RECEIVE;
         if(enet_socket_wait(sock, &events, 250) >= 0 && events)
         {
-            if(data.length() >= data.capacity()) data.reserve(4096);
-            buf.data = data.getbuf() + data.length();
-            buf.dataLength = data.capacity() - data.length();
+            if(data.size() >= data.capacity()) data.reserve(4096);
+            buf.data = data.data() + data.size();
+            buf.dataLength = data.capacity() - data.size();
             int recv = enet_socket_receive(sock, NULL, &buf, 1);
             if(recv <= 0) break;
             data.advance(recv);
@@ -724,7 +725,7 @@ void retrieveservers(vector<char> &data)
         if(timeout > RETRIEVELIMIT) break;
     }
 
-    if(data.length()) data.add('\0');
+    if(data.size()) data.emplace_back('\0');
     enet_socket_destroy(sock);
 }
 
@@ -738,7 +739,7 @@ SCRIPTEXPORT void updatefrommaster()
     else
     {
         clearservers();
-        execute(data.getbuf());
+        execute(data.data());
     }
     refreshservers();
     updatedservers = true;

@@ -77,7 +77,7 @@ struct md5 : skelloader<md5>
                 loopj(v.count)
                 {
                     md5weight &w = weightinfo[v.start+j];
-                    assert(w.joint < joints.length() && "Joint Weight out-of-bounds!");
+                    assert(w.joint < joints.size() && "Joint Weight out-of-bounds!");
                     sorted = c.addweight(sorted, w.bias, w.joint);
                 }
                 c.finalize(sorted);
@@ -114,9 +114,9 @@ struct md5 : skelloader<md5>
                     if(start && end)
                     {
                         char *texname = newcubestr(start+1, end-(start+1));
-                        part *p = loading->parts.last();
-                        p->initskins(notexture, notexture, group->meshes.length());
-                        skin &s = p->skins.last();
+                        part *p = loading->parts.back();
+                        p->initskins(notexture, notexture, group->meshes.size());
+                        skin &s = p->skins.back();
                         s.tex = textureload(makerelpath(dir.c_str(), texname), 0, true, false);
                         delete[] texname;
                     }
@@ -217,17 +217,17 @@ struct md5 : skelloader<md5>
                             j.pos.y = -j.pos.y;
                             j.orient.x = -j.orient.x;
                             j.orient.z = -j.orient.z;
-                            if(basejoints.length()<skel->numbones)
+                            if(basejoints.size()<skel->numbones)
                             {
-                                if(skel->bones[basejoints.length()].name.empty())
-                                    skel->bones[basejoints.length()].name = newcubestr(name);
-                                skel->bones[basejoints.length()].parent = parent;
+                                if(skel->bones[basejoints.size()].name.empty())
+                                    skel->bones[basejoints.size()].name = newcubestr(name);
+                                skel->bones[basejoints.size()].parent = parent;
                             }
                             j.orient.restorew();
-                            basejoints.add(j);
+                            basejoints.emplace_back(j);
                         }
                     }
-                    if(basejoints.length()!=skel->numbones)
+                    if(basejoints.size()!=skel->numbones)
                     {
                         delete f;
                         return false;
@@ -237,7 +237,7 @@ struct md5 : skelloader<md5>
                 {
                     md5mesh *m = new md5mesh;
                     m->group = this;
-                    meshes.add(m);
+                    meshes.emplace_back(m);
                     m->load(f, buf, sizeof(buf));
                     if(!m->numtris || !m->numverts)
                     {
@@ -337,7 +337,7 @@ struct md5 : skelloader<md5>
                     {
                         md5hierarchy h;
                         if(sscanf(buf, " %100s %d %d %d", h.name, &h.parent, &h.flags, &h.start)==4)
-                            hierarchy.add(h);
+                            hierarchy.emplace_back(h);
                     }
                 }
                 else if(strstr(buf, "baseframe {"))
@@ -351,10 +351,10 @@ struct md5 : skelloader<md5>
                             j.orient.x = -j.orient.x;
                             j.orient.z = -j.orient.z;
                             j.orient.restorew();
-                            basejoints.add(j);
+                            basejoints.emplace_back(j);
                         }
                     }
-                    if(basejoints.length()!=skel->numbones)
+                    if(basejoints.size()!=skel->numbones)
                     {
                         delete f;
                         if(animdata)
@@ -442,7 +442,7 @@ struct md5 : skelloader<md5>
     bool loaddefaultparts()
     {
         skelpart &mdl = addpart();
-        const char *fname = name.data() + name.length();
+        const char *fname = name.data() + name.size();
         do --fname; while(fname >= name.data() && *fname!='/' && *fname!='\\');
         fname++;
         auto meshname = fmt::format("media/model/{}/{}.md5mesh", name, fname);

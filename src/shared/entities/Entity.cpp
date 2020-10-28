@@ -193,7 +193,7 @@ void Entity::on(const Event& event)
 		            if (entityId == -1)
                     {
 		                int idx = 0;
-		                for(idx = 0; idx < getents().length(); ++idx)
+		                for(idx = 0; idx < getents().size(); ++idx)
                         {
 		                    if (getents()[idx] == this)
                             {
@@ -201,7 +201,7 @@ void Entity::on(const Event& event)
                             }
 		                    ++idx;
                         }
-		                if (idx < getents().length())
+		                if (idx < getents().size())
                         {
 		                    entityId = idx;
                         }

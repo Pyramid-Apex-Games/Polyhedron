@@ -109,7 +109,7 @@ void modifyoctaentity(int flags, int id, Entity *e, cube *c, const ivec &cor, in
 				if(va)
 				{
 					va->bbmin.x = -1;
-					if(oe.decals.empty()) va->decals.add(&oe);
+					if(oe.decals.empty()) va->decals.emplace_back(&oe);
 				}
 				oe.decals.push_back(id);
 				oe.bbmin.min(bo).max(oe.o);
@@ -123,7 +123,7 @@ void modifyoctaentity(int flags, int id, Entity *e, cube *c, const ivec &cor, in
 					if(va)
 					{
 						va->bbmin.x = -1;
-						if(oe.mapmodels.empty()) va->mapmodels.add(&oe);
+						if(oe.mapmodels.empty()) va->mapmodels.emplace_back(&oe);
 					}
 					oe.mapmodels.push_back(id);
 					oe.bbmin.min(bo).max(oe.o);
@@ -255,7 +255,7 @@ static bool modifyoctaent(int flags, int id, Entity *e)
         int idx = outsideents.find(id);
         if(flags&MODOE_ADD)
         {
-            if(idx < 0) outsideents.add(id);
+            if(idx < 0) outsideents.emplace_back(id);
         }
         else if(idx >= 0) outsideents.removeunordered(idx);
     }
@@ -298,7 +298,7 @@ static inline void removeentityedit(int id) { modifyoctaent(MODOE_UPDATEBB|MODOE
 void freeoctaentities(cube &c)
 {
     if(!c.ext) return;
-    if(getents().length())
+    if(getents().size())
     {
         while(c.ext->ents && !c.ext->ents->mapmodels.empty())
         {
@@ -335,7 +335,7 @@ void entitiesinoctanodes()
             if (ents[i] != NULL)
             {
 				modifyoctaent(MODOE_ADD, i, ents[i]);
-                conoutf("entitiesinoctanodes: %d", ents.length());
+                conoutf("entitiesinoctanodes: %d", ents.size());
             }
         }
     }
@@ -349,7 +349,8 @@ static inline void findents(octaentities &oe, int low, int high, bool notspawned
         if (ents.inrange(id)) {
             auto e = ents[id];
             // TODO: Fix this, et_type? and ent_type?
-			if(/*e->et_type >= low && e->et_type <= high && */ (e->spawned || notspawned) && vec(e->o).sub(pos).mul(invradius).squaredlen() <= 1) found.add(id);
+			if(/*e->et_type >= low && e->et_type <= high && */ (e->spawned || notspawned) && vec(e->o).sub(pos).mul(invradius).squaredlen() <= 1)
+                found.emplace_back(id);
         }
     }
 }
@@ -431,7 +432,7 @@ vector<int> entgroup;
 
 bool haveselent()
 {
-    return entgroup.length() > 0;
+    return entgroup.size() > 0;
 }
 
 SCRIPTEXPORT void entcancel()
@@ -446,13 +447,13 @@ SCRIPTEXPORT void entcancel()
 void entadd(int id)
 {
     undonext = true;
-    entgroup.add(id);
+    entgroup.emplace_back(id);
 	send_entity_event(id, EntityEventSelectStart());
 }
 
 undoblock *newundoent()
 {
-    int numents = entgroup.length();
+    int numents = entgroup.size();
     if(numents <= 0) return NULL;
     undoblock *u = (undoblock *)new uchar[sizeof(undoblock) + numents*sizeof(undoent)];
     u->numents = numents;
@@ -461,7 +462,7 @@ undoblock *newundoent()
     loopv(entgroup)
     {
         e->i = entgroup[i];
-        assert(ents.length() > entgroup[i]);
+        assert(ents.size() > entgroup[i]);
         e->e = ents[entgroup[i]];
         e++;
     }
@@ -542,7 +543,7 @@ void attachentities()
 // convenience macros implicitly define:
 // e         entity, currently edited ent
 // n         int,    index to currently edited ent
-#define addimplicit(f)    { if(entgroup.empty() && enthover>=0) { entadd(enthover); undonext = (enthover != oldhover); f; entgroup.drop(); } else f; }
+#define addimplicit(f)    { if(entgroup.empty() && enthover>=0) { entadd(enthover); undonext = (enthover != oldhover); f; entgroup.erase(entgroup.end() - 1, entgroup.end()); } else f; }
 #define entfocusv(i, f, v){ int n = efocus = (i); if(n>=0) { Entity *e = v[n]; f; } }
 #define entfocus(i, f)    entfocusv(i, f, getents())
 #define enteditv(i, f, v) \
@@ -571,7 +572,7 @@ void attachentities()
 vec getselpos()
 {
     auto &ents = getents();
-    if(entgroup.length() && ents.inrange(entgroup[0])) return ents[entgroup[0]]->o;
+    if(entgroup.size() && ents.inrange(entgroup[0])) return ents[entgroup[0]]->o;
     if(ents.inrange(enthover)) return ents[enthover]->o;
     return vec(sel.o);
 }
@@ -599,10 +600,10 @@ void pasteundoent(int idx, Entity* ue)
 {
     if(idx < 0 || idx >= MAXENTS) return;
     auto &ents = getents();
-    while(ents.length() < idx)
+    while(ents.size() < idx)
     {
 		auto ne = new_game_entity(true, ue->o, idx, "core_entity");
-		ents.add(ne);
+        ents.emplace_back(ne);
 	}
     int efocus = -1;
     entedit(idx, e = ue);
@@ -633,7 +634,7 @@ SCRIPTEXPORT void entrotate(int *cw)
         e->o[dd] -= (e->o[dd]-mid)*2;
         e->o.sub(s);
         swap(e->o[R[d]], e->o[C[d]]);
-        e->o.add(s);
+            e->o.add(s);
     );
 }
 
@@ -708,7 +709,7 @@ void entdrag(const vec &rayOrigin, const vec &ray)
     int d = dimension(entorient),
         dc= dimcoord(entorient);
 
-    entfocus(entgroup.last(),
+    entfocus(entgroup.back(),
         entselectionbox(e, eo, es);
 
         if(!editmoveplane(rayOrigin, e->o, ray, d, eo[d] + (dc ? es[d] : 0), handle, dest, entmoving==1))
@@ -716,7 +717,7 @@ void entdrag(const vec &rayOrigin, const vec &ray)
 
         ivec g(dest);
         int z = g[d]&(~(sel.grid-1));
-        g.add(sel.grid/2).mask(~(sel.grid-1));
+                g.add(sel.grid / 2).mask(~(sel.grid - 1));
         g[d] = z;
 
         r = (entselsnap ? g[R[d]] : dest[R[d]]) - e->o[R[d]];
@@ -999,11 +1000,11 @@ void renderentselection(const vec &o, const vec &ray, bool entmoving)
     if(noentedit() || (entgroup.empty() && enthover < 0)) return;
     vec eo, es;
 
-    if(entgroup.length())
+    if(entgroup.size())
     {
 //        gle::colorub(0, 0, 40);
 //        gle::defvertex();
-//        gle::begin(GL_LINES, entgroup.length()*20*6);
+//        gle::begin(GL_LINES, entgroup.size()*20*6);
 //        loopv(entgroup) entfocus(entgroup[i],
 //            entselectionbox(e, eo, es);
 //            renderentbox(eo, es);
@@ -1011,7 +1012,7 @@ void renderentselection(const vec &o, const vec &ray, bool entmoving)
 //        xtraverts += gle::end();
     }
 
-    if(enthover >= 0 && enthover < getents().length())
+    if(enthover >= 0 && enthover < getents().size())
     {
 //		auto highlighted_ent = getents()[enthover];
 //		float cameraRelativeTickness = clamp(0.015f*camera1->o.dist(highlighted_ent->o)*tan(fovy*0.5f*RAD), 0.1f, 1.0f);
@@ -1073,7 +1074,7 @@ bool hoveringonent(int ent, int orient)
 		efocus = enthover = ent;
         return true;
 	}
-    efocus = entgroup.empty() ? -1 : entgroup.last();
+    efocus = entgroup.empty() ? -1 : entgroup.back();
     if (enthover >= 0)
     {
 		send_entity_event(enthover, EntityEventHoverStop());
@@ -1172,8 +1173,8 @@ SCRIPTEXPORT void entautoview(int *dir)
     v.normalize();
     v.mul(entautoviewdist);
     int t = s + *dir;
-    s = abs(t) % entgroup.length();
-    if(t<0 && s>0) s = entgroup.length() - s;
+    s = abs(t) % entgroup.size();
+    if(t<0 && s>0) s = entgroup.size() - s;
     entfocus(entgroup[s],
         v.add(e->o);
         player->o = v;
@@ -1279,22 +1280,22 @@ static int keepents = 0;
 //    if(local)
 //    {
 //        idx = -1;
-//        for(int i = keepents; i < ents.length(); i++)
+//        for(int i = keepents; i < ents.size(); i++)
 //        {
 //			if(ents[i]->et_type == ET_EMPTY)
 //			{
 //				idx = i; break;
 //			}
 //		}
-//        if(idx < 0 && ents.length() >= MAXENTS)
+//        if(idx < 0 && ents.size() >= MAXENTS)
 //        {
 //			conoutf("too many entities");
 //			return NULL;
 //		}
 //    } else {
-//        while(ents.length() < idx)
+//        while(ents.size() < idx)
 //        {
-//            ents.add(newgameentity(""))->et_type = ET_EMPTY;
+//            ents.emplace_back(newgameentity(""))->et_type = ET_EMPTY;
 //        }
 //    }
 //
@@ -1318,8 +1319,8 @@ static int keepents = 0;
 //	}
 //    else
 //    {
-//		idx = ents.length();
-//		ents.add(e);
+//		idx = ents.size();
+//		ents.emplace_back(e);
 //	}
 //	return e;
 //}
@@ -1350,7 +1351,7 @@ namespace {
 		auto &ents = getents();
 		idx = -1;
 		
-//		for (int i = keepents; i < ents.length(); i++)
+//		for (int i = keepents; i < ents.size(); i++)
 //		{
 //			if(ents[i]->et_type == ET_EMPTY)
 //			{
@@ -1372,20 +1373,20 @@ Entity *new_game_entity(bool local, const vec &o, int &idx, const char *strclass
     {
 		find_next_entity_index(idx);
         
-        if (idx < 0 && ents.length() >= MAXENTS)
+        if (idx < 0 && ents.size() >= MAXENTS)
         {
             conoutf("too many entities"); return nullptr;
         }
     }
     else
     {
-        if (ents.length() < idx)
+        if (ents.size() < idx)
         {
 			vec mapcenter;
 			mapcenter.x = mapcenter.y = mapcenter.z = 0.5f*worldsize;
 			mapcenter.z += 1;
 			mapcenter.x += idx * 2.5f;
-			ents.add(new_game_entity(false, mapcenter, idx, "core_entity"));
+            ents.emplace_back(new_game_entity(false, mapcenter, idx, "core_entity"));
         }
     }
 
@@ -1400,8 +1401,8 @@ Entity *new_game_entity(bool local, const vec &o, int &idx, const char *strclass
 	}
 	else
 	{
-		idx = ents.length();
-        ents.add(ent);
+		idx = ents.size();
+        ents.emplace_back(ent);
 	}
 
     ent->entityId = idx;
@@ -1451,7 +1452,7 @@ SCRIPTEXPORT void entcopy()
     entcopygrid = sel.grid;
     entcopybuf.shrink(0);
     addimplicit({
-        loopv(entgroup) entfocus(entgroup[i], entcopybuf.add(e)->o.sub(vec(sel.o)));
+        loopv(entgroup) entfocus(entgroup[i], entcopybuf.emplace_back(e)->o.sub(vec(sel.o)));
     });
 }
 
@@ -1464,7 +1465,7 @@ SCRIPTEXPORT void entpaste()
     loopv(entcopybuf)
     {
         const auto c = entcopybuf[i];
-        vec o = vec(c->o).mul(m).add(vec(sel.o));
+        vec o = vec(c->o).mul(m).emplace_back(vec(sel.o));
         int idx = -1;
         Entity *e = new_game_entity(idx, c);
         if(!e) continue;
@@ -1481,7 +1482,7 @@ SCRIPTEXPORT void entreplace()
 {
     if(noentedit() || entcopybuf.empty()) return;
     const auto c = entcopybuf[0];
-    if(entgroup.length() || enthover >= 0)
+    if(entgroup.size() || enthover >= 0)
     {
         groupedit({
 			nlohmann::json data {};
@@ -1529,7 +1530,7 @@ SCRIPTEXPORT void nearestent()
 
 SCRIPTEXPORT void enthavesel()
 {
-    addimplicit(intret(entgroup.length()));
+    addimplicit(intret(entgroup.size()));
 }
 
 SCRIPTEXPORT void entselect(CommandTypes::Expression body)
@@ -1605,8 +1606,8 @@ SCRIPTEXPORT void entattr(int *attr, int *val, CommandTypes::ArgLen numargs)
 int findentity(int type, int index, int attr1, int attr2)
 {
     const auto &ents = getents();
-    if(index > ents.length()) index = ents.length();
-    else for(int i = index; i<ents.length(); i++)
+    if(index > ents.size()) index = ents.size();
+    else for(int i = index; i<ents.size(); i++)
     {
         Entity *e = ents[i];
         if (e->et_type == ET_MAPMODEL && (attr1 < 0 || e->model_idx == attr1) && (attr2 < 0 || e->attr2 == attr2))
@@ -1628,7 +1629,7 @@ int findentity(int type, int index, int attr1, int attr2)
 int findentity_byclass(const std::string &classname)
 {
 	const auto &ents = getents();
-	for(int i = 0; i <ents.length(); i++)
+	for(int i = 0; i <ents.size(); i++)
 	{
 		if (ents[i]->classname != classname) continue;
 		
@@ -1722,9 +1723,9 @@ void findplayerspawn(SkeletalEntity *d, int forceent, int tag) // Place at spawn
 //int findentity_byclass(const std::string &classname, int index, int attr1, int attr2)
 //{
 //    const auto &ents = getents();
-//    if(index > ents.length()) index = ents.length();
+//    if(index > ents.size()) index = ents.size();
 //    else {
-//        for(int i = index; i<ents.length(); i++)
+//        for(int i = index; i<ents.size(); i++)
 //        {
 //            Entity *e = ents[i];
 
@@ -1766,7 +1767,7 @@ void findplayerspawn(SkeletalEntity *d, int forceent, int tag) // Place at spawn
 //		const auto &ents = getents();
 //		d->d.y = 0;
 //		d->d.z = 0;
-//		for(int attempt = pick; attempt < ents.length(); attempt++ )
+//		for(int attempt = pick; attempt < ents.size(); attempt++ )
 //		{
 //			d->o = ents[attempt]->o;
 //			d->d.x = ents[attempt]->attr1;
@@ -1886,7 +1887,7 @@ bool enlargemap(bool force)
     }
     if(worldsize >= 1<<16) return false;
 
-    while(outsideents.length()) removeentity(outsideents.pop());
+    while(outsideents.size()) removeentity(outsideents.pop_back());
 
     worldscale++;
     worldsize *= 2;
@@ -1925,7 +1926,7 @@ SCRIPTEXPORT void shrinkmap()
     }
     if(octant < 0) return;
 
-    while(outsideents.length()) removeentity(outsideents.pop());
+    while(outsideents.size()) removeentity(outsideents.pop_back());
 
     if(!worldroot[octant].children) subdividecube(worldroot[octant], false, false);
     cube *root = worldroot[octant].children;

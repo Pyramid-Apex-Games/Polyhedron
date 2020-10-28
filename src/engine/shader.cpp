@@ -511,7 +511,7 @@ static void findfragdatalocs(Shader &s, char *ps, const char *macroname, int ind
         {
             char end = *ps;
             *ps = '\0';
-            s.fragdatalocs.add(FragDataLoc(getshaderparamname(name), loc, format, index));
+            s.fragdatalocs.emplace_back(FragDataLoc(getshaderparamname(name), loc, format, index));
             *ps = end;
         }
 
@@ -539,14 +539,14 @@ int getlocalparam(const char *name)
 static int addlocalparam(Shader &s, const char *name, int loc, int size, GLenum format)
 {
     int idx = getlocalparam(name);
-    if(idx >= s.localparamremap.length())
+    if(idx >= s.localparamremap.size())
     {
-        int n = idx + 1 - s.localparamremap.length();
+        int n = idx + 1 - s.localparamremap.size();
         memset(s.localparamremap.pad(n), 0xFF, n);
     }
-    s.localparamremap[idx] = s.localparams.length();
+    s.localparamremap[idx] = s.localparams.size();
 
-    LocalShaderParamState &l = s.localparams.add();
+    LocalShaderParamState &l = s.localparams.emplace_back();
     l.name = name;
     l.loc = loc;
     l.size = size;
@@ -569,7 +569,7 @@ GlobalShaderParamState *getglobalparam(const char *name)
 
 static GlobalShaderParamUse *addglobalparam(Shader &s, GlobalShaderParamState *param, int loc, int size, GLenum format)
 {
-    GlobalShaderParamUse &g = s.globalparams.add();
+    GlobalShaderParamUse &g = s.globalparams.emplace_back();
     g.param = param;
     g.version = -2;
     g.loc = loc;
@@ -826,7 +826,7 @@ static void genattriblocs(Shader &s, const char *vs, const char *ps, Shader *reu
     else while((vs = strstr(vs, "//:attrib")))
     {
         if(sscanf(vs, "//:attrib %100s %d", name, &loc) == 2)
-            s.attriblocs.add(AttribLoc(getshaderparamname(name), loc));
+            s.attriblocs.emplace_back(AttribLoc(getshaderparamname(name), loc));
         vs += len;
     }
 }
@@ -840,8 +840,10 @@ static void genuniformlocs(Shader &s, const char *vs, const char *ps, Shader *re
     else while((vs = strstr(vs, "//:uniform")))
     {
         int numargs = sscanf(vs, "//:uniform %100s %100s %d %d", name, blockname, &binding, &stride);
-        if(numargs >= 3) s.uniformlocs.add(UniformLoc(getshaderparamname(name), getshaderparamname(blockname), binding, numargs >= 4 ? stride : 0));
-        else if(numargs >= 1) s.uniformlocs.add(UniformLoc(getshaderparamname(name)));
+        if(numargs >= 3) s.uniformlocs.emplace_back(
+                    UniformLoc(getshaderparamname(name), getshaderparamname(blockname), binding,
+                               numargs >= 4 ? stride : 0));
+        else if(numargs >= 1) s.uniformlocs.emplace_back(UniformLoc(getshaderparamname(name)));
         vs += len;
     }
 }
@@ -881,8 +883,8 @@ Shader *newshader(int type, const char *name, const char *vs, const char *ps, Sh
             s.reuseps = !ps[0] ? variant : variant->getvariant(col, row);
         }
     }
-    if(variant) loopv(variant->defaultparams) s.defaultparams.add(variant->defaultparams[i]);
-    else loopv(slotparams) s.defaultparams.add(slotparams[i]);
+    if(variant) loopv(variant->defaultparams) s.defaultparams.emplace_back(variant->defaultparams[i]);
+    else loopv(slotparams) s.defaultparams.emplace_back(slotparams[i]);
     s.attriblocs.setsize(0);
     s.uniformlocs.setsize(0);
     genattriblocs(s, vs, ps, s.reusevs, s.reuseps);
@@ -917,7 +919,7 @@ static void gengenericvariant(Shader &s, const char *sname, const char *vs, cons
     psv.put(ps, strlen(ps)+1);
 
     static const int len = strlen("//:variant"), olen = strlen("override");
-    for(char *vspragma = vsv.getbuf();; vschanged = true)
+    for(char *vspragma = vsv.data();; vschanged = true)
     {
         vspragma = strstr(vspragma, "//:variant");
         if(!vspragma) break;
@@ -934,7 +936,7 @@ static void gengenericvariant(Shader &s, const char *sname, const char *vs, cons
             memset(end, ' ', endlen);
         }
     }
-    for(char *pspragma = psv.getbuf();; pschanged = true)
+    for(char *pspragma = psv.data();; pschanged = true)
     {
         pspragma = strstr(pspragma, "//:variant");
         if(!pspragma) break;
@@ -958,7 +960,7 @@ static void gengenericvariant(Shader &s, const char *sname, const char *vs, cons
     cubestr reuse;
     if(col) formatcubestr(reuse, "%d", row);
     else copycubestr(reuse, "");
-    newshader(s.type, varname, vschanged ? vsv.getbuf() : reuse, pschanged ? psv.getbuf() : reuse, &s, row);
+    newshader(s.type, varname, vschanged ? vsv.data() : reuse, pschanged ? psv.data() : reuse, &s, row);
 }
 
 static void genfogshader(vector<char> &vsbuf, vector<char> &psbuf, const char *vs, const char *ps)
@@ -1207,13 +1209,13 @@ SCRIPTEXPORT void shader(int *type, char *name, char *vs, char *ps)
 #define GENSHADER(cond, body) \
     if(cond) \
     { \
-        if(vsbuf.length()) { vsbak.setsize(0); vsbak.put(vs, strlen(vs)+1); vs = vsbak.getbuf(); vsbuf.setsize(0); } \
-        if(psbuf.length()) { psbak.setsize(0); psbak.put(ps, strlen(ps)+1); ps = psbak.getbuf(); psbuf.setsize(0); } \
+        if(vsbuf.size()) { vsbak.setsize(0); vsbak.put(vs, strlen(vs)+1); vs = vsbak.data(); vsbuf.setsize(0); } \
+        if(psbuf.size()) { psbak.setsize(0); psbak.put(ps, strlen(ps)+1); ps = psbak.data(); psbuf.setsize(0); } \
         body; \
-        if(vsbuf.length()) vs = vsbuf.getbuf(); \
-        if(psbuf.length()) ps = psbuf.getbuf(); \
+        if(vsbuf.size()) vs = vsbuf.data(); \
+        if(psbuf.size()) ps = psbuf.data(); \
     }
-    GENSHADER(slotparams.length(), genuniformdefs(vsbuf, psbuf, vs, ps));
+    GENSHADER(slotparams.size(), genuniformdefs(vsbuf, psbuf, vs, ps));
     GENSHADER(strstr(vs, "//:fog") || strstr(ps, "//:fog"), genfogshader(vsbuf, psbuf, vs, ps));
     Shader *s = newshader(*type, name, vs, ps);
     if(s)
@@ -1239,10 +1241,10 @@ SCRIPTEXPORT void variantshader(int *type, char *name, int *row, char *vs, char 
     if(*maxvariants > 0)
     {
         defformatcubestr(info, "shader %s", name);
-        renderprogress(min(s->variants.length() / float(*maxvariants), 1.0f), info);
+        renderprogress(min(s->variants.size() / float(*maxvariants), 1.0f), info);
     }
     vector<char> vsbuf, psbuf, vsbak, psbak;
-    GENSHADER(s->defaultparams.length(), genuniformdefs(vsbuf, psbuf, vs, ps, s));
+    GENSHADER(s->defaultparams.size(), genuniformdefs(vsbuf, psbuf, vs, ps, s));
     GENSHADER(strstr(vs, "//:fog") || strstr(ps, "//:fog"), genfogshader(vsbuf, psbuf, vs, ps));
     Shader *v = newshader(*type, varname, vs, ps, s, *row);
     if(v)
@@ -1276,12 +1278,13 @@ void setslotshader(Slot &s)
         s.shader = stdworldshader;
         return;
     }
-    loopv(slotparams) s.params.add(slotparams[i]);
+    loopv(slotparams) s.params.emplace_back(slotparams[i]);
 }
 
 static void linkslotshaderparams(vector<SlotShaderParam> &params, Shader *sh, bool load)
 {
-    if(sh->loaded()) loopv(params)
+    if(sh->loaded())
+        loopv(params)
     {
         int loc = -1;
         SlotShaderParam &param = params[i];
@@ -1391,7 +1394,7 @@ void addslotparam(const char *name, float x, float y, float z, float w, int flag
         }
     }
     SlotShaderParam param = {name, -1, flags, {x, y, z, w}};
-    slotparams.add(param);
+    slotparams.emplace_back(param);
 }
 
 SCRIPTEXPORT void setuniformparam(char *name, float *x, CommandTypes::OptionalFloat y, CommandTypes::OptionalFloat z, float *w)
@@ -1447,11 +1450,11 @@ static int allocatepostfxtex(int scale)
         postfxtex &t = postfxtexs[i];
         if(t.scale==scale && t.used < 0) return i;
     }
-    postfxtex &t = postfxtexs.add();
+    postfxtex &t = postfxtexs.emplace_back();
     t.scale = scale;
     glCheckError(glGenTextures(1, &t.id));
     createtexture(t.id, max(postfxw>>scale, 1), max(postfxh>>scale, 1), NULL, 3, 1, GL_RGB, GL_TEXTURE_RECTANGLE);
-    return postfxtexs.length()-1;
+    return postfxtexs.size() - 1;
 }
 
 void cleanuppostfx(bool fullclean)
@@ -1569,7 +1572,7 @@ static bool addpostfx(const char *name, int outputbind, int outputscale, uint in
         conoutf(CON_ERROR, "no such postfx shader: %s", name);
         return false;
     }
-    postfxpass &p = postfxpasses.add();
+    postfxpass &p = postfxpasses.emplace_back();
     p.shader = s;
     p.outputbind = outputbind;
     p.outputscale = outputscale;

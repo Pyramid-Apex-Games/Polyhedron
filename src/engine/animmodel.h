@@ -313,7 +313,7 @@ struct animmodel : model
             extern int dbgcolmesh;
 
 //            for (auto mesh : meshes)
-            for (int i = 0; i < meshes.length(); i++)
+            for (int i = 0; i < meshes.size(); i++)
             {
                 auto& mesh = meshes[i];
 
@@ -588,12 +588,12 @@ template<class MDL, class MESH> struct modelcommands
             return;
         }
 
-        part &mdl = *MDL::loading->parts.last();
+        part &mdl = *MDL::loading->parts.back();
         if(!mdl.meshes) return;
 
         const bool wildcard = meshname == "*";
 
-        for(int i = 0; i < mdl.meshes->meshes.length(); ++i)
+        for(int i = 0; i < mdl.meshes->meshes.size(); ++i)
         {
             auto& mesh = mdl.meshes->meshes[i];
             if (wildcard || mesh->name == meshname)
@@ -611,12 +611,12 @@ template<class MDL, class MESH> struct modelcommands
             return;
         }
 
-        part &mdl = *MDL::loading->parts.last();
+        part &mdl = *MDL::loading->parts.back();
         if(!mdl.meshes) return;
 
         const bool wildcard = meshname == "*";
 
-        for(int i = 0; i < mdl.skins.length() && i < mdl.meshes->meshes.length(); ++i)
+        for(int i = 0; i < mdl.skins.size() && i < mdl.meshes->meshes.size(); ++i)
         {
             auto& skin = mdl.skins[i];
             auto& mesh = mdl.meshes->meshes[i];

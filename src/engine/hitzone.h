@@ -622,10 +622,10 @@ void skelmodel::skelmeshgroup::intersect(skelhitdata *z, part *p, const skelmode
         bc.owner = owner;
         bc.millis = lastmillis;
         (animcacheentry &)bc = sc;
-        blendbones(sc.bdata, bc.bdata, blendcombos.getbuf(), z->numblends);
+        blendbones(sc.bdata, bc.bdata, blendcombos.data(), z->numblends);
         z->propagate(this, sc.bdata, bc.bdata);
     }
-    z->intersect(this, p->skins.getbuf(), sc.bdata, bc.bdata, o, ray);
+    z->intersect(this, p->skins.data(), sc.bdata, bc.bdata, o, ray);
 }
 
 uchar skelhitdata::chooseid(skelmodel::skelmeshgroup *g, skelmodel::skelmesh *m, const skelmodel::tri &t, const uchar *ids)
@@ -664,10 +664,10 @@ void skelhitdata::build(skelmodel::skelmeshgroup *g, const uchar *ids)
     hashset<skelzoneinfo> infomap(256);
     vector<skelzoneinfo *> info;
     skelzonebounds *bounds = new skelzonebounds[g->skel->numbones];
-    numblends = g->blendcombos.length();
+    numblends = g->blendcombos.size();
     loopv(g->blendcombos) if(!g->blendcombos[i].weights[1]) { numblends = i; break; }
     blendcache.bdata = numblends > 0 ? new dualquat[numblends] : NULL;
-    loopi(min(g->meshes.length(), 0x100))
+    loopi(min(g->meshes.size(), 0x100))
     {
         skelmodel::skelmesh *m = (skelmodel::skelmesh *)g->meshes[i];
         loopj(m->numtris)
@@ -683,10 +683,10 @@ void skelhitdata::build(skelmodel::skelmeshgroup *g, const uchar *ids)
             skelzoneinfo &zi = infomap.access(key, key);
             if(key.blend >= numblends && zi.index < 0)
             {
-                bounds[key.bones[0]].owner = zi.index = info.length();
-                info.add(&zi);
+                bounds[key.bones[0]].owner = zi.index = info.size();
+                info.emplace_back(&zi);
             }
-            skelhitzone::tri &zt = zi.tris.add();
+            skelhitzone::tri &zt = zi.tris.emplace_back();
             zt.mesh = i;
             zt.id = chooseid(g, m, t, ids);
             memcpy(zt.vert, t.vert, sizeof(zt.vert));
@@ -697,12 +697,12 @@ void skelhitdata::build(skelmodel::skelmeshgroup *g, const uchar *ids)
         if(bounds[i].empty() || bounds[i].owner >= 0) continue;
         skelzonekey key(i);
         skelzoneinfo &zi = infomap.access(key, key);
-        zi.index = info.length();
-        info.add(&zi);
+        zi.index = info.size();
+        info.emplace_back(&zi);
     }
-    int leafzones = info.length();
-    enumerate(infomap, skelzoneinfo, zi, { if(zi.index < 0) info.add(&zi); });
-    for(int i = leafzones; i < info.length(); i++)
+    int leafzones = info.size();
+    enumerate(infomap, skelzoneinfo, zi, { if(zi.index < 0) info.emplace_back(&zi); });
+    for(int i = leafzones; i < info.size(); i++)
     {
         skelzoneinfo &zi = *info[i];
         if(zi.key.blend >= 0) continue;
@@ -718,12 +718,12 @@ void skelhitdata::build(skelmodel::skelmeshgroup *g, const uchar *ids)
                     zk.parents--;
                     zj.parents++;
                     zi.children[k] = &zj;
-                    while(++k < zi.children.length()) if(zj.key.includes(zi.children[k]->key)) { zi.children[k]->parents--; zi.children.removeunordered(k--); }
+                    while(++k < zi.children.size()) if(zj.key.includes(zi.children[k]->key)) { zi.children[k]->parents--; zi.children.removeunordered(k--); }
                     goto nextzone;
                 }
             }
             zj.parents++;
-            zi.children.add(&zj);
+            zi.children.emplace_back(&zj);
         nextzone:;
         }
         skelzonekey deps = zi.key;
@@ -738,25 +738,25 @@ void skelhitdata::build(skelmodel::skelmeshgroup *g, const uchar *ids)
             skelzonekey dep(deps.bones[j]);
             skelzoneinfo &zj = infomap.access(dep, dep);
             zj.parents++;
-            zi.children.add(&zj);
+            zi.children.emplace_back(&zj);
         }
     }
-    for(int i = leafzones; i < info.length(); i++)
+    for(int i = leafzones; i < info.size(); i++)
     {
         skelzoneinfo &zi = *info[i];
         loopvj(zi.children)
         {
             skelzoneinfo &zj = *zi.children[j];
-            if(zj.tris.length() <= 2 && zj.parents == 1)
+            if(zj.tris.size() <= 2 && zj.parents == 1)
             {
-                zi.tris.put(zj.tris.getbuf(), zj.tris.length());
+                zi.tris.put(zj.tris.data(), zj.tris.size());
                 zj.tris.setsize(0);
                 if(zj.index < 0)
                 {
                     zj.parents = 0;
                     zi.children.removeunordered(j--);
                 }
-                zi.children.put(zj.children.getbuf(), zj.children.length());
+                zi.children.put(zj.children.data(), zj.children.size());
                 zj.children.setsize(0);
             }
         }
@@ -767,10 +767,10 @@ void skelhitdata::build(skelmodel::skelmeshgroup *g, const uchar *ids)
         skelzoneinfo &zi = *info[i];
         if(zi.parents || zi.tris.empty()) info.removeunordered(i);
         zi.conflicts = zi.parents;
-        numlinks += zi.parents + zi.children.length();
-        numtris += zi.tris.length();
+        numlinks += zi.parents + zi.children.size();
+        numtris += zi.tris.size();
     }
-    rootzones = info.length();
+    rootzones = info.size();
     loopv(info)
     {
         skelzoneinfo &zi = *info[i];
@@ -778,10 +778,10 @@ void skelhitdata::build(skelmodel::skelmeshgroup *g, const uchar *ids)
         loopvj(zi.children)
         {
             skelzoneinfo &zj = *zi.children[j];
-            if(!--zj.conflicts) info.add(&zj);
+            if(!--zj.conflicts) info.emplace_back(&zj);
         }
     }
-    numzones = info.length();
+    numzones = info.size();
     zones = new skelhitzone[numzones];
     links = numlinks ? new skelhitzone *[numlinks] : NULL;
     tris = new skelhitzone::tri[numtris];
@@ -790,12 +790,12 @@ void skelhitdata::build(skelmodel::skelmeshgroup *g, const uchar *ids)
     loopi(numzones)
     {
         skelhitzone &z = zones[i];
-        skelzoneinfo &zi = *info[info.length()-1 - i];
-        memcpy(curtris, zi.tris.getbuf(), zi.tris.length()*sizeof(skelhitzone::tri));
+        skelzoneinfo &zi = *info[info.size()-1 - i];
+        memcpy(curtris, zi.tris.data(), zi.tris.size()*sizeof(skelhitzone::tri));
         if(zi.key.blend >= numblends)
         {
             z.blend = zi.key.bones[0] + numblends;
-            if(zi.tris.length()) z.bih = new skelbih(g, zi.tris.length(), curtris);
+            if(zi.tris.size()) z.bih = new skelbih(g, zi.tris.size(), curtris);
             const skelzonebounds &b = bounds[zi.key.bones[0]];
             z.center = b.calccenter();
             z.radius = b.calcradius();
@@ -803,22 +803,22 @@ void skelhitdata::build(skelmodel::skelmeshgroup *g, const uchar *ids)
         else if(zi.key.blend >= 0)
         {
             z.blend = zi.key.blend;
-            z.bih = new skelbih(g, zi.tris.length(), curtris);
+            z.bih = new skelbih(g, zi.tris.size(), curtris);
             z.center = z.bih->calccenter();
             z.radius = z.bih->calcradius();
         }
         else
         {
-            z.numtris = zi.tris.length();
+            z.numtris = zi.tris.size();
             z.tris = curtris;
         }
-        curtris += zi.tris.length();
+        curtris += zi.tris.size();
         z.parents = curlink;
         curlink += zi.parents;
-        z.numchildren = zi.children.length();
+        z.numchildren = zi.children.size();
         z.children = curlink;
-        loopvj(zi.children) z.children[j] = &zones[info.length()-1 - zi.children[j]->index];
-        curlink += zi.children.length();
+        loopvj(zi.children) z.children[j] = &zones[info.size()-1 - zi.children[j]->index];
+        curlink += zi.children.size();
     }
     loopi(numzones)
     {

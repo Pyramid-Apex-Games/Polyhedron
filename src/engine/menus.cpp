@@ -24,7 +24,7 @@ void addchange(const char *desc, int type)
 {
     if(!applydialog) return;
     loopv(needsapply) if(!strcmp(needsapply[i].desc, desc)) return;
-    needsapply.add(change(type, desc));
+    needsapply.emplace_back(change(type, desc));
     if(!hidechanges) UI::showui("changes");
 }
 
@@ -71,7 +71,7 @@ SCRIPTEXPORT void pendingchanges(int *idx)
     }
     else if (*idx < 0)
     {
-        intret(needsapply.length());
+        intret(needsapply.size());
     }
 }
 

@@ -532,7 +532,7 @@ void renderlava()
         LOCALPARAMF(lavaglow, 0.5f*(glowmin + (glowmax-glowmin)*t));
         LOCALPARAMF(lavaspec, spec/100.0f);
 
-        if(lavasurfs[k].length())
+        if(lavasurfs[k].size())
         {
             Texture *tex = lslot.sts.inrange(0) ? lslot.sts[0].t: notexture;
             wxscale = TEX_SCALE/(tex->xs*lslot.scale);
@@ -551,7 +551,7 @@ void renderlava()
             xtraverts += gle::end();
         }
 
-        if(drawtex != DRAWTEX_MINIMAP && lavafallsurfs[k].length())
+        if(drawtex != DRAWTEX_MINIMAP && lavafallsurfs[k].size())
         {
             Texture *tex = lslot.sts.inrange(2) ? lslot.sts[2].t : (lslot.sts.inrange(0) ? lslot.sts[0].t : notexture);
             float angle = fmod(float(lastmillis/2000.0f/(2*M_PI)), 1.0f),

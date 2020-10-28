@@ -60,7 +60,7 @@ namespace game
     __attribute__((used)) void findanims(const char *pattern, vector<int> &anims)
     {
         SkeletalEntity::FindAnimations(pattern, anims);
-//        loopi(sizeof(animnames)/sizeof(animnames[0])) if(matchanim(animnames[i], pattern)) anims.add(i);
+//        loopi(sizeof(animnames)/sizeof(animnames[0])) if(matchanim(animnames[i], pattern)) anims.emplace_back(i);
     }
 
     void preloadweapons() {

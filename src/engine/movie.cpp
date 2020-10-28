@@ -68,8 +68,8 @@ struct aviwriter
 
     aviindexentry &addindex(int frame, int type, int size)
     {
-        avisegmentinfo &seg = segments.last();
-        int i = index.length();
+        avisegmentinfo &seg = segments.back();
+        int i = index.size();
         while(--i >= seg.firstindex)
         {
             aviindexentry &e = index[i];
@@ -629,7 +629,7 @@ struct aviwriter
                 break;
         }
 
-        if(totalsize - segments.last().offset + framesize > 1000*1000*1000 && !nextsegment()) return false;
+        if(totalsize - segments.back().offset + framesize > 1000 * 1000 * 1000 && !nextsegment()) return false;
 
         addindex(frame, 1, framesize);
 
@@ -650,10 +650,10 @@ struct aviwriter
     {
         endlistchunk(); // LIST movi
 
-        avisegmentinfo &seg = segments.last();
+        avisegmentinfo &seg = segments.back();
 
         uint indexframes = 0, videoframes = 0, soundframes = 0;
-        for(int i = seg.firstindex; i < index.length(); i++)
+        for(int i = seg.firstindex; i < index.size(); i++)
         {
             aviindexentry &e = index[i];
             if(e.type) soundframes++;
@@ -665,9 +665,9 @@ struct aviwriter
             }
         }
 
-        if(segments.length() == 1)
+        if(segments.size() == 1)
         {
-            startchunk("idx1", index.length()*16);
+            startchunk("idx1", index.size()*16);
             loopv(index)
             {
                 aviindexentry &entry = index[i];
@@ -690,7 +690,7 @@ struct aviwriter
         f->putlil<uint>(seg.offset&stream::offset(0xFFFFFFFFU)); // offset low
         f->putlil<uint>(seg.offset>>32); // offset high
         f->putlil<uint>(0); // reserved 3
-        for(int i = seg.firstindex; i < index.length(); i++)
+        for(int i = seg.firstindex; i < index.size(); i++)
         {
             aviindexentry &e = index[i];
             if(e.type) continue;
@@ -712,7 +712,7 @@ struct aviwriter
             f->putlil<uint>(seg.offset&stream::offset(0xFFFFFFFFU)); // offset low
             f->putlil<uint>(seg.offset>>32); // offset high
             f->putlil<uint>(0); // reserved 3
-            for(int i = seg.firstindex; i < index.length(); i++)
+            for(int i = seg.firstindex; i < index.size(); i++)
             {
                 aviindexentry &e = index[i];
                 if(!e.type) continue;
@@ -728,14 +728,14 @@ struct aviwriter
 
     bool nextsegment()
     {
-        if(segments.length())
+        if(segments.size())
         {
-            if(segments.length() >= MAX_SUPER_INDEX) return false;
+            if(segments.size() >= MAX_SUPER_INDEX) return false;
             flushsegment();
             listchunk("RIFF", "AVIX");
         }
         listchunk("LIST", "movi");
-        segments.add(avisegmentinfo(chunkoffsets[chunkdepth], index.length()));
+        segments.emplace_back(avisegmentinfo(chunkoffsets[chunkdepth], index.size()));
         return true;
     }
 
@@ -755,7 +755,7 @@ struct aviwriter
         }
 
         const uint framesize = (videow * videoh * 3) / 2;
-        if(totalsize - segments.last().offset + framesize > 1000*1000*1000 && !nextsegment()) return false;
+        if(totalsize - segments.back().offset + framesize > 1000 * 1000 * 1000 && !nextsegment()) return false;
 
         while(videoframes <= frame) addindex(videoframes++, 0, framesize);
 

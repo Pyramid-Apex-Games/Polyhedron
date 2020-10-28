@@ -247,19 +247,19 @@ namespace gle
 #ifndef ANDROID
     void multidraw()
     {
-        int start = multidrawstart.length() ? multidrawstart.last() + multidrawcount.last() : 0,
+        int start = multidrawstart.size() ? multidrawstart.back() + multidrawcount.back() : 0,
             count = attribbuf.length()/vertexsize - start;
         if(count > 0)
         {
-            multidrawstart.add(start);
-            multidrawcount.add(count);
+            multidrawstart.emplace_back(start);
+            multidrawcount.emplace_back(count);
         }
     }
 #endif
 
     int end()
     {
-        uchar *buf = attribbuf.getbuf();
+        uchar *buf = attribbuf.data();
         if(attribbuf.empty())
         {
             if(buf != attribdata)
@@ -290,12 +290,12 @@ namespace gle
                     glCheckError(glMapBufferRange_(GL_ARRAY_BUFFER, vbooffset, attribbuf.length(), GL_MAP_WRITE_BIT|GL_MAP_INVALIDATE_RANGE_BIT|GL_MAP_UNSYNCHRONIZED_BIT));
                 if(dst)
                 {
-                    memcpy(dst, attribbuf.getbuf(), attribbuf.length());
+                    memcpy(dst, attribbuf.data(), attribbuf.length());
                     glCheckError(glUnmapBuffer_(GL_ARRAY_BUFFER));
                 }
                 else
                 {
-                    glCheckError(glBufferSubData_(GL_ARRAY_BUFFER, vbooffset, attribbuf.length(), attribbuf.getbuf()));
+                    glCheckError(glBufferSubData_(GL_ARRAY_BUFFER, vbooffset, attribbuf.length(), attribbuf.data()));
                 }
             }
             else
@@ -322,11 +322,11 @@ namespace gle
         else
         {
 #ifndef ANDROID
-            if(multidrawstart.length())
+            if(multidrawstart.size())
             {
                 multidraw();
                 if(start) loopv(multidrawstart) multidrawstart[i] += start;
-                glCheckError(glMultiDrawArrays_(primtype, multidrawstart.getbuf(), multidrawcount.getbuf(), multidrawstart.length()));
+                glCheckError(glMultiDrawArrays_(primtype, multidrawstart.data(), multidrawcount.data(), multidrawstart.size()));
                 multidrawstart.setsize(0);
                 multidrawcount.setsize(0);
             }
@@ -376,7 +376,3 @@ namespace gle
         if(defaultvao) { glCheckError(glDeleteVertexArrays_(1, &defaultvao)); defaultvao = 0; }
     }
 }
-
-
-// >>>>>>>>>> SCRIPTBIND >>>>>>>>>>>>>> //
-// <<<<<<<<<< SCRIPTBIND <<<<<<<<<<<<<< //

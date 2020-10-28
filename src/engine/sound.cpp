@@ -40,7 +40,7 @@ struct soundconfig
 
     bool hasslot(const soundslot *p, const vector<soundslot> &v) const
     {
-        return p >= v.getbuf() + slots && p < v.getbuf() + slots+numslots && slots+numslots < v.length();
+        return p >= v.data() + slots && p < v.data() + slots + numslots && slots + numslots < v.size();
     }
 
     int chooseslot() const
@@ -87,7 +87,7 @@ soundchannel &newchannel(int n, soundslot *slot, const vec *loc = NULL, Entity *
         loc = &ent->o;
         ent->flags |= EntityFlags::EF_SOUND;
     }
-    while(!channels.inrange(n)) channels.add(channels.length());
+    while(!channels.inrange(n)) channels.emplace_back(channels.size());
     soundchannel &chan = channels[n];
     chan.reset();
     chan.inuse = true;
@@ -312,11 +312,11 @@ static struct soundtype
             s->name = n;
             s->chunk = NULL;
         }
-        soundslot *oldslots = slots.getbuf();
-        int oldlen = slots.length();
-        soundslot &slot = slots.add();
-        // soundslots.add() may relocate slot pointers
-        if(slots.getbuf() != oldslots) loopv(channels)
+        soundslot *oldslots = slots.data();
+        int oldlen = slots.size();
+        soundslot &slot = slots.emplace_back();
+        // soundslots.emplace_back() may relocate slot pointers
+        if(slots.data() != oldslots) loopv(channels)
         {
             soundchannel &chan = channels[i];
             if(chan.inuse && chan.slot >= oldslots && chan.slot < &oldslots[oldlen])
@@ -329,18 +329,18 @@ static struct soundtype
 
     int addsound(const char *name, int vol, int maxuses = 0)
     {
-        soundconfig &s = configs.add();
+        soundconfig &s = configs.emplace_back();
         s.slots = addslot(name, vol);
         s.numslots = 1;
         s.maxuses = maxuses;
-        return configs.length()-1;
+        return configs.size()-1;
     }
 
     void addalt(const char *name, int vol)
     {
         if(configs.empty()) return;
         addslot(name, vol);
-        configs.last().numslots++;
+        configs.back().numslots++;
     }
 
     void clear()
@@ -399,12 +399,12 @@ SCRIPTEXPORT void altmapsound(char *name, int *vol) { mapsounds.addalt(name, *vo
 
 SCRIPTEXPORT void numsounds()
 {
-    intret(gamesounds.configs.length());
+    intret(gamesounds.configs.size());
 }
 
 SCRIPTEXPORT void nummapsounds()
 {
-    intret(mapsounds.configs.length());
+    intret(mapsounds.configs.size());
 }
 
 SCRIPTEXPORT void soundreset()
@@ -655,7 +655,7 @@ int playsound(int n, const vec *loc, Entity *ent, int flags, int loops, int fade
 
     chanid = -1;
     loopv(channels) if(!channels[i].inuse) { chanid = i; break; }
-    if(chanid < 0 && channels.length() < maxchannels) chanid = channels.length();
+    if(chanid < 0 && channels.size() < maxchannels) chanid = channels.size();
     if(chanid < 0) loopv(channels) if(!channels[i].volume) { Mix_HaltChannel(i); freechannel(i); chanid = i; break; }
     if(chanid < 0) return -1;
 

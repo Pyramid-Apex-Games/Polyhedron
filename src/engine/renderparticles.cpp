@@ -105,8 +105,8 @@ void addparticleemitters()
         //FIXME: ParticleEmitter entity?
 //		if(e->et_type != ET_PARTICLES)
 //			continue;
-			
-		emitters.add(particleemitter(e));
+
+        emitters.emplace_back(particleemitter(e));
     }
     regenemitters = false;
 }

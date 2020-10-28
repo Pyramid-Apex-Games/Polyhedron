@@ -77,25 +77,25 @@ namespace UI
         if(clipstack.empty()){
             glCheckError(glEnable(GL_SCISSOR_TEST));
         }
-        ClipArea &c = clipstack.add(ClipArea(x, y, w, h));
-        if(clipstack.length() >= 2) c.intersect(clipstack[clipstack.length()-2]);
+        ClipArea &c = clipstack.emplace_back(ClipArea(x, y, w, h));
+        if(clipstack.size() >= 2) c.intersect(clipstack[clipstack.size()-2]);
         c.scissor();
     }
 
     static void popclip()
     {
-        clipstack.pop();
+        clipstack.pop_back();
         if(clipstack.empty())
         {
             glCheckError(glDisable(GL_SCISSOR_TEST));
         }
-        else clipstack.last().scissor();
+        else clipstack.back().scissor();
     }
 
     static inline bool isfullyclipped(float x, float y, float w, float h)
     {
         if(clipstack.empty()) return false;
-        return clipstack.last().isfullyclipped(x, y, w, h);
+        return clipstack.back().isfullyclipped(x, y, w, h);
     }
 
     enum
@@ -224,7 +224,7 @@ namespace UI
 
         void clearchildren()
         {
-            children.deletecontents();
+            children.clear();
         }
 
         #define loopchildren(o, body) do { \
@@ -547,7 +547,7 @@ namespace UI
             else
             {
                 t = new T;
-                children.add(t);
+                children.emplace_back(t);
             }
             t->reset(this);
             buildchild++;
@@ -558,7 +558,7 @@ namespace UI
         {
             if((*contents&CODE_OP_MASK) == CODE_EXIT)
             {
-            	children.deletecontents();
+            	children.clear();
 			}
             else
             {
@@ -567,15 +567,15 @@ namespace UI
                 buildparent = this;
                 buildchild = 0;
                 executeret(contents);
-                while(children.length() > buildchild)
-                    delete children.pop();
+                while(children.size() > buildchild)
+                    delete children.pop_back();
                 buildparent = oldparent;
                 buildchild = oldchild;
             }
             resetstate();
         }
 
-        virtual int childcolumns() const { return children.length(); }
+        virtual int childcolumns() const { return children.size(); }
     };
 
     static inline void stopdrawing()
@@ -808,7 +808,7 @@ namespace UI
         {
             if(children.find(w) >= 0) return false;
             w->resetchildstate();
-            children.add(w);
+            children.emplace_back(w);
             w->show();
             return true;
         }
@@ -907,15 +907,15 @@ namespace UI
                 subw += o->w;
                 h = max(h, o->y + o->h);
             });
-            w = subw + space*max(children.length() - 1, 0);
+            w = subw + space*max(children.size() - 1, 0);
         }
 
         void adjustchildren()
         {
             if(children.empty()) return;
 
-            float offset = 0, sx = 0, cspace = (w - subw) / max(children.length() - 1, 1), cstep = (w - subw) / children.length();
-            for(int i = 0; i < children.length(); i++)
+            float offset = 0, sx = 0, cspace = (w - subw) / max(children.size() - 1, 1), cstep = (w - subw) / children.size();
+            for(int i = 0; i < children.size(); i++)
             {
                 Object *o = children[i];
                 o->x = offset;
@@ -953,14 +953,14 @@ namespace UI
                 subh += o->h;
                 w = max(w, o->x + o->w);
             });
-            h = subh + space*max(children.length() - 1, 0);
+            h = subh + space*max(children.size() - 1, 0);
         }
 
         void adjustchildren()
         {
             if(children.empty()) return;
 
-            float offset = 0, sy = 0, rspace = (h - subh) / max(children.length() - 1, 1), rstep = (h - subh) / children.length();
+            float offset = 0, sy = 0, rspace = (h - subh) / max(children.size() - 1, 1), rstep = (h - subh) / children.size();
             loopchildren(o,
             {
                 o->y = offset;
@@ -1000,9 +1000,9 @@ namespace UI
             loopchildren(o,
             {
                 o->layout();
-                if(column >= widths.length()) widths.add(o->w);
+                if(column >= widths.size()) widths.emplace_back(o->w);
                 else if(o->w > widths[column]) widths[column] = o->w;
-                if(row >= heights.length()) heights.add(o->h);
+                if(row >= heights.size()) heights.emplace_back(o->h);
                 else if(o->h > heights[row]) heights[row] = o->h;
                 column = (column + 1) % columns;
                 if(!column) row++;
@@ -1011,8 +1011,8 @@ namespace UI
             subw = subh = 0;
             loopv(widths) subw += widths[i];
             loopv(heights) subh += heights[i];
-            w = subw + spacew*max(widths.length() - 1, 0);
-            h = subh + spaceh*max(heights.length() - 1, 0);
+            w = subw + spacew*max(widths.size() - 1, 0);
+            h = subh + spaceh*max(heights.size() - 1, 0);
         }
 
         void adjustchildren()
@@ -1021,10 +1021,10 @@ namespace UI
 
             int row = 0, column = 0;
             float offsety = 0, sy = 0, offsetx = 0, sx = 0,
-                  cspace = (w - subw) / max(widths.length() - 1, 1),
-                  cstep = (w - subw) / widths.length(),
-                  rspace = (h - subh) / max(heights.length() - 1, 1),
-                  rstep = (h - subh) / heights.length();
+                  cspace = (w - subw) / max(widths.size() - 1, 1),
+                  cstep = (w - subw) / widths.size(),
+                  rspace = (h - subh) / max(heights.size() - 1, 1),
+                  rstep = (h - subh) / heights.size();
             loopchildren(o,
             {
                 o->x = offsetx;
@@ -1064,10 +1064,10 @@ namespace UI
             buildparent = this;
             buildchild = 0;
             executeret(columndata);
-            if(columns != buildchild) while(children.length() > buildchild) delete children.pop();
+            if(columns != buildchild) while(children.size() > buildchild) delete children.pop_back();
             columns = buildchild;
             if((*contents&CODE_OP_MASK) != CODE_EXIT) executeret(contents);
-            while(children.length() > buildchild) delete children.pop();
+            while(children.size() > buildchild) delete children.pop_back();
             buildparent = oldparent;
             buildchild = oldchild;
             resetstate();
@@ -1075,12 +1075,12 @@ namespace UI
 
         void adjustchildren()
         {
-            loopchildrange(columns, children.length(), o, o->adjustlayout(0, 0, w, h));
+            loopchildrange(columns, children.size(), o, o->adjustlayout(0, 0, w, h));
         }
 
         void draw(float sx, float sy)
         {
-            loopchildrange(columns, children.length(), o,
+            loopchildrange(columns, children.size(), o,
             {
                 if(!isfullyclipped(sx + o->x, sy + o->y, o->w, o->h))
                     o->draw(sx + o->x, sy + o->y);
@@ -1139,7 +1139,7 @@ namespace UI
             {
                 o->layout();
                 int cols = o->childcolumns();
-                while(widths.length() < cols) widths.add(0);
+                while(widths.size() < cols) widths.emplace_back(0);
                 loopj(cols)
                 {
                     Object *c = o->children[j];
@@ -1151,8 +1151,8 @@ namespace UI
 
             subw = 0;
             loopv(widths) subw += widths[i];
-            w = max(w, subw + spacew*max(widths.length() - 1, 0));
-            h = subh + spaceh*max(children.length() - 1, 0);
+            w = max(w, subw + spacew*max(widths.size() - 1, 0));
+            h = subh + spaceh*max(children.size() - 1, 0);
         }
 
         void adjustchildren()
@@ -1160,10 +1160,10 @@ namespace UI
             if(children.empty()) return;
 
             float offsety = 0, sy = 0,
-                  cspace = (w - subw) / max(widths.length() - 1, 1),
-                  cstep = (w - subw) / widths.length(),
-                  rspace = (h - subh) / max(children.length() - 1, 1),
-                  rstep = (h - subh) / children.length();
+                  cspace = (w - subw) / max(widths.size() - 1, 1),
+                  cstep = (w - subw) / widths.size(),
+                  rspace = (h - subh) / max(children.size() - 1, 1),
+                  rstep = (h - subh) / children.size();
             loopchildren(o,
             {
                 o->x = 0;
@@ -2864,7 +2864,7 @@ namespace UI
         {
             glCheckError(glDisable(GL_BLEND));
 
-            if(clipstack.length()){
+            if(clipstack.size()){
                 glCheckError(glDisable(GL_SCISSOR_TEST));
             }
         }
@@ -2873,7 +2873,7 @@ namespace UI
         {
             glCheckError(glEnable(GL_BLEND));
 
-            if(clipstack.length()){
+            if(clipstack.size()){
                 glCheckError(glEnable(GL_SCISSOR_TEST));
             }
         }
@@ -2901,7 +2901,7 @@ namespace UI
 //                {
 //                    vector<int> anims;
 //                    game::findanims(animspec, anims);
-//                    if(anims.length()) anim = anims[0];
+//                    if(anims.size()) anim = anims[0];
 //                }
 //            }
 //            anim |= ANIM_LOOP;
@@ -2918,7 +2918,7 @@ namespace UI
 //
 //            int sx1, sy1, sx2, sy2;
 //            window->calcscissor(sx, sy, sx+w, sy+h, sx1, sy1, sx2, sy2, false);
-//            modelpreview::start(sx1, sy1, sx2-sx1, sy2-sy1, false, clipstack.length() > 0);
+//            modelpreview::start(sx1, sy1, sx2-sx1, sy2-sy1, false, clipstack.size() > 0);
 //            auto [m, loadedName] = loadmodel(name);
 //            if(m)
 //            {
@@ -2928,7 +2928,7 @@ namespace UI
 //                vec o = calcmodelpreviewpos(radius, yaw).sub(center);
 //                rendermodel(name.c_str(), anim, o, yaw, 0, 0, 0, NULL, NULL, 0);
 //            }
-//            if(clipstack.length()) clipstack.last().scissor();
+//            if(clipstack.size()) clipstack.last().scissor();
 //            modelpreview::end();
 //        }
 //    };
@@ -2957,9 +2957,9 @@ namespace UI
 //
 //            int sx1, sy1, sx2, sy2;
 //            window->calcscissor(sx, sy, sx+w, sy+h, sx1, sy1, sx2, sy2, false);
-//            modelpreview::start(sx1, sy1, sx2-sx1, sy2-sy1, false, clipstack.length() > 0);
+//            modelpreview::start(sx1, sy1, sx2-sx1, sy2-sy1, false, clipstack.size() > 0);
 //            game::renderplayerpreview(model, color, team, weapon);
-//            if(clipstack.length()) clipstack.last().scissor();
+//            if(clipstack.size()) clipstack.last().scissor();
 //            modelpreview::end();
 //        }
 //    };
@@ -2986,9 +2986,9 @@ namespace UI
 //
 //            int sx1, sy1, sx2, sy2;
 //            window->calcscissor(sx, sy, sx+w, sy+h, sx1, sy1, sx2, sy2, false);
-//            modelpreview::start(sx1, sy1, sx2-sx1, sy2-sy1, false, clipstack.length() > 0);
+//            modelpreview::start(sx1, sy1, sx2-sx1, sy2-sy1, false, clipstack.size() > 0);
 //            previewprefab(name.c_str(), color);
-//            if(clipstack.length()) clipstack.last().scissor();
+//            if(clipstack.size()) clipstack.last().scissor();
 //            modelpreview::end();
 //        }
 //    };
@@ -3155,7 +3155,7 @@ namespace UI
 
     bool uivisible(const char *name)
     {
-        if(!name) return world->children.length() > 0;
+        if(!name) return world->children.size() > 0;
         Window *window = windows.find(name, NULL);
         return window && world->children.find(window) >= 0;
     }

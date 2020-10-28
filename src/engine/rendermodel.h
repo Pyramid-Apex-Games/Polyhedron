@@ -61,7 +61,7 @@ model *loadmapmodel(const char *filename);
     }
 
     // MapModelInfo struct.
-    mapmodelinfo &mmi = mapmodels.add();
+    mapmodelinfo &mmi = mapmodels.emplace_back();
     mmi.m = NULL;
     mmi.collide = NULL;
 
@@ -75,8 +75,8 @@ model *loadmapmodel(const char *filename);
     model *mdl = loadmodel(filename);
 
     if (mdl) {
-        conoutf("%s %s %i", "Succesfully loaded MapModel: ", filename, mapmodels.length() - 1);
-        return mapmodels.length() - 1;
+        conoutf("%s %s %i", "Succesfully loaded MapModel: ", filename, mapmodels.size() - 1);
+        return mapmodels.size() - 1;
     } else {
         conoutf("%s %s", "Failed to load MapModel: ", filename);
         return -1;

@@ -6,6 +6,27 @@
 #include "macros.h"
 #include "sort.h"
 
+template<typename>
+struct is_carray : std::false_type {};
+
+template<typename T, size_t N>
+struct is_carray<T[N]> : std::true_type {};
+
+template<typename T>
+struct is_carray<T[]> : std::true_type {};
+
+//template<typename T, size_t N>
+//struct arr_trait<std::array<T, N>> {using type = T;};
+
+//template<typename T>
+//struct arr_trait<T&> : arr_trait<T> {};
+//
+//template<typename T>
+//struct arr_trait<T&&> : arr_trait<T> {};
+//
+//template<typename T>
+//using element_type = typename arr_trait<T>::element;
+
 template <class T> struct vector
 {
     static const int MINSIZE {8};
@@ -21,44 +42,7 @@ template <class T> struct vector
     {
         *this = v;
     }
-
-    ~vector() { shrink(0); if(buf) delete[] (uchar *)buf; }
-
-    T* begin() { return buf; }
-    const T * begin() const { return buf; }
-    T* end() { return buf + ulen; }
-    const T * end() const { return buf + ulen; }
-
-    vector<T> &operator=(const vector<T> &v)
-    {
-        shrink(0);
-        if(v.length() > alen) growbuf(v.length());
-        loopv(v) add(v[i]);
-        return *this;
-    }
-
-    T &add(const T &x)
-    {
-        if(ulen==alen) growbuf(ulen+1);
-        new (&buf[ulen]) T(x);
-        return buf[ulen++];
-    }
-
-    T &add()
-    {
-        if(ulen==alen) growbuf(ulen+1);
-        new (&buf[ulen]) T;
-        return buf[ulen++];
-    }
-
-    T &dup()
-    {
-        if(ulen==alen) growbuf(ulen+1);
-        new (&buf[ulen]) T(buf[ulen-1]);
-        return buf[ulen++];
-    }
-
-    void move(vector<T> &v)
+    vector(vector<T>&& v)
     {
         if(!ulen)
         {
@@ -68,38 +52,147 @@ template <class T> struct vector
         }
         else
         {
-            growbuf(ulen+v.ulen);
+            reserve(ulen + v.ulen);
             if(v.ulen) memcpy(&buf[ulen], (void  *)v.buf, v.ulen*sizeof(T));
             ulen += v.ulen;
             v.ulen = 0;
         }
     }
 
+    ~vector() { shrink(0); if(buf) delete[] (uchar *)buf; }
+
+    vector<T>& operator=(vector<T>&& v)
+    {
+        if(!ulen)
+        {
+            std::swap(buf, v.buf);
+            std::swap(ulen, v.ulen);
+            std::swap(alen, v.alen);
+        }
+        else
+        {
+            reserve(ulen + v.ulen);
+            if(v.ulen) memcpy(&buf[ulen], (void  *)v.buf, v.ulen*sizeof(T));
+            ulen += v.ulen;
+            v.ulen = 0;
+        }
+
+        return *this;
+    }
+
+    T* begin() { return buf; }
+    const T * begin() const { return buf; }
+    T* end() { return buf + ulen; }
+    const T * end() const { return buf + ulen; }
+
+    vector<T> &operator=(const vector<T> &v)
+    {
+        shrink(0);
+        if(v.size() > alen) reserve(v.size());
+        loopv(v) emplace_back(v[i]);
+        return *this;
+    }
+
+    template <typename... Ts>
+    T &emplace_back(Ts&&... args)
+    {
+        if(ulen==alen) reserve(ulen + 1);
+        new (&buf[ulen]) T(std::forward<Ts>(args)...);
+        return buf[ulen++];
+    }
+
+    T &emplace_back(const T &x)
+    {
+        if(ulen==alen) reserve(ulen + 1);
+        new (&buf[ulen]) T(x);
+        return buf[ulen++];
+    }
+
+    T &emplace_back()
+    {
+        if(ulen==alen) reserve(ulen + 1);
+        new (&buf[ulen]) T;
+        return buf[ulen++];
+    }
+
     bool inrange(size_t i) const { return i<size_t(ulen); }
     bool inrange(int i) const { return i>=0 && i<ulen; }
-
-    T &pop() { return buf[--ulen]; }
-    T &last() { return buf[ulen-1]; }
+    T *disown() { T *r = buf; buf = NULL; alen = ulen = 0; return r; }
+    bool inbuf(const T *e) const { return e >= buf && e < &buf[ulen]; }
+private:
     void drop() { ulen--; buf[ulen].~T(); }
+
+
+//    template<typename U = T>
+//    typename std::enable_if<is_carray<T>::value>::type
+    void deletecontents(int n = 0) { while(ulen > n) delete pop_back(); }
+
+//    template<typename U = T>
+//    typename std::enable_if<is_carray<T>::value>::type
+    void deletearrays(int n = 0) { while(ulen > n) delete[] pop_back(); }
+
+    void call_finalizers(const T* begin, const T* end)
+    {
+        if (inbuf(begin) && inbuf(end))
+        {
+            T* ptr = buf + (begin - buf) + (end - begin);
+            while(ptr != begin)
+            {
+                (*(--ptr)).~T();
+            }
+            (*begin).~T();
+        }
+    }
+
+public:
+    void clear()
+    {
+        if constexpr (is_carray<T>::value)
+        {
+            deletearrays();
+        }
+        else
+        {
+            deletecontents();
+        }
+    }
+
+    void erase(const T* begin, const T* end)
+    {
+        if (inbuf(begin) && inbuf(end))
+        {
+            if constexpr (std::is_destructible<T>::value)
+            {
+                call_finalizers(begin, end);
+            }
+
+            int holeSize = end - begin;
+            int beginIndex = begin - buf;
+            for(auto i = 0; beginIndex + holeSize + i < ulen; ++i)
+            {
+                std::swap(buf[beginIndex + i], buf[beginIndex + holeSize + i]);
+            }
+            ulen -= holeSize;
+        }
+    }
+
+    T &pop_back() { return buf[--ulen]; }
+    T &back() { return buf[ulen - 1]; }
     bool empty() const { return ulen==0; }
 
     int capacity() const { return alen; }
-    int length() const { return ulen; }
+    int size() const { return ulen; }
     T &operator[](int i) { ASSERT(i>=0 && i<ulen); return buf[i]; }
     const T &operator[](int i) const { ASSERT(i >= 0 && i<ulen); return buf[i]; }
 
-    T *disown() { T *r = buf; buf = NULL; alen = ulen = 0; return r; }
 
     void shrink(int i) { ASSERT(i<=ulen); if(isclass<T>::no) ulen = i; else while(ulen>i) drop(); }
     void setsize(int i) { ASSERT(i<=ulen); ulen = i; }
 
-    void deletecontents(int n = 0) { while(ulen > n) delete pop(); }
-    void deletearrays(int n = 0) { while(ulen > n) delete[] pop(); }
+    T *data() { return buf; }
+    const T *data() const { return buf; }
 
-    T *getbuf() { return buf; }
-    const T *getbuf() const { return buf; }
-    bool inbuf(const T *e) const { return e >= buf && e < &buf[ulen]; }
-
+private:
     template<class F>
     void sort(F fun, int i = 0, int n = -1)
     {
@@ -109,7 +202,8 @@ template <class T> struct vector
     void sort() { sort(sortless()); }
     void sortname() { sort(sortnameless()); }
 
-    void growbuf(int sz)
+public:
+    void reserve(int sz)
     {
         int olen = alen;
         if(!alen) alen = std::max(MINSIZE, sz);
@@ -124,9 +218,9 @@ template <class T> struct vector
         buf = (T *)newbuf;
     }
 
-    databuf<T> reserve(int sz)
+    databuf<T> reserve_raw_return(int sz)
     {
-        if(alen-ulen < sz) growbuf(ulen+sz);
+        if(alen-ulen < sz) reserve(ulen + sz);
         return databuf<T>(&buf[ulen], sz);
     }
 
@@ -142,16 +236,16 @@ template <class T> struct vector
 
     T *pad(int n)
     {
-        T *buf = reserve(n).buf;
+        T *buf = reserve_raw_return(n).buf;
         advance(n);
         return buf;
     }
 
-    void put(const T &v) { add(v); }
+    void put(const T &v) { emplace_back(v); }
 
     void put(const T *v, int n)
     {
-        databuf<T> buf = reserve(n);
+        databuf<T> buf = reserve_raw_return(n);
         buf.put(v, n);
         addbuf(buf);
     }
@@ -187,7 +281,7 @@ template <class T> struct vector
 
     void addunique(const T &o)
     {
-        if(find(o) < 0) add(o);
+        if(find(o) < 0) emplace_back(o);
     }
 
     void removeobj(const T &o)
@@ -214,7 +308,7 @@ template <class T> struct vector
 
     T &insert(int i, const T &e)
     {
-        add(T());
+        emplace_back(T());
         for(int p = ulen-1; p>i; p--) buf[p] = buf[p-1];
         buf[i] = e;
         return buf[i];
@@ -222,8 +316,8 @@ template <class T> struct vector
 
     T *insert(int i, const T *e, int n)
     {
-        if(alen-ulen < n) growbuf(ulen+n);
-        loopj(n) add(T());
+        if(alen-ulen < n) reserve(ulen + n);
+        loopj(n) emplace_back(T());
         for(int p = ulen-1; p>=i+n; p--) buf[p] = buf[p-n];
         loopj(n) buf[i+j] = e[j];
         return &buf[i];
@@ -257,7 +351,7 @@ template <class T> struct vector
 
     T &addheap(const T &x)
     {
-        add(x);
+        emplace_back(x);
         return buf[upheap(ulen-1)];
     }
 
@@ -317,3 +411,9 @@ template <class T> struct vector
 #undef UNIQUE
 };
 template <class T> const int vector<T>::MINSIZE;
+
+template <typename T>
+T &duplicate_back(vector<T>& source)
+{
+    return source.emplace_back(source.back());
+}

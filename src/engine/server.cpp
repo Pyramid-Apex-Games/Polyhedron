@@ -83,8 +83,8 @@ client &addclient(int type)
     if(!c)
     {
         c = new client;
-        c->num = clients.length();
-        clients.add(c);
+        c->num = clients.size();
+        clients.emplace_back(c);
     }
     c->info = server::newclientinfo();
     c->type = type;
@@ -132,7 +132,7 @@ void process(ENetPacket *packet, int sender, int chan);
 int getservermtu() { return serverhost ? serverhost->mtu : -1; }
 void *getclientinfo(int i) { return !clients.inrange(i) || clients[i]->type==ST_EMPTY ? NULL : clients[i]->info; }
 ENetPeer *getclientpeer(int i) { return clients.inrange(i) && clients[i]->type==ST_TCPIP ? clients[i]->peer : NULL; }
-int getnumclients()        { return clients.length(); }
+int getnumclients()        { return clients.size(); }
 uint getclientip(int n)    { return clients.inrange(n) && clients[n]->type==ST_TCPIP ? clients[n]->peer->address.host : 0; }
 
 void sendpacket(int n, int chan, ENetPacket *packet, int exclude)
@@ -377,7 +377,7 @@ bool requestmaster(const char *req)
         lastconnectmaster = masterconnecting = totalmillis ? totalmillis : 1;
     }
 
-    if(masterout.length() >= 4096) return false;
+    if(masterout.size() >= 4096) return false;
 
     masterout.put(req, strlen(req));
     return true;
@@ -391,9 +391,9 @@ bool requestmasterf(const char *fmt, ...)
 
 void processmasterinput()
 {
-    if(masterinpos >= masterin.length()) return;
+    if(masterinpos >= masterin.size()) return;
 
-    char *input = &masterin[masterinpos], *end = (char *)memchr(input, '\n', masterin.length() - masterinpos);
+    char *input = &masterin[masterinpos], *end = (char *)memchr(input, '\n', masterin.size() - masterinpos);
     while(end)
     {
         *end = '\0';
@@ -410,12 +410,12 @@ void processmasterinput()
         else server::processmasterinput(input, cmdlen, args);
 
         end++;
-        masterinpos = end - masterin.getbuf();
+        masterinpos = end - masterin.data();
         input = end;
-        end = (char *)memchr(input, '\n', masterin.length() - masterinpos);
+        end = (char *)memchr(input, '\n', masterin.size() - masterinpos);
     }
 
-    if(masterinpos >= masterin.length())
+    if(masterinpos >= masterin.size())
     {
         masterin.setsize(0);
         masterinpos = 0;
@@ -433,12 +433,12 @@ void flushmasteroutput()
 
     ENetBuffer buf;
     buf.data = &masterout[masteroutpos];
-    buf.dataLength = masterout.length() - masteroutpos;
+    buf.dataLength = masterout.size() - masteroutpos;
     int sent = enet_socket_send(mastersock, NULL, &buf, 1);
     if(sent >= 0)
     {
         masteroutpos += sent;
-        if(masteroutpos >= masterout.length())
+        if(masteroutpos >= masterout.size())
         {
             masterout.setsize(0);
             masteroutpos = 0;
@@ -449,12 +449,12 @@ void flushmasteroutput()
 
 void flushmasterinput()
 {
-    if(masterin.length() >= masterin.capacity())
+    if(masterin.size() >= masterin.capacity())
         masterin.reserve(4096);
 
     ENetBuffer buf;
-    buf.data = masterin.getbuf() + masterin.length();
-    buf.dataLength = masterin.capacity() - masterin.length();
+    buf.data = masterin.data() + masterin.size();
+    buf.dataLength = masterin.capacity() - masterin.size();
     int recv = enet_socket_receive(mastersock, NULL, &buf, 1);
     if(recv > 0)
     {
@@ -921,11 +921,11 @@ int WINAPI WinMain(HINSTANCE hInst, HINSTANCE hPrev, LPSTR szCmdLine, int sw)
     appinstance = hInst;
 #ifdef STANDALONE
     int standalonemain(int argc, char **argv);
-    int status = standalonemain(args.length()-1, args.getbuf());
+    int status = standalonemain(args.size()-1, args.data());
     #define main standalonemain
 #else
     SDL_SetMainReady();
-    int status = SDL_main(args.length()-1, args.getbuf());
+    int status = SDL_main(args.size()-1, args.data());
 #endif
     delete[] buf;
     exit(status);

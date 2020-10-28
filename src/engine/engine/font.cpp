@@ -37,7 +37,7 @@ SCRIPTEXPORT_AS(font) void newfont(char *name, char *tex, int *defaultw, int *de
     font *f = &fonts[name];
     if(!f->name) f->name = newcubestr(name);
     f->texs.shrink(0);
-    f->texs.add(textureload(tex));
+    f->texs.emplace_back(textureload(tex));
     f->chars.shrink(0);
     f->charoffset = '!';
     f->defaultw = *defaultw;
@@ -88,15 +88,15 @@ SCRIPTEXPORT void fonttex(char *s)
 
     Texture *t = textureload(s);
     loopv(fontdef->texs) if(fontdef->texs[i] == t) { fontdeftex = i; return; }
-    fontdeftex = fontdef->texs.length();
-    fontdef->texs.add(t);
+    fontdeftex = fontdef->texs.size();
+    fontdef->texs.emplace_back(t);
 }
 
 SCRIPTEXPORT void fontchar(float *x, float *y, float *w, float *h, float *offsetx, float *offsety, float *advance)
 {
     if(!fontdef) return;
 
-    font::charinfo &c = fontdef->chars.add();
+    font::charinfo &c = fontdef->chars.emplace_back();
     c.x = *x;
     c.y = *y;
     c.w = *w ? *w : fontdef->defaultw;
@@ -112,7 +112,7 @@ SCRIPTEXPORT void fontskip(int *n)
     if(!fontdef) return;
     loopi(std::max(*n, 1))
     {
-        font::charinfo &c = fontdef->chars.add();
+        font::charinfo &c = fontdef->chars.emplace_back();
         c.x = c.y = c.w = c.h = c.offsetx = c.offsety = c.advance = 0;
         c.tex = 0;
     }
@@ -136,7 +136,7 @@ SCRIPTEXPORT void fontalias(const char *dst, const char *src)
     d->outlinemax = s->outlinemax;
 
     fontdef = d;
-    fontdeftex = d->texs.length()-1;
+    fontdeftex = d->texs.size()-1;
 }
 
 font *findfont(const char *name)
@@ -155,13 +155,13 @@ bool setfont(const char *name)
 
 void pushfont()
 {
-    fontstack.add(curfont);
+    fontstack.emplace_back(curfont);
 }
 
 bool popfont()
 {
     if(fontstack.empty()) return false;
-    curfont = fontstack.pop();
+    curfont = fontstack.pop_back();
     return true;
 }
 

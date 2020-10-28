@@ -724,7 +724,7 @@ void setupmsbuffer(int w, int h)
     {
         GLfloat vals[2];
         glGetMultisamplefv_(GL_SAMPLE_POSITION, i, vals);
-        msaapositions.add(vec2(vals[0], vals[1]));
+        msaapositions.emplace_back(vec2(vals[0], vals[1]));
     }
 
     if(msaalight)
@@ -2015,8 +2015,8 @@ void clearshadowcache()
 
 static shadowmapinfo *addshadowmap(ushort x, ushort y, int size, int &idx, int light = -1, shadowcacheval *cached = NULL)
 {
-    idx = shadowmaps.length();
-    shadowmapinfo *sm = &shadowmaps.add();
+    idx = shadowmaps.size();
+    shadowmapinfo *sm = &shadowmaps.emplace_back();
     sm->x = x;
     sm->y = y;
     sm->size = size;
@@ -3162,12 +3162,12 @@ static void renderlightbatches(Shader *s, int stencilref, bool transparent, floa
         setavatarstencil(stencilref, true);
 
         bool baselight = !sunpass;
-        for(int offset = 0; baselight || offset < lightorder.length(); baselight = false)
+        for(int offset = 0; baselight || offset < lightorder.size(); baselight = false)
         {
             int n = 0;
             bool shadowmap = false, spotlight = false;
             float sx1 = 1, sy1 = 1, sx2 = -1, sy2 = -1, sz1 = 1, sz2 = -1;
-            for(; offset < lightorder.length(); offset++)
+            for(; offset < lightorder.size(); offset++)
             {
                 const lightinfo &l = lights[lightorder[offset]];
                 if(l.dist - l.radius > avatarshadowdist) continue;
@@ -3536,7 +3536,7 @@ void viewlightscissor()
         if(ents.inrange(idx) && dynamic_cast<LightEntity*>(ents[idx]))
         {
             auto e = ents[idx];
-			loopvj(lights) if(lights[j].o == e->o)
+            loopvj(lights) if(lights[j].o == e->o)
             {
                 lightinfo &l = lights[j];
                 if(!l.validscissor()) break;
@@ -3556,11 +3556,12 @@ void viewlightscissor()
 
 void collectlights()
 {
-    if(lights.length()) return;
+    if(lights.size()) return;
 
     // point lights processed here
     const auto &ents = getents();
-    if(!editmode || !fullbright) loopv(ents)
+    if(!editmode || !fullbright)
+        loopv(ents)
     {
         const auto e = dynamic_cast<LightEntity *>(ents[i]);
         if(!e || e->radius <= 0) continue;
@@ -3571,8 +3572,8 @@ void collectlights()
             if(pvsoccludedsphere(e->o, e->radius)) continue;
         }
 
-		lightinfo &l = lights.add(lightinfo(i, e));
-        if(l.validscissor()) lightorder.add(lights.length()-1);
+		lightinfo &l = lights.emplace_back(lightinfo(i, e));
+        if(l.validscissor()) lightorder.emplace_back(lights.size() - 1);
     }
 
     int numdynlights = 0;
@@ -3588,14 +3589,15 @@ void collectlights()
         int spot, flags;
         if(!getdynlight(i, o, radius, color, dir, spot, flags)) continue;
 
-        lightinfo &l = lights.add(lightinfo(o, vec(color).mul(255).max(0), radius, flags, dir, spot));
-        if(l.validscissor()) lightorder.add(lights.length()-1);
+        lightinfo &l = lights.emplace_back(lightinfo(o, vec(color).mul(255).max(0), radius, flags, dir, spot));
+        if(l.validscissor()) lightorder.emplace_back(lights.size() - 1);
     }
 
-    lightorder.sort(sortlights);
+    std::sort(lightorder.begin(), lightorder.end(), &sortlights);
 
     bool queried = false;
-    if(!drawtex && smquery && oqfrags && oqlights) loopv(lightorder)
+    if(!drawtex && smquery && oqfrags && oqlights)
+        loopv(lightorder)
     {
         int idx = lightorder[i];
         lightinfo &l = lights[idx];
@@ -3757,9 +3759,9 @@ static void batchlights(const batchstack &initstack)
             if(batch.rects.empty())
             {
                 (lightbatchkey &)batch = key;
-                lightbatches.add(&batch);
+                lightbatches.emplace_back(&batch);
             }
-            batch.rects.add(s);
+            batch.rects.emplace_back(s);
             ++lightbatchrectsused;
         }
 
@@ -3795,11 +3797,11 @@ static void batchlights()
     if(lighttilebatch && drawtex != DRAWTEX_MINIMAP)
     {
         lightbatcher.recycle();
-        batchlights(batchstack(0, 0, lighttilew, lighttileh, 0, batchrects.length()));
-        lightbatches.sort(sortlightbatches);
+        batchlights(batchstack(0, 0, lighttilew, lighttileh, 0, batchrects.size()));
+        std::sort(lightbatches.begin(), lightbatches.end(), &sortlightbatches);
     }
 
-    lightbatchesused = lightbatches.length();
+    lightbatchesused = lightbatches.size();
 }
 
 void packlights()
@@ -3842,10 +3844,10 @@ void packlights()
             else if(smcache) shadowcachefull = true;
         }
 
-        batchrects.add(batchrect(l, i));
+        batchrects.emplace_back(batchrect(l, i));
     }
 
-    lightsvisible = lightorder.length() - lightsoccluded;
+    lightsvisible = lightorder.size() - lightsoccluded;
 
     batchlights();
 }
@@ -4441,8 +4443,8 @@ void rendershadowmaps(int offset = 0)
 {
     if(!(sminoq && !debugshadowatlas && !inoq && shouldworkinoq())) offset = 0;
 
-    for(; offset < shadowmaps.length(); offset++) if(shadowmaps[offset].light >= 0) break;
-    if(offset >= shadowmaps.length()) return; 
+    for(; offset < shadowmaps.size(); offset++) if(shadowmaps[offset].light >= 0) break;
+    if(offset >= shadowmaps.size()) return;
 
     if(inoq)
     {
@@ -4461,7 +4463,7 @@ void rendershadowmaps(int offset = 0)
     glEnable(GL_SCISSOR_TEST);
 
     const auto &ents = getents();
-    for(int i = offset; i < shadowmaps.length(); i++)
+    for(int i = offset; i < shadowmaps.size(); i++)
     {
         shadowmapinfo &sm = shadowmaps[i];
         if(sm.light < 0) continue;
@@ -4611,7 +4613,7 @@ void rendershadowatlas()
     // sun light
     rendercsmshadowmaps();
 
-    int smoffset = shadowmaps.length();
+    int smoffset = shadowmaps.size();
 
     packlights();
 

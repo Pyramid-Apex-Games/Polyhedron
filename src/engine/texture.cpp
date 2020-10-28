@@ -1760,19 +1760,19 @@ SCRIPTEXPORT void texturereset(int *n)
     if(!(identflags&IDF_OVERRIDDEN) && !game::allowedittoggle()) return;
     defslot = NULL;
     resetslotshader();
-    int limit = clamp(*n, 0, slots.length());
-    for(int i = limit; i < slots.length(); i++)
+    int limit = clamp(*n, 0, slots.size());
+    for(int i = limit; i < slots.size(); i++)
     {
         Slot *s = slots[i];
         for(VSlot *vs = s->variants; vs; vs = vs->next) vs->slot = &dummyslot;
         delete s;
     }
     slots.setsize(limit);
-    while(vslots.length())
+    while(vslots.size())
     {
-        VSlot *vs = vslots.last();
+        VSlot *vs = vslots.back();
         if(vs->slot != &dummyslot || vs->changed) break;
-        delete vslots.pop();
+        delete vslots.pop_back();
     }
 }
 
@@ -1788,7 +1788,7 @@ SCRIPTEXPORT void decalreset(int *n)
     if(!(identflags&IDF_OVERRIDDEN) && !game::allowedittoggle()) return;
     defslot = NULL;
     resetslotshader();
-    decalslots.deletecontents(*n);
+    decalslots.erase(decalslots.end() - *n, decalslots.end());
 }
 
 static int compactedvslots = 0, compactvslotsprogress = 0, clonedvslots = 0;
@@ -1798,10 +1798,10 @@ void clearslots()
 {
     defslot = NULL;
     resetslotshader();
-    slots.deletecontents();
-    vslots.deletecontents();
+    slots.clear();
+    vslots.clear();
     loopi((MATF_VOLUME|MATF_INDEX)+1) materialslots[i].reset();
-    decalslots.deletecontents();
+    decalslots.clear();
     clonedvslots = 0;
 }
 
@@ -1859,7 +1859,7 @@ int compactvslots(bool cull)
     loopv(vslots) vslots[i]->index = -1;
     if(cull)
     {
-        int numdefaults = min(int(NUMDEFAULTSLOTS), slots.length());
+        int numdefaults = min(int(NUMDEFAULTSLOTS), slots.size());
         loopi(numdefaults) slots[i]->variants->index = compactedvslots++;
         loopi(numdefaults) assignvslotlayer(*slots[i]->variants);
     }
@@ -1930,7 +1930,7 @@ int compactvslots(bool cull)
         while(vslots[i]->index >= 0 && vslots[i]->index != i)
             swap(vslots[i], vslots[vslots[i]->index]);
     }
-    for(int i = compactedvslots; i < vslots.length(); i++) delete vslots[i];
+    for(int i = compactedvslots; i < vslots.size(); i++) delete vslots[i];
     vslots.setsize(compactedvslots);
     return total;
 }
@@ -1961,7 +1961,7 @@ static void clampvslotoffset(VSlot &dst, Slot *slot = NULL)
 
 static void propagatevslot(VSlot &dst, const VSlot &src, int diff, bool edit = false)
 {
-    if(diff & (1<<VSLOT_SHPARAM)) loopv(src.params) dst.params.add(src.params[i]);
+    if(diff & (1<<VSLOT_SHPARAM)) loopv(src.params) dst.params.emplace_back(src.params[i]);
     if(diff & (1<<VSLOT_SCALE)) dst.scale = src.scale;
     if(diff & (1<<VSLOT_ROTATION))
     {
@@ -2000,7 +2000,8 @@ static void propagatevslot(VSlot *root, int changed)
 
 static void mergevslot(VSlot &dst, const VSlot &src, int diff, Slot *slot = NULL)
 {
-    if(diff & (1<<VSLOT_SHPARAM)) loopv(src.params)
+    if(diff & (1<<VSLOT_SHPARAM))
+        loopv(src.params)
     {
         const SlotShaderParam &sp = src.params[i];
         loopvj(dst.params)
@@ -2012,7 +2013,7 @@ static void mergevslot(VSlot &dst, const VSlot &src, int diff, Slot *slot = NULL
                 goto nextparam;
             }
         }
-        dst.params.add(sp);
+        dst.params.emplace_back(sp);
     nextparam:;
     }
     if(diff & (1<<VSLOT_SCALE))
@@ -2069,8 +2070,8 @@ static VSlot *emptyvslot(Slot &owner)
 {
     int offset = 0;
     loopvrev(slots) if(slots[i]->variants) { offset = slots[i]->variants->index + 1; break; }
-    for(int i = offset; i < vslots.length(); i++) if(!vslots[i]->changed) return reassignvslot(owner, vslots[i]);
-    return vslots.add(new VSlot(&owner, vslots.length()));
+    for(int i = offset; i < vslots.size(); i++) if(!vslots[i]->changed) return reassignvslot(owner, vslots[i]);
+    return vslots.emplace_back(new VSlot(&owner, vslots.size()));
 }
 
 VSlot &Slot::emptyvslot()
@@ -2082,7 +2083,7 @@ static bool comparevslot(const VSlot &dst, const VSlot &src, int diff)
 {
     if(diff & (1<<VSLOT_SHPARAM))
     {
-        if(src.params.length() != dst.params.length()) return false;
+        if(src.params.size() != dst.params.size()) return false;
         loopv(src.params)
         {
             const SlotShaderParam &sp = src.params[i], &dp = dst.params[i];
@@ -2197,7 +2198,7 @@ bool unpackvslot(ucharbuf &buf, VSlot &dst, bool delta)
                 getcubestr(name, buf);
                 SlotShaderParam p = { name[0] ? getshaderparamname(name) : NULL, -1, 0, { 0, 0, 0, 0 } };
                 loopi(4) p.val[i] = getfloat(buf);
-                if(p.name) dst.params.add(p);
+                if(p.name) dst.params.emplace_back(p);
                 break;
             }
             case VSLOT_SCALE:
@@ -2268,7 +2269,7 @@ VSlot *findvslot(Slot &slot, const VSlot &src, const VSlot &delta)
 
 static VSlot *clonevslot(const VSlot &src, const VSlot &delta)
 {
-    VSlot *dst = vslots.add(new VSlot(src.slot, vslots.length()));
+    VSlot *dst = vslots.emplace_back(new VSlot(src.slot, vslots.size()));
     dst->changed = src.changed | delta.changed;
     propagatevslot(*dst, src, ((1<<VSLOT_NUM)-1) & ~delta.changed);
     propagatevslot(*dst, delta, delta.changed, true);
@@ -2281,11 +2282,11 @@ VSlot *editvslot(const VSlot &src, const VSlot &delta)
 {
     VSlot *exists = findvslot(*src.slot, src, delta);
     if(exists) return exists;
-    if(vslots.length()>=0x10000)
+    if(vslots.size() >= 0x10000)
     {
         compactvslots();
         allchanged();
-        if(vslots.length()>=0x10000) return NULL;
+        if(vslots.size() >= 0x10000) return NULL;
     }
     if(autocompactvslots && ++clonedvslots >= autocompactvslots)
     {
@@ -2346,14 +2347,14 @@ SCRIPTEXPORT void texture(char *type, char *name, int *rot, int *xoffset, int *y
     int tnum = findslottex(type), matslot;
     if(tnum==TEX_DIFFUSE)
     {
-        if(slots.length() >= 0x10000) return;
-        defslot = slots.add(new Slot(slots.length()));
+        if(slots.size() >= 0x10000) return;
+        defslot = slots.emplace_back(new Slot(slots.size()));
     }
     else if(!strcmp(type, "decal"))
     {
-        if(decalslots.length() >= 0x10000) return;
+        if(decalslots.size() >= 0x10000) return;
         tnum = TEX_DIFFUSE;
-        defslot = decalslots.add(new DecalSlot(decalslots.length()));
+        defslot = decalslots.emplace_back(new DecalSlot(decalslots.size()));
     }
     else if((matslot = findmaterial(type)) >= 0)
     {
@@ -2366,8 +2367,8 @@ SCRIPTEXPORT void texture(char *type, char *name, int *rot, int *xoffset, int *y
     Slot &s = *defslot;
     s.loaded = false;
     s.texmask |= 1<<tnum;
-    if(s.sts.length()>=8) conoutf(CON_WARN, "warning: too many textures in %s", s.name());
-    Slot::Tex &st = s.sts.add();
+    if(s.sts.size() >= 8) conoutf(CON_WARN, "warning: too many textures in %s", s.name());
+    Slot::Tex &st = s.sts.emplace_back();
     st.type = tnum;
     copycubestr(st.name, name);
     path(st.name);
@@ -2426,7 +2427,7 @@ SCRIPTEXPORT void texlayer(int *layer)
 {
     if(!defslot) return;
     Slot &s = *defslot;
-    s.variants->layer = *layer < 0 ? max(slots.length()-1+*layer, 0) : *layer;
+    s.variants->layer = *layer < 0 ? max(slots.size() - 1 + *layer, 0) : *layer;
     propagatevslot(s.variants, 1<<VSLOT_LAYER);
 }
 
@@ -2434,7 +2435,7 @@ SCRIPTEXPORT void texdetail(int *detail)
 {
     if(!defslot) return;
     Slot &s = *defslot;
-    s.variants->detail = *detail < 0 ? max(slots.length()-1+*detail, 0) : *detail;
+    s.variants->detail = *detail < 0 ? max(slots.size() - 1 + *detail, 0) : *detail;
     propagatevslot(s.variants, 1<<VSLOT_DETAIL);
 }
 
@@ -2531,7 +2532,7 @@ static void collapsespec(ImageData &s)
 
 int Slot::findtextype(int type, int last) const
 {
-    for(int i = last+1; i<sts.length(); i++) if((type&(1<<sts[i].type)) && sts[i].combined<0) return i;
+    for(int i = last+1; i< sts.size(); i++) if((type & (1 << sts[i].type)) && sts[i].combined < 0) return i;
     return -1;
 }
 
@@ -2566,10 +2567,10 @@ bool DecalSlot::shouldpremul(int type) const
 
 static void addname(vector<char> &key, Slot &slot, Slot::Tex &t, bool combined = false, const char *prefix = NULL)
 {
-    if(combined) key.add('&');
-    if(prefix) { while(*prefix) key.add(*prefix++); }
+    if(combined) key.emplace_back('&');
+    if(prefix) { while(*prefix) key.emplace_back(*prefix++); }
     defformatcubestr(tname, "%s/%s", slot.texturedir(), t.name);
-    for(const char *s = path(tname); *s; key.add(*s++));
+    for(const char *s = path(tname); *s; key.emplace_back(*s++));
 }
 
 void Slot::load(int index, Slot::Tex &t)
@@ -2587,8 +2588,8 @@ void Slot::load(int index, Slot::Tex &t)
             break;
         }
     }
-    key.add('\0');
-    t.t = textures.access(key.getbuf());
+    key.emplace_back('\0');
+    t.t = textures.access(key.data());
     if(t.t) return;
     int compress = 0, wrap = 0;
     ImageData ts;
@@ -2618,7 +2619,7 @@ void Slot::load(int index, Slot::Tex &t)
             break;
     }
     if(!ts.compressed && shouldpremul(t.type)) texpremul(ts);
-    t.t = newtexture(NULL, key.getbuf(), ts, wrap, true, true, true, compress);
+    t.t = newtexture(NULL, key.data(), ts, wrap, true, true, true, compress);
 }
 
 void Slot::load()
@@ -2766,8 +2767,8 @@ Texture *Slot::loadthumbnail()
     }
     VSlot *detail = vslot.detail ? &lookupvslot(vslot.detail, false) : NULL;
     if(detail) addname(name, *detail->slot, detail->slot->sts[0], true, "<detail>");
-    name.add('\0');
-    Texture *t = textures.access(path(name.getbuf()));
+    name.emplace_back('\0');
+    Texture *t = textures.access(path(name.data()));
     if(t) thumbnail = t;
     else
     {
@@ -2800,7 +2801,7 @@ Texture *Slot::loadthumbnail()
                 blitthumbnail(s, d, 0, 0);
             }
             if(s.bpp < 3) forcergbimage(s);
-            t = newtexture(NULL, name.getbuf(), s, 0, false, false, true);
+            t = newtexture(NULL, name.data(), s, 0, false, false, true);
             t->xs = xs;
             t->ys = ys;
             thumbnail = t;
@@ -3095,14 +3096,14 @@ GLuint genenvmap(const vec &o, int envmapsize, int blur, bool onlysky)
 void initenvmaps()
 {
     clearenvmaps();
-    envmaps.add().size = hasskybox() ? 0 : 1;
+    envmaps.emplace_back().size = hasskybox() ? 0 : 1;
     const auto &ents = getents();
     loopv(ents)
     {
         const auto ent = dynamic_cast<EnvMapEntity*>(ents[i]);
 		if(!ent) continue;
 		
-        envmap &em = envmaps.add();
+        envmap &em = envmaps.emplace_back();
 		em.radius = ent->radius ? clamp(int(ent->radius), 0, 10000) : envmapradius;
 		em.size = ent->size ? clamp(int(ent->size), 4, 9) : 0;
 		em.blur = ent->blur ? clamp(int(ent->blur), 1, 2) : 0;
@@ -3124,7 +3125,7 @@ void genenvmaps()
         int millis = SDL_GetTicks();
         if(millis - lastprogress >= 250)
         {
-            renderprogress(float(i+1)/envmaps.length(), "generating environment maps...", true);
+            renderprogress(float(i+1)/ envmaps.size(), "generating environment maps...", true);
             lastprogress = millis;
         }
     }
@@ -3172,7 +3173,7 @@ ushort closestenvmap(int orient, const ivec &co, int size)
 
 static inline GLuint lookupskyenvmap()
 {
-    return envmaps.length() && envmaps[0].radius < 0 ? envmaps[0].tex : 0;
+    return envmaps.size() && envmaps[0].radius < 0 ? envmaps[0].tex : 0;
 }
 
 GLuint lookupenvmap(Slot &slot)

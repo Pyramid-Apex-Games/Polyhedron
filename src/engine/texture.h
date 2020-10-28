@@ -221,7 +221,7 @@ struct Shader
 
     void addvariant(int row, Shader *s)
     {
-        if(row < 0 || row >= MAXVARIANTROWS || variants.length() >= USHRT_MAX) return;
+        if(row < 0 || row >= MAXVARIANTROWS || variants.size() >= USHRT_MAX) return;
         if(!variantrows) { variantrows = new ushort[MAXVARIANTROWS+1]; memset(variantrows, 0, (MAXVARIANTROWS+1)*sizeof(ushort)); }
         variants.insert(variantrows[row+1], s);
         for(int i = row+1; i <= MAXVARIANTROWS; ++i) ++variantrows[i];
@@ -365,14 +365,14 @@ struct LocalShaderParam
     {
         Shader *s = Shader::lastshader;
         if(!s) return NULL;
-        if(!s->localparamremap.inrange(loc))
+        if(loc < 0 || s->localparamremap.size() <= loc)
         {
             extern int getlocalparam(const char *name);
             if(loc == -1) loc = getlocalparam(name);
-            if(!s->localparamremap.inrange(loc)) return NULL;
+            if(s->localparamremap.size() >= loc) return NULL;
         }
         uchar remap = s->localparamremap[loc];
-        return s->localparams.inrange(remap) ? &s->localparams[remap] : NULL;
+        return s->localparams.size() > remap ? &s->localparams[remap] : NULL;
     }
 
     void setf(float x = 0, float y = 0, float z = 0, float w = 0)

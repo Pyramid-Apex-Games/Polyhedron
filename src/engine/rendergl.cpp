@@ -93,11 +93,11 @@ timer *findtimer(const char *name, bool gpu)
     loopv(timers) if(!strcmp(timers[i].name, name) && timers[i].gpu == gpu)
     {
         timerorder.removeobj(i);
-        timerorder.add(i);
+        timerorder.emplace_back(i);
         return &timers[i];
     }
-    timerorder.add(timers.length());
-    timer &t = timers.add();
+    timerorder.emplace_back(timers.size());
+    timer &t = timers.emplace_back();
     t.name = name;
     t.gpu = gpu;
     memset(t.query, 0, sizeof(t.query));
@@ -1112,7 +1112,7 @@ void drawminimap()
 //    }
 //
 //    minimapradius = vec(bbmax).sub(vec(bbmin)).mul(0.5f);
-//    minimapcenter = vec(bbmin).add(minimapradius);
+//    minimapcenter = vec(bbmin).emplace_back(minimapradius);
 //    minimapradius.x = minimapradius.y = max(minimapradius.x, minimapradius.y);
 //    minimapscale = vec((0.5f - 1.0f/size)/minimapradius.x, (0.5f - 1.0f/size)/minimapradius.y, 1.0f);
 //

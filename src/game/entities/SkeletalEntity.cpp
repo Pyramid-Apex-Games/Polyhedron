@@ -92,7 +92,7 @@ void SkeletalEntity::FindAnimations(const std::string& pattern, vector<int> &ani
     {
         if (PatternMatch(AnimationNameMapping[i].c_str(), pattern.c_str()))
         {
-            anims.add(i);
+            anims.emplace_back(i);
         }
     }
 }

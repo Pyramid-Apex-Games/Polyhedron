@@ -270,10 +270,12 @@ extern void alias(const char *name, const char *action);
 extern void alias(const char *name, tagval &v);
 extern const char *getalias(const char *name);
 extern const char *escapecubestr(const char *s);
+std::string escapestr(const std::string& s);
 extern const char *escapeid(const char *s);
 static inline const char *escapeid(ident &id) { return escapeid(id.name); }
 extern bool validateblock(const char *s);
 extern void explodelist(const char *s, vector<char *> &elems, int limit = -1);
+extern void explodelist(const char *s, std::vector<std::string> &elems, int limit = -1);
 extern char *indexlist(const char *s, int pos);
 extern int listlen(const char *s);
 extern void printvar(ident *id);

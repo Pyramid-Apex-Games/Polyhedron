@@ -51,17 +51,17 @@ static int addnormal(const vec &pos, int smooth, const vec &surface)
 {
     normalkey key = { pos, smooth };
     normalgroup &g = normalgroups.access(key, key);
-    normal &n = normals.add();
+    normal &n = normals.emplace_back();
     n.next = g.normals;
     n.surface = surface;
-    return g.normals = normals.length()-1;
+    return g.normals = normals.size()-1;
 }
 
 static void addtnormal(const vec &pos, int smooth, float offset, int normal1, int normal2, const vec &pos1, const vec &pos2)
 {
     normalkey key = { pos, smooth };
     normalgroup &g = normalgroups.access(key, key);
-    tnormal &n = tnormals.add();
+    tnormal &n = tnormals.emplace_back();
     n.next = g.tnormals;
     n.offset = offset;
     n.normals[0] = normal1;
@@ -69,7 +69,7 @@ static void addtnormal(const vec &pos, int smooth, float offset, int normal1, in
     normalkey key1 = { pos1, smooth }, key2 = { pos2, smooth };
     n.groups[0] = normalgroups.access(key1);
     n.groups[1] = normalgroups.access(key2);
-    g.tnormals = tnormals.length()-1;
+    g.tnormals = tnormals.size()-1;
 }
 
 static int addnormal(const vec &pos, int smooth, int axis)
@@ -275,9 +275,9 @@ void resetsmoothgroups()
 
 int smoothangle(int id, int angle)
 {
-    if(id < 0) id = smoothgroups.length();
+    if(id < 0) id = smoothgroups.size();
     if(id >= 10000) return -1;
-    while(smoothgroups.length() <= id) smoothgroups.add(-1);
+    while(smoothgroups.size() <= id) smoothgroups.emplace_back(-1);
     if(angle >= 0) smoothgroups[id] = min(angle, 180);
     return id;
 }

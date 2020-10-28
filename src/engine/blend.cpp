@@ -829,7 +829,7 @@ static void updateblendtextures(uchar &type, BlendMapNode &node, int bmx, int bm
         loopv(blendtexs) if(blendtexs[i].contains(tx<<BM_SCALE, ty<<BM_SCALE)) { bt = &blendtexs[i]; break; }
         if(!bt)
         {
-            bt = &blendtexs.add();
+            bt = &blendtexs.emplace_back();
             bt->x = tx<<BM_SCALE;
             bt->y = ty<<BM_SCALE;
         }
@@ -880,7 +880,7 @@ void cleanupblendmap()
 
 SCRIPTEXPORT void clearblendbrushes()
 {
-    while(brushes.length()) delete brushes.pop();
+    while(brushes.size()) delete brushes.pop_back();
     curbrush = -1;
 }
 
@@ -891,7 +891,7 @@ SCRIPTEXPORT void delblendbrush(const char *name)
         delete brushes[i];
         brushes.remove(i--);
     }
-    curbrush = brushes.empty() ? -1 : clamp(curbrush, 0, brushes.length()-1);
+    curbrush = brushes.empty() ? -1 : clamp(curbrush, 0, brushes.size()-1);
 }
 
 SCRIPTEXPORT void addblendbrush(const char *name, const char *imgname)
@@ -916,9 +916,9 @@ SCRIPTEXPORT void addblendbrush(const char *name, const char *imgname)
         srcrow += s.pitch;
     }
 
-    brushes.add(brush);
+    brushes.emplace_back(brush);
     if(curbrush < 0) curbrush = 0;
-    else if(curbrush >= brushes.length()) curbrush = brushes.length()-1;
+    else if(curbrush >= brushes.size()) curbrush = brushes.size()-1;
 
 }
 
@@ -927,7 +927,8 @@ SCRIPTEXPORT void nextblendbrush(int *dir)
 {
     curbrush += *dir < 0 ? -1 : 1;
     if(brushes.empty()) curbrush = -1;
-    else if(!brushes.inrange(curbrush)) curbrush = *dir < 0 ? brushes.length()-1 : 0;
+    else if(curbrush < 0 || brushes.size() <= curbrush) curbrush = *dir < 0 ? brushes.size()-1 : 0;
+//    else if(!brushes.inrange(curbrush)) curbrush = *dir < 0 ? brushes.size()-1 : 0;
 }
 
 SCRIPTEXPORT void setblendbrush(char *name)
@@ -937,7 +938,7 @@ SCRIPTEXPORT void setblendbrush(char *name)
 
 SCRIPTEXPORT void getblendbrushname(int *n)
 {
-    result(brushes.inrange(*n) ? brushes[*n]->name : "");
+    result(*n >= 0 && brushes.size() > *n ? brushes[*n]->name : "");
 }
 
 SCRIPTEXPORT void curblendbrush()
@@ -955,7 +956,7 @@ bool canpaintblendmap(bool brush = true, bool sel = false, bool msg = true)
         if(msg) conoutf(CON_ERROR, "operation only allowed in blend paint mode");
         return false;
     }
-    if(brush && !brushes.inrange(curbrush))
+    if(brush && (curbrush < 0 || brushes.size() <= curbrush))
     {
         if(msg) conoutf(CON_ERROR, "no blend brush selected");
         return false;

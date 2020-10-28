@@ -80,7 +80,7 @@ struct smd : skelloader<smd>
                 readname(curbuf, name, sizeof(name));
                 int parent = strtol(curbuf, &curbuf, 10);
                 if(id < 0 || id > 255 || parent > 255 || !name[0]) continue;
-                while(!bones.inrange(id)) bones.add();
+                while(!bones.inrange(id)) bones.emplace_back();
                 smdbone &bone = bones[id];
                 copycubestr(bone.name, name);
                 bone.parent = parent;
@@ -114,23 +114,23 @@ struct smd : skelloader<smd>
             void finalize()
             {
                 if(verts.empty() || tris.empty()) return;
-                vert *mverts = new vert[mesh->numverts + verts.length()];
+                vert *mverts = new vert[mesh->numverts + verts.size()];
                 if(mesh->numverts)
                 {
                     memcpy(mverts, mesh->verts, mesh->numverts*sizeof(vert));
                     delete[] mesh->verts;
                 }
-                memcpy(&mverts[mesh->numverts], verts.getbuf(), verts.length()*sizeof(vert));
-                mesh->numverts += verts.length();
+                memcpy(&mverts[mesh->numverts], verts.data(), verts.size()*sizeof(vert));
+                mesh->numverts += verts.size();
                 mesh->verts = mverts;
-                tri *mtris = new tri[mesh->numtris + tris.length()];
+                tri *mtris = new tri[mesh->numtris + tris.size()];
                 if(mesh->numtris)
                 {
                     memcpy(mtris, mesh->tris, mesh->numtris*sizeof(tri));
                     delete[] mesh->tris;
                 }
-                memcpy(&mtris[mesh->numtris], tris.getbuf(), tris.length()*sizeof(tri));
-                mesh->numtris += tris.length();
+                memcpy(&mtris[mesh->numtris], tris.data(), tris.size()*sizeof(tri));
+                mesh->numtris += tris.size();
                 mesh->tris = mtris;
                 mesh->calctangents();
             }
@@ -163,7 +163,7 @@ struct smd : skelloader<smd>
                         smdmesh *m = new smdmesh;
                         m->group = this;
                         m->name = newcubestr(material);
-                        meshes.add(m);
+                        meshes.emplace_back(m);
                         curmesh = &materials[m->name.c_str()];
                         curmesh->mesh = m;
                     }
@@ -201,11 +201,11 @@ struct smd : skelloader<smd>
                     if(pweight > 0) sorted = c.addweight(sorted, pweight, parent);
                     c.finalize(sorted);
                     key.blend = curmesh->mesh->addblendcombo(c);
-                    int index = verts.access(key, curmesh->verts.length());
-                    if(index == curmesh->verts.length()) curmesh->verts.add(key);
+                    int index = verts.access(key, curmesh->verts.size());
+                    if(index == curmesh->verts.size()) curmesh->verts.emplace_back(key);
                     curtri.vert[2-i] = index;
                 }
-                curmesh->tris.add(curtri);
+                curmesh->tris.emplace_back(curtri);
             }
         endsection:
             enumerate(materials, smdmeshdata, data, data.finalize());
@@ -266,7 +266,7 @@ struct smd : skelloader<smd>
                     vector<smdbone> bones;
                     readnodes(f, buf, sizeof(buf), bones);
                     if(bones.empty()) continue;
-                    skel->numbones = bones.length();
+                    skel->numbones = bones.size();
                     skel->bones = new boneinfo[skel->numbones];
                     loopv(bones)
                     {
@@ -307,8 +307,8 @@ struct smd : skelloader<smd>
                     for(; lastbone < skel->numbones; lastbone++) animbones[frame*skel->numbones + lastbone] = animbones[lastbone];
                     if(nextframe >= numframes)
                     {
-                        databuf<dualquat> framebones = animbones.reserve(skel->numbones * (nextframe + 1 - numframes));
-                        loopi(nextframe - numframes) framebones.put(animbones.getbuf(), skel->numbones);
+                        databuf<dualquat> framebones = animbones.reserve_raw_return(skel->numbones * (nextframe + 1 - numframes));
+                        loopi(nextframe - numframes) framebones.put(animbones.data(), skel->numbones);
                         animbones.addbuf(framebones);
                         animbones.advance(skel->numbones);
                         numframes = nextframe + 1;
@@ -381,7 +381,7 @@ struct smd : skelloader<smd>
                 else if(!strncmp(curbuf, "nodes", 5))
                 {
                     readnodes(f, buf, sizeof(buf), bones);
-                    if(bones.length() != skel->numbones)
+                    if(bones.size() != skel->numbones)
                     {
                         delete f;
                         return NULL;
@@ -394,14 +394,14 @@ struct smd : skelloader<smd>
                 else if(!strncmp(curbuf, "vertexanimation", 15))
                     skipsection(f, buf, sizeof(buf));
             }
-            int numframes = animbones.length() / skel->numbones;
+            int numframes = animbones.size() / skel->numbones;
             dualquat *framebones = new dualquat[(skel->numframes+numframes)*skel->numbones];
             if(skel->framebones)
             {
                 memcpy(framebones, skel->framebones, skel->numframes*skel->numbones*sizeof(dualquat));
                 delete[] skel->framebones;
             }
-            memcpy(&framebones[skel->numframes*skel->numbones], animbones.getbuf(), numframes*skel->numbones*sizeof(dualquat));
+            memcpy(&framebones[skel->numframes*skel->numbones], animbones.data(), numframes*skel->numbones*sizeof(dualquat));
             skel->framebones = framebones;
             sa = &skel->addskelanim(filename);
             sa->frame = skel->numframes;
@@ -426,7 +426,7 @@ struct smd : skelloader<smd>
     bool loaddefaultparts()
     {
         skelpart &mdl = addpart();
-        const char *fname = name.data() + name.length();
+        const char *fname = name.data() + name.size();
         do --fname; while(fname >= name && *fname!='/' && *fname!='\\');
         fname++;
         auto meshname = fmt::format("media/model/{}/{}.smd", name, fname);

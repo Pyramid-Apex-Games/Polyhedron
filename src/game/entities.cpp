@@ -114,7 +114,7 @@ void deletegameentity(Entity *e)
 void clearents()
 {
     // Delete stack entities.
-    while(getents().length()) deletegameentity(getents().pop());
+    while(getents().size()) deletegameentity(getents().pop_back());
 }
 
 void animatemapmodel(const Entity *e, int &anim, int &basetime)
@@ -169,7 +169,7 @@ const char *entname(int i)
 {
     auto& ents = getents();
 
-    if (i >= 0 && i < ents.length())
+    if (i >= 0 && i < ents.size())
     {
         Entity *ent = ents[i];
         return ent->name.c_str();

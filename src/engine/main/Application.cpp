@@ -268,7 +268,7 @@ void Application::Fatal(const std::string& s, Args&&... args)
 
     if(errors <= 2) // print up to one extra recursive error
     {
-        logoutf(s.c_str(), std::forward<Args>(args)...);
+        logoutf(("FATAL ERROR: " + s).c_str(), std::forward<Args>(args)...);
 
         if(errors <= 1) // avoid recursion
         {

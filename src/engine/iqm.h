@@ -177,7 +177,7 @@ struct iqm : skelloader<iqm>
                 iqmmesh &im = imeshes[i];
                 skelmesh *m = new skelmesh;
                 m->group = this;
-                meshes.add(m);
+                meshes.emplace_back(m);
                 m->name = str[im.name];
                 m->numverts = im.num_vertexes;
                 int noblend = -1;
@@ -390,7 +390,7 @@ struct iqm : skelloader<iqm>
     bool loaddefaultparts()
     {
         skelpart &mdl = addpart();
-        const char *fname = name.data() + name.length();
+        const char *fname = name.data() + name.size();
         do --fname; while(fname >= name && *fname!='/' && *fname!='\\');
         fname++;
         auto meshname = fmt::format("media/model/{}/{}.iqm", name, fname);

@@ -186,12 +186,12 @@ void searchbinds(char *action, int type)
     {
         if(!strcmp(km.actions[type], action))
         {
-            if(names.length()) names.add(' ');
+            if(names.size()) names.emplace_back(' ');
             names.put(km.name, strlen(km.name));
         }
     });
-    names.add('\0');
-    result(names.getbuf());
+    names.emplace_back('\0');
+    result(names.data());
 }
 
 keym *findbind(char *key)
@@ -401,7 +401,7 @@ SCRIPTEXPORT_AS(history) void history_(int *n)
     if(!inhistory && history.inrange(*n))
     {
         inhistory = true;
-        history[history.length()-*n-1]->run();
+        history[history.size()-*n-1]->run();
         inhistory = false;
     }
 }
@@ -422,7 +422,7 @@ vector<releaseaction> releaseactions;
 const char *addreleaseaction(char *s)
 {
     if(!keypressed) { delete[] s; return NULL; }
-    releaseaction &ra = releaseactions.add();
+    releaseaction &ra = releaseactions.emplace_back();
     ra.key = keypressed;
     ra.action = s;
     ra.numargs = -1;
@@ -432,7 +432,7 @@ const char *addreleaseaction(char *s)
 tagval *addreleaseaction(ident *id, int numargs)
 {
     if(!keypressed || numargs > 3) return NULL;
-    releaseaction &ra = releaseactions.add();
+    releaseaction &ra = releaseactions.emplace_back();
     ra.key = keypressed;
     ra.id = id;
     ra.numargs = numargs;
@@ -557,12 +557,12 @@ bool consolekey(int code, bool isdown)
                 break;
 
             case SDLK_UP:
-                if(histpos > history.length()) histpos = history.length();
+                if(histpos > history.size()) histpos = history.size();
                 if(histpos > 0) history[--histpos]->restore();
                 break;
 
             case SDLK_DOWN:
-                if(histpos + 1 < history.length()) history[++histpos]->restore();
+                if(histpos + 1 < history.size()) history[++histpos]->restore();
                 break;
 
             case SDLK_TAB:
@@ -585,24 +585,24 @@ bool consolekey(int code, bool isdown)
             hline *h = NULL;
             if(commandbuf[0])
             {
-                if(history.empty() || history.last()->shouldsave())
+                if(history.empty() || history.back()->shouldsave())
                 {
-                    if(maxhistory && history.length() >= maxhistory)
+                    if(maxhistory && history.size() >= maxhistory)
                     {
-                        loopi(history.length()-maxhistory+1) delete history[i];
-                        history.remove(0, history.length()-maxhistory+1);
+                        loopi(history.size()-maxhistory+1) delete history[i];
+                        history.remove(0, history.size()-maxhistory+1);
                     }
-                    history.add(h = new hline)->save();
+                    history.emplace_back(h = new hline)->save();
                 }
-                else h = history.last();
+                else h = history.back();
             }
-            histpos = history.length();
+            histpos = history.size();
             inputcommand(NULL);
             if(h) h->run();
         }
         else if(code==SDLK_ESCAPE)
         {
-            histpos = history.length();
+            histpos = history.size();
             inputcommand(NULL);
         }
     }
@@ -638,8 +638,8 @@ void writebinds(stream *f)
 {
     static const char * const cmds[3] = { "bind", "specbind", "editbind" };
     vector<keym *> binds;
-    enumerate(keyms, keym, km, binds.add(&km));
-    binds.sortname();
+    enumerate(keyms, keym, km, binds.emplace_back(&km));
+    std::sort(binds.begin(), binds.end(), sortnameless());
     loopj(3)
     {
         loopv(binds)
@@ -661,41 +661,43 @@ enum { FILES_DIR = 0, FILES_LIST };
 struct fileskey
 {
     int type;
-    const char *dir, *ext;
+    std::string dir, ext;
 
     fileskey() {}
-    fileskey(int type, const char *dir, const char *ext) : type(type), dir(dir), ext(ext) {}
+    fileskey(int type, const char *dir, const char *ext) : type(type), dir(dir), ext(ext ? ext : "") {}
+    fileskey(int type, const std::string& dir, const std::string& ext) : type(type), dir(dir), ext(ext) {}
 };
 
 struct filesval
 {
     int type;
-    char *dir, *ext;
-    vector<char *> files;
+    std::string dir, ext;
+    std::vector<std::string> files;
     int millis;
 
-    filesval(int type, const char *dir, const char *ext) : type(type), dir(newcubestr(dir)), ext(ext && ext[0] ? newcubestr(ext) : NULL), millis(-1) {}
-    ~filesval() { DELETEA(dir); DELETEA(ext); files.deletearrays(); }
+    filesval(int type, const char *dir, const char *ext) : type(type), dir(dir), ext(ext ? ext : ""), millis(-1) {}
+    ~filesval() { }
 
     void update()
     {
         if(type!=FILES_DIR || millis >= commandmillis) return;
-        files.deletearrays();
+        files = {};
         listfiles(dir, ext, files);
-        files.sort();
-        loopv(files) if(i && !strcmp(files[i], files[i-1])) delete[] files.remove(i--);
+        std::sort(files.begin(), files.end());
+
+        files.erase(std::unique(files.begin(), files.end()), files.end());
         millis = totalmillis;
     }
 };
 
 static inline bool htcmp(const fileskey &x, const fileskey &y)
 {
-    return x.type==y.type && !strcmp(x.dir, y.dir) && (x.ext == y.ext || (x.ext && y.ext && !strcmp(x.ext, y.ext)));
+    return x.type == y.type && x.dir == y.dir && x.ext == y.ext;
 }
 
 static inline uint hthash(const fileskey &k)
 {
-    return hthash(k.dir);
+    return hthash(k.dir.c_str());
 }
 
 static hashtable<fileskey, filesval *> completefiles;
@@ -779,9 +781,9 @@ void complete(char *s, int maxlen, const char *cmdprefix)
         f->update();
         loopv(f->files)
         {
-            if(strncmp(f->files[i], &s[commandsize], completesize+cmdlen-commandsize)==0 &&
-               (!lastcomplete || strcmp(f->files[i], lastcomplete) > 0) && (!nextcomplete || strcmp(f->files[i], nextcomplete) < 0))
-                nextcomplete = f->files[i];
+            if(strncmp(f->files[i].c_str(), &s[commandsize], completesize+cmdlen-commandsize)==0 &&
+               (!lastcomplete || strcmp(f->files[i].c_str(), lastcomplete) > 0) && (!nextcomplete || strcmp(f->files[i].c_str(), nextcomplete) < 0))
+                nextcomplete = f->files[i].c_str();
         }
         cmdprefix = s;
         cmdlen = commandsize;
@@ -807,18 +809,18 @@ void complete(char *s, int maxlen, const char *cmdprefix)
 void writecompletions(stream *f)
 {
     vector<char *> cmds;
-    enumeratekt(completions, char *, k, filesval *, v, { if(v) cmds.add(k); });
-    cmds.sort();
+    enumeratekt(completions, char *, k, filesval *, v, { if(v) cmds.emplace_back(k); });
+    std::sort(cmds.begin(), cmds.end());
     loopv(cmds)
     {
         char *k = cmds[i];
         filesval *v = completions[k];
         if(v->type==FILES_LIST)
         {
-            if(validateblock(v->dir)) f->printf("listcomplete %s [%s]\n", escapeid(k), v->dir);
-            else f->printf("listcomplete %s %s\n", escapeid(k), escapecubestr(v->dir));
+            if(validateblock(v->dir.c_str())) f->printf("listcomplete %s [%s]\n", escapeid(k), v->dir.c_str());
+            else f->printf("listcomplete %s %s\n", escapeid(k), escapestr(v->dir).c_str());
         }
-        else f->printf("complete %s %s %s\n", escapeid(k), escapecubestr(v->dir), escapecubestr(v->ext ? v->ext : "*"));
+        else f->printf("complete %s %s %s\n", escapeid(k), escapestr(v->dir).c_str(), escapestr(v->ext.empty() ? "*" :  v->ext).c_str());
     }
 }
 
@@ -835,7 +837,7 @@ namespace {
     {
         if (line.back() == '\n')
         {
-            return line.substr(0, line.length() - 1);
+            return line.substr(0, line.size() - 1);
         }
 
         return line;
@@ -927,7 +929,7 @@ void Console::Add(LogLevel level, const std::string& text)
     {
         m_ConsoleLines.emplace_back(level, text + "\n");
     }
-    else if (newlinePos == text.length() - 1)
+    else if (newlinePos == text.size() - 1)
     {
         m_ConsoleLines.emplace_back(level, text);
     }
@@ -998,7 +1000,7 @@ void Console::AddPiecewise(LogLevel level, const std::string& text)
         previous = current + 1;
         current = text.find('\n', previous);
     }
-    if (previous != text.length())
+    if (previous != text.size())
     {
         lines.push_back(text.substr(previous));
     }

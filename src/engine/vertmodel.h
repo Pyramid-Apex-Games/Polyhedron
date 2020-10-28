@@ -77,7 +77,7 @@ struct vertmodel : animmodel
         {
             loopj(numtris)
             {
-                triangle &t = out.add();
+                triangle &t = out.emplace_back();
                 t.a = m.transform(verts[tris[j].vert[0]].pos);
                 t.b = m.transform(verts[tris[j].vert[1]].pos);
                 t.c = m.transform(verts[tris[j].vert[2]].pos);
@@ -95,7 +95,7 @@ struct vertmodel : animmodel
         int genvbo(vector<ushort> &idxs, int offset, vector<T> &vverts, int *htdata, int htlen)
         {
             voffset = offset;
-            eoffset = idxs.length();
+            eoffset = idxs.size();
             minvert = 0xFFFF;
             loopi(numtris)
             {
@@ -111,29 +111,31 @@ struct vertmodel : animmodel
                     loopk(htlen)
                     {
                         int &vidx = htdata[(htidx+k)&(htlen-1)];
-                        if(vidx < 0) { vidx = idxs.add(ushort(vverts.length())); vverts.add(vv); break; }
-                        else if(!memcmp(&vverts[vidx], &vv, sizeof(vv))) { minvert = min(minvert, idxs.add(ushort(vidx))); break; }
+                        if(vidx < 0) { vidx = idxs.emplace_back(ushort(vverts.size()));
+                            vverts.emplace_back(vv); break; }
+                        else if(!memcmp(&vverts[vidx], &vv, sizeof(vv))) { minvert = min(minvert,
+                                                                                         idxs.emplace_back(ushort(vidx))); break; }
                     }
                 }
             }
             minvert = min(minvert, ushort(voffset));
-            maxvert = max(minvert, ushort(vverts.length()-1));
-            elen = idxs.length()-eoffset;
-            return vverts.length()-voffset;
+            maxvert = max(minvert, ushort(vverts.size()-1));
+            elen = idxs.size()-eoffset;
+            return vverts.size()-voffset;
         }
 
         int genvbo(vector<ushort> &idxs, int offset)
         {
             voffset = offset;
-            eoffset = idxs.length();
+            eoffset = idxs.size();
             loopi(numtris)
             {
                 tri &t = tris[i];
-                loopj(3) idxs.add(voffset+t.vert[j]);
+                loopj(3) idxs.emplace_back(voffset + t.vert[j]);
             }
             minvert = voffset;
             maxvert = voffset + numverts-1;
-            elen = idxs.length()-eoffset;
+            elen = idxs.size()-eoffset;
             return numverts;
         }
 
@@ -317,7 +319,7 @@ struct vertmodel : animmodel
                 forEachRenderMesh<vertmesh>([&](vertmesh& m){
                     vlen += m.genvbo(idxs, vlen, vverts, htdata, htlen);
                 });
-                glBufferData_(GL_ARRAY_BUFFER, vverts.length()*sizeof(vvertg), vverts.getbuf(), GL_STATIC_DRAW);
+                glBufferData_(GL_ARRAY_BUFFER, vverts.size()*sizeof(vvertg), vverts.data(), GL_STATIC_DRAW);
 
                 delete[] htdata;
                 gle::clearvbo();
@@ -325,7 +327,7 @@ struct vertmodel : animmodel
 
             glGenBuffers_(1, &ebuf);
             gle::bindebo(ebuf);
-            glBufferData_(GL_ELEMENT_ARRAY_BUFFER, idxs.length()*sizeof(ushort), idxs.getbuf(), GL_STATIC_DRAW);
+            glBufferData_(GL_ELEMENT_ARRAY_BUFFER, idxs.size()*sizeof(ushort), idxs.data(), GL_STATIC_DRAW);
             gle::clearebo();
         }
 
@@ -485,7 +487,7 @@ template<class MDL> struct vertcommands : modelcommands<MDL, struct MDL::vertmes
             conoutf(CON_ERROR, "vertmodel::settag: not loading an %s", MDL::formatname());
             return;
         }
-        part &mdl = *(part *)MDL::loading->parts.last();
+        part &mdl = *(part *) MDL::loading->parts.back();
         float cx = *rx ? cosf(*rx/2*RAD) : 1, sx = *rx ? sinf(*rx/2*RAD) : 0,
               cy = *ry ? cosf(*ry/2*RAD) : 1, sy = *ry ? sinf(*ry/2*RAD) : 0,
               cz = *rz ? cosf(*rz/2*RAD) : 1, sz = *rz ? sinf(*rz/2*RAD) : 0;
@@ -501,7 +503,7 @@ template<class MDL> struct vertcommands : modelcommands<MDL, struct MDL::vertmes
             conoutf(CON_ERROR, "vertmodel::setpitch: not loading an %s", MDL::formatname());
             return;
         }
-        part &mdl = *MDL::loading->parts.last();
+        part &mdl = *MDL::loading->parts.back();
 
         mdl.pitchscale = *pitchscale;
         mdl.pitchoffset = *pitchoffset;
@@ -532,7 +534,7 @@ template<class MDL> struct vertcommands : modelcommands<MDL, struct MDL::vertmes
         }
         else loopv(anims)
         {
-            MDL::loading->parts.last()->setanim(0, anims[i], *frame, *range, *speed, *priority);
+            MDL::loading->parts.back()->setanim(0, anims[i], *frame, *range, *speed, *priority);
         }
     }
 

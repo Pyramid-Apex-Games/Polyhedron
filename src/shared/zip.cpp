@@ -156,7 +156,7 @@ static bool readzipdirectory(const char *archname, FILE *f, int entries, int off
         path(pname);
         char *name = newcubestr(pname);
 
-        zipfile &f = files.add();
+        zipfile &f = files.emplace_back();
         f.name = name;
         f.header = hdr.offset;
         f.size = hdr.uncompressedsize;
@@ -169,7 +169,7 @@ static bool readzipdirectory(const char *archname, FILE *f, int entries, int off
     }
     delete[] buf;
 
-    return files.length() > 0;
+    return files.size() > 0;
 }
 
 static bool readlocalfileheader(FILE *f, ziplocalfileheader &h, uint offset)
@@ -298,7 +298,7 @@ SCRIPTEXPORT bool addzip(const char *name, const char *mount = NULL, const char 
     arch->name = newcubestr(pname);
     arch->data = f;
     mountzip(*arch, files, mount, strip);
-    archives.add(arch);
+    archives.emplace_back(arch);
 
     conoutf("added zip %s", pname);
     return true;
@@ -552,21 +552,21 @@ bool findzipfile(const char *name)
     return false;
 }
 
-int listzipfiles(const char *dir, const char *ext, vector<char *> &files)
+int listzipfiles(const char *dir, const char *ext, std::vector<char *> &files)
 {
     size_t extsize = ext ? strlen(ext)+1 : 0, dirsize = strlen(dir);
     int dirs = 0;
     loopvrev(archives)
     {
         ziparchive *arch = archives[i];
-        int oldsize = files.length();
+        int oldsize = files.size();
         enumerate(arch->files, zipfile, f,
         {
             if(strncmp(f.name, dir, dirsize)) continue;
             const char *name = f.name + dirsize;
             if(name[0] == PATHDIV) name++;
             if(strchr(name, PATHDIV)) continue;
-            if(!ext) files.add(newcubestr(name));
+            if(!ext) files.emplace_back(newcubestr(name));
             else
             {
                 size_t namelen = strlen(name);
@@ -574,11 +574,43 @@ int listzipfiles(const char *dir, const char *ext, vector<char *> &files)
                 {
                     namelen -= extsize;
                     if(name[namelen] == '.' && strncmp(name+namelen+1, ext, extsize-1)==0)
-                        files.add(newcubestr(name, namelen));
+                        files.emplace_back(newcubestr(name, namelen));
                 }
             }
         });
-        if(files.length() > oldsize) dirs++;
+        if(files.size() > oldsize) dirs++;
+    }
+    return dirs;
+}
+
+
+int listzipfiles(const std::string& dir, const std::string& ext, std::vector<std::string> &files)
+{
+    size_t extsize = ext.empty() ? 0 : ext.size()+1, dirsize = dir.size();
+    int dirs = 0;
+    loopvrev(archives)
+    {
+        ziparchive *arch = archives[i];
+        int oldsize = files.size();
+        enumerate(arch->files, zipfile, f,
+        {
+            if(strncmp(f.name, dir.c_str(), dirsize)) continue;
+            const char *name = f.name + dirsize;
+            if(name[0] == PATHDIV) name++;
+            if(strchr(name, PATHDIV)) continue;
+            if(ext.empty()) files.emplace_back(name);
+            else
+            {
+                size_t namelen = strlen(name);
+                if(namelen > extsize)
+                {
+                    namelen -= extsize;
+                    if(name[namelen] == '.' && strncmp(name+namelen+1, ext.c_str(), extsize-1)==0)
+                        files.emplace_back(std::string(name, namelen));
+                }
+            }
+        });
+        if(files.size() > oldsize) dirs++;
     }
     return dirs;
 }

@@ -223,20 +223,20 @@ namespace game
         if (i == 0) {
             return player1;
         } else {
-            if (i < getents().length()) {
+            if (i < getents().size()) {
                 return dynamic_cast<DynamicEntity *>(getents()[i]);
             } else {
                 return nullptr;
             }
         }
 
-        //if (i < g_lightEnts.length()) return (classes::BaseEntity*)g_lightEnts[i];
-        //    i -= g_lightEnts.length();
+        //if (i < g_lightEnts.size()) return (classes::BaseEntity*)g_lightEnts[i];
+        //    i -= g_lightEnts.size();
         //return NULL;
     }
-    // int numdynents() { return players.length()+monsters.length()+movables.length(); }
+    // int numdynents() { return players.size()+monsters.size()+movables.size(); }
     int numdynents() {
-        return getents().length() + 1; // + 1 is for the player.
+        return getents().size() + 1; // + 1 is for the player.
     }
 
     // This function should be used to render HUD View stuff etc.

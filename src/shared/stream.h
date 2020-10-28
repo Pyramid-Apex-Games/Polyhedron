@@ -1,5 +1,6 @@
 #pragma once
 #include "shared/tools/vector.h"
+#include <string>
 
 char *makerelpath(const char *dir, const char *file, const char *prefix = NULL, const char *cmd = NULL);
 char *path(char *s);
@@ -18,5 +19,5 @@ stream *opentempfile(const char *filename, const char *mode);
 stream *opengzfile(const char *filename, const char *mode, stream *file = NULL, int level = 9);
 stream *openutf8file(const char *filename, const char *mode, stream *file = NULL);
 char *loadfile(const char *fn, size_t *size, bool utf8 = true);
-bool listdir(const char *dir, bool rel, const char *ext, vector<char *> &files);
-int listfiles(const char *dir, const char *ext, vector<char *> &files);
+bool listdir(const std::string& dir, bool rel, const std::string& ext, std::vector<std::string> &files);
+int listfiles(const std::string& dir, const std::string& ext, std::vector<std::string> &files);

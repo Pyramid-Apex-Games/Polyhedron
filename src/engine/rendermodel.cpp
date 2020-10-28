@@ -217,7 +217,7 @@ SCRIPTEXPORT void mdlname()
 	if(!loadingmodel->skeletal()) { conoutf(CON_ERROR, "not loading a skeletal model"); return; } \
 	skelmodel *m = (skelmodel *)loadingmodel; \
 	if(m->parts.empty()) return; \
-	skelmodel::skelmeshgroup *meshes = (skelmodel::skelmeshgroup *)m->parts.last()->meshes; \
+	skelmodel::skelmeshgroup *meshes = (skelmodel::skelmeshgroup *)m->parts.back()->meshes; \
 	if(!meshes) return; \
 	skelmodel::skeleton *skel = meshes->skel; \
 	if(!skel->ragdoll) skel->ragdoll = new ragdollskel; \
@@ -228,7 +228,7 @@ SCRIPTEXPORT void mdlname()
 SCRIPTEXPORT void rdvert(float *x, float *y, float *z, float *radius)
 {
 	checkragdoll;
-	ragdollskel::vert &v = ragdoll->verts.add();
+	ragdollskel::vert &v = ragdoll->verts.emplace_back();
 	v.pos = vec(*x, *y, *z);
 	v.radius = *radius > 0 ? *radius : 1;
 }
@@ -242,7 +242,7 @@ SCRIPTEXPORT void rdeye(int *v)
 SCRIPTEXPORT void rdtri(int *v1, int *v2, int *v3)
 {
 	checkragdoll;
-	ragdollskel::tri &t = ragdoll->tris.add();
+	ragdollskel::tri &t = ragdoll->tris.emplace_back();
 	t.vert[0] = *v1;
 	t.vert[1] = *v2;
 	t.vert[2] = *v3;
@@ -252,7 +252,7 @@ SCRIPTEXPORT void rdjoint(int *n, int *t, int *v1, int *v2, int *v3)
 {
 	checkragdoll;
 	if(*n < 0 || *n >= skel->numbones) return;
-	ragdollskel::joint &j = ragdoll->joints.add();
+	ragdollskel::joint &j = ragdoll->joints.emplace_back();
 	j.bone = *n;
 	j.tri = *t;
 	j.vert[0] = *v1;
@@ -263,7 +263,7 @@ SCRIPTEXPORT void rdjoint(int *n, int *t, int *v1, int *v2, int *v3)
 SCRIPTEXPORT void rdlimitdist(int *v1, int *v2, float *mindist, float *maxdist)
 {
 	checkragdoll;
-	ragdollskel::distlimit &d = ragdoll->distlimits.add();
+	ragdollskel::distlimit &d = ragdoll->distlimits.emplace_back();
 	d.vert[0] = *v1;
 	d.vert[1] = *v2;
 	d.mindist = *mindist;
@@ -273,7 +273,7 @@ SCRIPTEXPORT void rdlimitdist(int *v1, int *v2, float *mindist, float *maxdist)
 SCRIPTEXPORT void rdlimitrot(int *t1, int *t2, float *maxangle, float *qx, float *qy, float *qz, float *qw)
 {
 	checkragdoll;
-	ragdollskel::rotlimit &r = ragdoll->rotlimits.add();
+	ragdollskel::rotlimit &r = ragdoll->rotlimits.emplace_back();
 	r.tri[0] = *t1;
 	r.tri[1] = *t2;
 	r.maxangle = *maxangle * RAD;
@@ -404,7 +404,7 @@ hashset<char*> failedmodels;
 void preloadmodel(const char *name)
 {
 	if(!name || !name[0] || models.access(name) || preloadmodels.htfind(name) >= 0) return;
-	preloadmodels.add(newcubestr(name));
+    preloadmodels.emplace_back(newcubestr(name));
 
 }
 
@@ -412,7 +412,7 @@ void flushpreloadedmodels(bool msg)
 {
 	loopv(preloadmodels)
 	{
-		loadprogress = float(i+1)/preloadmodels.length();
+		loadprogress = float(i+1)/preloadmodels.size();
 		auto [m, name] = loadmodel(preloadmodels[i], -1, msg);
 		if(!m)
 		{
@@ -427,7 +427,7 @@ void flushpreloadedmodels(bool msg)
 			m->preloadshaders();
 		}
 	}
-	preloadmodels.deletearrays();
+	preloadmodels.clear();
 	loadprogress = 0;
 }
 
@@ -438,13 +438,13 @@ void preloadusedmapmodels(bool msg, bool bih)
 	loopv(ents)
 	{
 		auto e = dynamic_cast<ModelEntity*>(ents[i]);
-		if(e && used.find(e->model_idx) < 0) used.add(e->model_idx);
+		if(e && used.find(e->model_idx) < 0) used.emplace_back(e->model_idx);
 	}
 
 	vector<const char *> col;
 	loopv(used)
 	{
-		loadprogress = float(i+1)/used.length();
+		loadprogress = float(i+1)/used.size();
 		int mmindex = used[i];
 		if(mapmodels.size() >= mmindex || mmindex <= 0) { if(msg) conoutf(CON_WARN, "could not find map model: %d", mmindex); continue; }
 		mapmodelinfo &mmi = mapmodels[mmindex];
@@ -457,13 +457,14 @@ void preloadusedmapmodels(bool msg, bool bih)
 			else if(m->collide == COLLIDE_TRI && m->collidemodel.empty() && m->bih) m->setBIH();
 			m->preloadmeshes();
 			m->preloadshaders();
-			if(!m->collidemodel.empty() && col.htfind(m->collidemodel.c_str()) < 0) col.add(m->collidemodel.c_str());
+			if(!m->collidemodel.empty() && col.htfind(m->collidemodel.c_str()) < 0)
+                col.emplace_back(m->collidemodel.c_str());
 		}
 	}
 
 	loopv(col)
 	{
-		loadprogress = float(i+1)/col.length();
+		loadprogress = float(i+1)/col.size();
 		auto [m, n] = loadmodel(col[i], -1, msg);
 		if(!m) { if(msg) conoutf(CON_WARN, "could not load collide model: %s", col[i]); }
 		else if(!m->bih) m->setBIH();
@@ -615,8 +616,8 @@ void addbatchedmodel(model *m, batchedmodel &bm, int idx)
 			goto foundbatch;
 	}
 
-	m->batch = batches.length();
-	b = &batches.add();
+	m->batch = batches.size();
+	b = &batches.emplace_back();
 	b->m = m;
 	b->flags = 0;
 	b->batched = -1;
@@ -939,14 +940,14 @@ static int modelquerybatches = -1, modelquerymodels = -1, modelqueryattached = -
 void startmodelquery(occludequery *query)
 {
 	modelquery = query;
-	modelquerybatches = batches.length();
-	modelquerymodels = batchedmodels.length();
-	modelqueryattached = modelattached.length();
+	modelquerybatches = batches.size();
+	modelquerymodels = batchedmodels.size();
+	modelqueryattached = modelattached.size();
 }
 
 void endmodelquery()
 {
-	if(batchedmodels.length() == modelquerymodels)
+	if(batchedmodels.size() == modelquerymodels)
 	{
 		modelquery->fragments = 0;
 		modelquery = NULL;
@@ -1028,7 +1029,7 @@ void rendermapmodel(int idx, int anim, const vec &o, float yaw, float pitch, flo
 	else if(flags&(MDL_CULL_VFC|MDL_CULL_DIST|MDL_CULL_OCCLUDED) && cullmodel(m, center, radius, flags))
 		return;
 
-	batchedmodel &b = batchedmodels.add();
+	batchedmodel &b = batchedmodels.emplace_back();
 	b.pos = o;
 	b.center = center;
 	b.radius = radius;
@@ -1044,7 +1045,7 @@ void rendermapmodel(int idx, int anim, const vec &o, float yaw, float pitch, flo
 	b.visible = visible;
 	b.d = NULL;
 	b.attached = -1;
-	addbatchedmodel(m, b, batchedmodels.length()-1);
+	addbatchedmodel(m, b, batchedmodels.size()-1);
 }
 
 void rendermodel(const char *mdl, int anim, const vec &o, float yaw, float pitch, float roll, int flags, ModelEntity *d, modelattach *a, int basetime, int basetime2, float size, const vec4 &color)
@@ -1123,7 +1124,7 @@ hasboundbox:
 		return;
 	}
 
-	batchedmodel &b = batchedmodels.add();
+	batchedmodel &b = batchedmodels.emplace_back();
 	b.pos = o;
 	b.center = center;
 	b.radius = radius;
@@ -1138,9 +1139,9 @@ hasboundbox:
 	b.flags = flags;
 	b.visible = 0;
 	b.d = d;
-	b.attached = a ? modelattached.length() : -1;
-	if(a) for(int i = 0;; i++) { modelattached.add(a[i]); if(!a[i].tag) break; }
-	addbatchedmodel(m, b, batchedmodels.length()-1);
+	b.attached = a ? modelattached.size() : -1;
+	if(a) for(int i = 0;; i++) { modelattached.emplace_back(a[i]); if(!a[i].tag) break; }
+	addbatchedmodel(m, b, batchedmodels.size()-1);
 }
 
 int intersectmodel(const std::string &mdl, int anim, const vec &pos, float yaw, float pitch, float roll, const vec &o, const vec &ray, float &dist, int mode, MovableEntity *d, modelattach *a, int basetime, int basetime2, float size)
@@ -1200,11 +1201,11 @@ SCRIPTEXPORT void findanims(char *name)
     loopv(anims)
     {
         formatcubestr(num, "%d", anims[i]);
-        if(i > 0) buf.add(' ');
+        if(i > 0) buf.emplace_back(' ');
         buf.put(num, strlen(num));
     }
-    buf.add('\0');
-    result(buf.getbuf());
+    buf.emplace_back('\0');
+    result(buf.data());
 }
 
 void loadskin(const char *dir, const char *altdir, Texture *&skin, Texture *&masks) // model skin sharing

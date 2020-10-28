@@ -107,16 +107,16 @@ struct md2 : vertloader<md2>
                     if(!idx)
                     {
                         idx = &tchash[tckey];
-                        *idx = tcverts.length();
-                        tcvert &tc = tcverts.add();
+                        *idx = tcverts.size();
+                        tcvert &tc = tcverts.emplace_back();
                         tc.tc = vec2(u.f, v.f);
-                        vindexes.add((ushort)vindex);
+                        vindexes.emplace_back((ushort) vindex);
                     }
-                    idxs.add(*idx);
+                    idxs.emplace_back(*idx);
                 }
                 loopi(numvertex-2)
                 {
-                    tri &t = tris.add();
+                    tri &t = tris.emplace_back();
                     if(isfan)
                     {
                         t.vert[0] = idxs[0];
@@ -152,7 +152,7 @@ struct md2 : vertloader<md2>
 
             vertmesh &m = *new vertmesh;
             m.group = this;
-            meshes.add(&m);
+            meshes.emplace_back(&m);
 
             int *glcommands = new int[header.numglcommands];
             file->seek(header.offsetglcommands, SEEK_SET);
@@ -166,13 +166,13 @@ struct md2 : vertloader<md2>
             genverts(glcommands, tcgen, vgen,trigen);
             delete[] glcommands;
 
-            m.numverts = tcgen.length();
+            m.numverts = tcgen.size();
 
             m.tcverts = new tcvert[m.numverts];
-            memcpy(m.tcverts, tcgen.getbuf(), m.numverts*sizeof(tcvert));
-            m.numtris = trigen.length();
+            memcpy(m.tcverts, tcgen.data(), m.numverts*sizeof(tcvert));
+            m.numtris = trigen.size();
             m.tris = new tri[m.numtris];
-            memcpy(m.tris, trigen.getbuf(), m.numtris*sizeof(tri));
+            memcpy(m.tris, trigen.data(), m.numtris*sizeof(tri));
 
             m.verts = new vert[m.numverts*numframes];
 

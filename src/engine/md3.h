@@ -78,7 +78,7 @@ struct md3 : vertloader<md3>
             {
                 vertmesh &m = *new vertmesh;
                 m.group = this;
-                meshes.add(&m);
+                meshes.emplace_back(&m);
 
                 md3meshheader mheader;
                 f->seek(mesh_offset, SEEK_SET);

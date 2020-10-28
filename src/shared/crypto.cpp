@@ -205,7 +205,7 @@ template<int BI_DIGITS> struct bigint
     {
         vector<char> buf;
         printdigits(buf);
-        out->write(buf.getbuf(), buf.length());
+        out->write(buf.data(), buf.size());
     }
 
     void printdigits(vector<char> &buf) const
@@ -217,8 +217,8 @@ template<int BI_DIGITS> struct bigint
             {
                 uint shift = BI_DIGIT_BITS - (j+1)*4;
                 int val = (d >> shift) & 0xF;
-                if(val < 10) buf.add('0' + val);
-                else buf.add('a' + val - 10);
+                if(val < 10) buf.emplace_back('0' + val);
+                else buf.emplace_back('a' + val - 10);
             }
         }
     }
@@ -551,7 +551,7 @@ struct gfield : gfint
             s.dupbits(192, 96, 32);
             s.copybits(224, result, 256, 32);
             s.shrinkdigits(GF_DIGITS);
-            add(s); // S4
+            emplace_back(s); // S4
 
             s.copybits(0, result, 352, 96);
             s.zerobits(96, 96);
@@ -783,7 +783,7 @@ struct ecjacobian
     void print(vector<char> &buf)
     {
         normalize();
-        buf.add(y.hasbit(0) ? '-' : '+');
+        buf.emplace_back(y.hasbit(0) ? '-' : '+');
         x.printdigits(buf);
     }
 
@@ -843,7 +843,7 @@ void calcpubkey(gfint privkey, vector<char> &pubstr)
     c.mul(privkey);
     c.normalize();
     c.print(pubstr);
-    pubstr.add('\0');
+    pubstr.emplace_back('\0');
 }
 
 bool calcpubkey(const char *privstr, vector<char> &pubstr)
@@ -864,7 +864,7 @@ void genprivkey(const char *seed, vector<char> &privstr, vector<char> &pubstr)
     privkey.len = 8*sizeof(hash.bytes)/BI_DIGIT_BITS;
     privkey.shrink();
     privkey.printdigits(privstr);
-    privstr.add('\0');
+    privstr.emplace_back('\0');
 
     calcpubkey(privkey, pubstr);
 }
@@ -893,7 +893,7 @@ void answerchallenge(const char *privstr, const char *challenge, vector<char> &a
     answer.mul(privkey);
     answer.normalize();
     answer.x.printdigits(answerstr);
-    answerstr.add('\0');
+    answerstr.emplace_back('\0');
 }
 
 void *parsepubkey(const char *pubstr)
@@ -926,7 +926,7 @@ void *genchallenge(void *pubkey, const void *seed, int seedlen, vector<char> &ch
     secret.normalize();
 
     secret.print(challengestr);
-    challengestr.add('\0');
+    challengestr.emplace_back('\0');
 
     return new gfield(answer.x);
 }

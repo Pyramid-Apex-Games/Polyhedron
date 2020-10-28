@@ -334,7 +334,7 @@ const vector<int> &checklightcache(int x, int y)
                light->o.y + radius < cy || light->o.y - radius > cy + csize)
                 continue;
 
-            lce.lights.add(i);
+            lce.lights.emplace_back(i);
         }
     }
 

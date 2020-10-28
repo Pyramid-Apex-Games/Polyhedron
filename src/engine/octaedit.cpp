@@ -667,7 +667,7 @@ void commitchanges(bool force)
     if(!force && !haschanged) return;
     haschanged = false;
 
-    int oldlen = valist.length();
+    int oldlen = valist.size();
     resetclipplanes();
     entitiesinoctanodes();
     inbetweenframes = false;
@@ -999,7 +999,7 @@ static void packvslots(cube &c, vector<uchar> &buf, vector<ushort> &used)
         ushort index = c.texture[i];
         if(vslots.inrange(index) && vslots[index]->changed && used.find(index) < 0)
         {
-            used.add(index);
+            used.emplace_back(index);
             VSlot &vs = *vslots[index];
             vslothdr &hdr = *(vslothdr *)buf.pad(sizeof(vslothdr));         
             hdr.index = index;
@@ -1091,7 +1091,7 @@ static void unpackvslots(block3 &b, ucharbuf &buf)
         if(!unpackvslot(buf, ds, false)) break;
         if(vs.index < 0 || vs.index == DEFAULT_SKY) continue;
         VSlot *edit = editvslot(vs, ds);
-        unpackingvslots.add(vslotmap(hdr.index, edit ? edit : &vs));
+        unpackingvslots.emplace_back(vslotmap(hdr.index, edit ? edit : &vs));
     }
 
     cube *c = b.c();
@@ -1135,8 +1135,8 @@ bool packeditinfo(editinfo *e, int &inlen, uchar *&outbuf, int &outlen)
     vector<uchar> buf;
     if(!e || !e->copy || !packblock(*e->copy, buf)) return false;
     packvslots(*e->copy, buf);
-    inlen = buf.length();
-    return compresseditinfo(buf.getbuf(), buf.length(), outbuf, outlen);
+    inlen = buf.size();
+    return compresseditinfo(buf.data(), buf.size(), outbuf, outlen);
 }
 
 bool unpackeditinfo(editinfo *&e, const uchar *inbuf, int inlen, int outlen)
@@ -1145,7 +1145,7 @@ bool unpackeditinfo(editinfo *&e, const uchar *inbuf, int inlen, int outlen)
     uchar *outbuf = NULL;
     if(!uncompresseditinfo(inbuf, inlen, outbuf, outlen)) return false;
     ucharbuf buf(outbuf, outlen);
-    if(!e) e = editinfos.add(new editinfo);
+    if(!e) e = editinfos.emplace_back(new editinfo);
     if(!unpackblock(e->copy, buf))
     {
         delete[] outbuf;
@@ -1189,8 +1189,8 @@ bool packundo(undoblock *u, int &inlen, uchar *&outbuf, int &outlen)
         buf.put(u->gridmap(), b.size());
         packvslots(b, buf);
     }
-    inlen = buf.length();
-    return compresseditinfo(buf.getbuf(), buf.length(), outbuf, outlen);
+    inlen = buf.size();
+    return compresseditinfo(buf.data(), buf.size(), outbuf, outlen);
 }
 
 bool unpackundo(const uchar *inbuf, int inlen, int outlen)
@@ -1380,10 +1380,10 @@ struct prefabmesh
             const vertex &c = verts[i];
             if(c.pos==v.pos && c.norm==v.norm) return i;
         }
-        if(verts.length() >= USHRT_MAX) return -1;
-        verts.add(v);
-        chain.add(table[h]);
-        return table[h] = verts.length()-1;
+        if(verts.size() >= USHRT_MAX) return -1;
+        verts.emplace_back(v);
+        chain.emplace_back(table[h]);
+        return table[h] = verts.size()-1;
     }
 
     int addvert(const vec &pos, const bvec &norm)
@@ -1403,15 +1403,15 @@ struct prefabmesh
         loopv(verts) verts[i].norm.flip();
         if(!p.vbo) glGenBuffers_(1, &p.vbo);
         gle::bindvbo(p.vbo);
-        glBufferData_(GL_ARRAY_BUFFER, verts.length()*sizeof(vertex), verts.getbuf(), GL_STATIC_DRAW);
+        glBufferData_(GL_ARRAY_BUFFER, verts.size()*sizeof(vertex), verts.data(), GL_STATIC_DRAW);
         gle::clearvbo();
-        p.numverts = verts.length();
+        p.numverts = verts.size();
 
         if(!p.ebo) glGenBuffers_(1, &p.ebo);
         gle::bindebo(p.ebo);
-        glBufferData_(GL_ELEMENT_ARRAY_BUFFER, tris.length()*sizeof(ushort), tris.getbuf(), GL_STATIC_DRAW);
+        glBufferData_(GL_ELEMENT_ARRAY_BUFFER, tris.size()*sizeof(ushort), tris.data(), GL_STATIC_DRAW);
         gle::clearebo();
-        p.numtris = tris.length()/3;
+        p.numtris = tris.size()/3;
     }
 
 };
@@ -1448,9 +1448,9 @@ static void genprefabmesh(prefabmesh &r, cube &c, const ivec &co, int size)
             loopj(numverts) index[j] = r.addvert(pos[j], bvec(norm[j]));
             loopj(numverts-2) if(index[0]!=index[j+1] && index[j+1]!=index[j+2] && index[j+2]!=index[0])
             {
-                r.tris.add(index[0]);
-                r.tris.add(index[j+1]);
-                r.tris.add(index[j+2]);
+                r.tris.emplace_back(index[0]);
+                r.tris.emplace_back(index[j + 1]);
+                r.tris.emplace_back(index[j + 2]);
             }
         }
     }
@@ -1571,7 +1571,7 @@ void previewprefab(const char *name, const vec &color)
 void mpcopy(editinfo *&e, selinfo &sel, bool local)
 {
     if(local) game::edittrigger(sel, EDIT_COPY);
-    if(e==NULL) e = editinfos.add(new editinfo);
+    if(e==NULL) e = editinfos.emplace_back(new editinfo);
     if(e->copy) freeblock(e->copy);
     e->copy = NULL;
     protectsel(e->copy = blockcopy(block3(sel), sel.grid));
@@ -1608,8 +1608,8 @@ SCRIPTEXPORT void paste()
 static vector<int *> editingvslots;
 struct vslotref
 {
-    vslotref(int &index) { editingvslots.add(&index); }
-    ~vslotref() { editingvslots.pop(); }
+    vslotref(int &index) { editingvslots.emplace_back(&index); }
+    ~vslotref() { editingvslots.pop_back(); }
 };
 #define editingvslot(...) vslotref vslotrefs[] = { __VA_ARGS__ }; (void)vslotrefs;
  
@@ -1653,7 +1653,7 @@ SCRIPTEXPORT_AS(select) void hmap::select()
 	int i = hmap::textures.find(t);
 	if(i<0)
 	{
-		textures.add(t);
+        textures.emplace_back(t);
 
 	}
 	else
@@ -2190,7 +2190,7 @@ static VSlot *remapvslot(int index, bool delta, const VSlot &ds)
     }
     else edit = ds.changed ? editvslot(vs, ds) : vs.slot->variants;
     if(!edit) edit = &vs;
-    remappedvslots.add(vslotmap(vs.index, edit));
+    remappedvslots.emplace_back(vslotmap(vs.index, edit));
     return edit;
 }
 
@@ -2264,8 +2264,8 @@ void mpeditvslot(int delta, VSlot &ds, int allfaces, selinfo &sel, bool local)
         curtexindex = texmru.find(lasttex);
         if(curtexindex < 0)
         {
-            curtexindex = texmru.length();
-            texmru.add(lasttex);
+            curtexindex = texmru.size();
+            texmru.emplace_back(lasttex);
         }
     }
 }
@@ -2402,7 +2402,7 @@ SCRIPTEXPORT void vshaderparam(const char *name, float *x, float *y, float *z, f
     if(name[0])
     {
         SlotShaderParam p = { getshaderparamname(name), -1, 0, {*x, *y, *z, *w} };
-        ds.params.add(p);
+        ds.params.emplace_back(p);
     }
     mpeditvslot(usevdelta, ds, allfaces, sel, true);
 }
@@ -2451,15 +2451,15 @@ bool mpedittex(int tex, int allfaces, selinfo &sel, ucharbuf &buf)
 
 static void filltexlist()
 {
-    if(texmru.length()!=vslots.length())
+    if(texmru.size() != vslots.size())
     {
-        loopvrev(texmru) if(texmru[i]>=vslots.length())
+        loopvrev(texmru) if(texmru[i]>= vslots.size())
         {
             if(curtexindex > i) curtexindex--;
             else if(curtexindex == i) curtexindex = -1;
             texmru.remove(i);
         }
-        loopv(vslots) if(texmru.find(i)<0) texmru.add(i);
+        loopv(vslots) if(texmru.find(i)<0) texmru.emplace_back(i);
     }
 }
 
@@ -2508,7 +2508,7 @@ SCRIPTEXPORT_AS(edittext) void edittex_(int *dir)
     if(texmru.empty()) return;
     texpaneltimer = 5000;
     if(!(lastsel==sel)) tofronttex();
-    curtexindex = clamp(curtexindex<0 ? 0 : curtexindex+*dir, 0, texmru.length()-1);
+    curtexindex = clamp(curtexindex<0 ? 0 : curtexindex+*dir, 0, texmru.size() - 1);
     edittex(texmru[curtexindex], false);
 }
 
@@ -2575,7 +2575,7 @@ SCRIPTEXPORT void getreptex()
 SCRIPTEXPORT_AS(texmru) void texmru_scriptimpl(int *idx)
 {
     filltexlist();
-    intret(texmru.inrange(*idx) ? texmru[*idx] : texmru.length()); 
+    intret(texmru.inrange(*idx) ? texmru[*idx] : texmru.size());
 }
 
 SCRIPTEXPORT void looptexmru(ident *id, CommandTypes::Expression body)
@@ -2592,12 +2592,12 @@ SCRIPTEXPORT void looptexmru(ident *id, CommandTypes::Expression body)
 
 SCRIPTEXPORT void numvslots()
 {
-    intret(vslots.length());
+    intret(vslots.size());
 }
 
 SCRIPTEXPORT void numslots()
 {
-    intret(slots.length());
+    intret(slots.size());
 }
 
 

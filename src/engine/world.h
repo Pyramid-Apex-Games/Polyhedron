@@ -59,7 +59,7 @@ template <class ET>
 ET* getentitybytype(int searchStartIndex = 0)
 {
 	const auto &ents = getents();
-	for(int i = searchStartIndex; i < ents.length(); i++)
+	for(int i = searchStartIndex; i < ents.size(); i++)
 	{
 		auto e = dynamic_cast<ET*>(ents[i]);
 

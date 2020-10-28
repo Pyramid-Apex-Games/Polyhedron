@@ -658,7 +658,7 @@ const vector<MovableEntity*> &checkdynentcache(int x, int y)
            d->o.x+d->radius <= dx || d->o.x-d->radius >= dx+dsize ||
            d->o.y+d->radius <= dy || d->o.y-d->radius >= dy+dsize))
             continue;
-        dec.dynents.add(d);
+        dec.dynents.emplace_back(d);
     }
     return dec.dynents;
 }
@@ -673,7 +673,7 @@ void updatedynentcache(MovableEntity *d)
     {
         dynentcacheentry &dec = dynentcache[DYNENTHASH(x, y)];
         if(dec.x != x || dec.y != y || dec.frame != dynentframe || dec.dynents.find(d) >= 0) continue;
-        dec.dynents.add(d);
+        dec.dynents.emplace_back(d);
     }
 }
 

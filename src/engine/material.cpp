@@ -197,7 +197,7 @@ void genmatsurfs(const cube &c, const ivec &co, int size, vector<materialsurface
                 m.o = co;
                 m.csize = m.rsize = size;
                 if(dimcoord(i)) m.o[dimension(i)] += size;
-                matsurfs.add(m);
+                matsurfs.emplace_back(m);
                 break;
             }
         }
@@ -368,7 +368,7 @@ void preloadglassshaders(bool force = false)
 void setupmaterials(int start, int len)
 {
     int hasmat = 0;
-    if(!len) len = valist.length();
+    if(!len) len = valist.size();
     for(int i = start; i < len; i++)
     {
         vtxarray *va = valist[i];
@@ -484,7 +484,7 @@ void sorteditmaterials()
     if(dir[sortdim[2]] > dir[sortdim[1]]) swap(sortdim[2], sortdim[1]);
     if(dir[sortdim[1]] > dir[sortdim[0]]) swap(sortdim[1], sortdim[0]);
     if(dir[sortdim[2]] > dir[sortdim[1]]) swap(sortdim[2], sortdim[1]);
-    editsurfs.sort(editmatcmp);
+    std::sort(editsurfs.begin(), editsurfs.end(), &editmatcmp);
 }
 
 void rendermatgrid()
@@ -611,7 +611,7 @@ int findmaterials()
         if(!va->matsurfs || va->occluded >= OCCLUDE_BB || va->curvfc >= VFC_FOGGED) continue;
         if(editmode && showmat && !drawtex)
         {
-            loopi(va->matsurfs) editsurfs.add(va->matbuf[i]);
+            loopi(va->matsurfs) editsurfs.emplace_back(va->matbuf[i]);
             continue;
         }
         float sx1, sy1, sx2, sy2;

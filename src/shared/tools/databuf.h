@@ -94,7 +94,7 @@ struct databuf
         len = std::max(len-n, 0);
     }
 
-    T *getbuf() const { return buf; }
+    T* data() const { return buf; }
     bool empty() const { return len==0; }
     int length() const { return len; }
     int remaining() const { return maxlen-len; }

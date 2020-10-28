@@ -71,9 +71,9 @@ void ragdollskel::setupjoints()
 void ragdollskel::setuprotfrictions()
 {
     rotfrictions.shrink(0);
-    loopv(tris) for(int j = i+1; j < tris.length(); j++) if(tris[i].shareverts(tris[j]))
+    loopv(tris) for(int j = i+1; j < tris.size(); j++) if(tris[i].shareverts(tris[j]))
     {
-        rotfriction &r = rotfrictions.add();
+        rotfriction &r = rotfrictions.emplace_back();
         r.tri[0] = i;
         r.tri[1] = j;
     }
@@ -89,7 +89,7 @@ void ragdollskel::setup()
 
 void ragdollskel::addreljoint(int bone, int parent)
 {
-    reljoint &r = reljoints.add();
+    reljoint &r = reljoints.emplace_back();
     r.bone = bone;
     r.parent = parent;
 }
@@ -115,10 +115,10 @@ ragdolldata::ragdolldata(ragdollskel *skel, float scale)
       radius(0),
       timestep(0),
       scale(scale),
-      verts(new vert[skel->verts.length()]),
-      tris(new matrix3[skel->tris.length()]),
-      animjoints(!skel->animjoints || skel->joints.empty() ? NULL : new matrix4x3[skel->joints.length()]),
-      reljoints(skel->reljoints.empty() ? NULL : new dualquat[skel->reljoints.length()])
+      verts(new vert[skel->verts.size()]),
+      tris(new matrix3[skel->tris.size()]),
+      animjoints(!skel->animjoints || skel->joints.empty() ? NULL : new matrix4x3[skel->joints.size()]),
+      reljoints(skel->reljoints.empty() ? NULL : new dualquat[skel->reljoints.size()])
 {
 }
 
@@ -169,7 +169,7 @@ void ragdolldata::calcboundsphere()
 {
     center = vec(0, 0, 0);
     loopv(skel->verts) center.add(verts[i].pos);
-    center.div(skel->verts.length());
+    center.div(skel->verts.size());
     radius = 0;
     loopv(skel->verts) radius = max(radius, verts[i].pos.dist(center));
 }
@@ -327,8 +327,8 @@ void ragdolldata::tryunstick(float speed)
         unstuck.add(v.pos);
     }
     unsticks = 0;
-    if(!stuck || stuck >= skel->verts.length()) return;
-    unstuck.div(skel->verts.length() - stuck);
+    if(!stuck || stuck >= skel->verts.size()) return;
+    unstuck.div(skel->verts.size() - stuck);
     loopv(skel->verts)
     {
         vert &v = verts[i];
@@ -397,7 +397,7 @@ void ragdolldata::move(MovableEntity *pl, float ts)
 
     calcrotfriction();
     float tsfric = timestep ? ts/timestep : 1,
-          airfric = ragdollairfric + min((ragdollbodyfricscale*collisions)/skel->verts.length(), 1.0f)*(ragdollbodyfric - ragdollairfric);
+          airfric = ragdollairfric + min((ragdollbodyfricscale*collisions)/skel->verts.size(), 1.0f)*(ragdollbodyfric - ragdollairfric);
     collisions = 0;
     loopv(skel->verts)
     {

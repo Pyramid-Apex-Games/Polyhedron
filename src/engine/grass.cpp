@@ -162,14 +162,14 @@ static void gengrassquads(grassgroup *&group, const grasswedge &w, const grasstr
             p2.sub(vec(across).mul(rightb));
         }
 
-        if(grassverts.length() >= 4*maxgrass) break;
+        if(grassverts.size() >= 4*maxgrass) break;
 
         if(!group)
         {
-            group = &grassgroups.add();
+            group = &grassgroups.emplace_back();
             group->tri = &g;
             group->tex = tex->id;
-            group->offset = grassverts.length()/4;
+            group->offset = grassverts.size()/4;
             group->numquads = 0;
             if(lastgrassanim!=lastmillis) animategrass();
         }
@@ -184,17 +184,23 @@ static void gengrassquads(grassgroup *&group, const grasswedge &w, const grasstr
         bvec4 color(grasscolour, 255);
 
         #define GRASSVERT(n, tcv, modify) { \
-            grassvert &gv = grassverts.add(); \
+            grassvert &gv = grassverts.emplace_back(); \
             gv.pos = p##n; \
             gv.color = color; \
             gv.tc = vec2(tc##n, tcv); \
             modify; \
         }
 
-        GRASSVERT(2, 0, { gv.pos.z += height; gv.tc.x += animoffset; });
-        GRASSVERT(1, 0, { gv.pos.z += height; gv.tc.x += animoffset; });
-        GRASSVERT(1, 1, );
-        GRASSVERT(2, 1, );
+        GRASSVERT(2, 0, {
+            gv.pos.z += height;
+            gv.tc.x += animoffset;
+        });
+        GRASSVERT(1, 0, {
+            gv.pos.z += height;
+            gv.tc.x += animoffset;
+        });
+        GRASSVERT(1, 1,);
+        GRASSVERT(2, 1,);
     }
 }
 
@@ -257,10 +263,10 @@ void generategrass()
 
     if(!grassvbo) glGenBuffers_(1, &grassvbo);
     gle::bindvbo(grassvbo);
-    int size = grassverts.length()*sizeof(grassvert);
+    int size = grassverts.size()*sizeof(grassvert);
     grassvbosize = max(grassvbosize, size);
-    glBufferData_(GL_ARRAY_BUFFER, grassvbosize, size == grassvbosize ? grassverts.getbuf() : NULL, GL_STREAM_DRAW);
-    if(size != grassvbosize) glBufferSubData_(GL_ARRAY_BUFFER, 0, size, grassverts.getbuf());
+    glBufferData_(GL_ARRAY_BUFFER, grassvbosize, size == grassvbosize ? grassverts.data() : NULL, GL_STREAM_DRAW);
+    if(size != grassvbosize) glBufferSubData_(GL_ARRAY_BUFFER, 0, size, grassverts.data());
     gle::clearvbo();
 }
 

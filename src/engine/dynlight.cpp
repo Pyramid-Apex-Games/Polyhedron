@@ -137,7 +137,7 @@ int finddynlights()
         loopvrev(closedynlights) if(d.dist >= closedynlights[i]->dist) { insert = i+1; break; }
         closedynlights.insert(insert, &d);
     }
-    return closedynlights.length();
+    return closedynlights.size();
 }
 
 bool getdynlight(int n, vec &o, float &radius, vec &color, vec &dir, int &spot, int &flags)
@@ -178,7 +178,7 @@ void dynlightreaching(const vec &target, vec &color, vec &dir, bool hud)
         vec color = d.curcolor;
         color.mul(intensity);
         dyncolor.add(color);
-        //dyndir.add(ray.mul(intensity/mag));
+        //dyndir.emplace_back(ray.mul(intensity/mag));
     }
 #if 0
     if(!dyndir.iszero())
@@ -189,7 +189,7 @@ void dynlightreaching(const vec &target, vec &color, vec &dir, bool hud)
         {
             dir.mul(x);
             dyndir.mul(y);
-            dir.add(dyndir).div(x+y);
+            dir.emplace_back(dyndir).div(x+y);
             if(dir.iszero()) dir = vec(0, 0, 1);
             else dir.normalize();
         }

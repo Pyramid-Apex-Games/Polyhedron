@@ -67,7 +67,7 @@ void Camera::Update()
     if(!drawtex)
     {
         if(raycubepos(o, m_Direction, m_WorldPos, 0, RAY_CLIPMAT|RAY_SKIPFIRST) == -1)
-            m_WorldPos = vec(m_Direction).mul(2*worldsize).add(o);
+            m_WorldPos = vec(m_Direction).mul(2 * worldsize).add(o);
             // if nothing is hit, just far away in the view direction
     }
 }

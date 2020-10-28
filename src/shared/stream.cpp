@@ -231,6 +231,8 @@ done:
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <dirent.h>
+#include <fmt/format.h>
+
 #endif
 
 cubestr homedir = "";
@@ -326,6 +328,54 @@ char *path(char *s)
     }
     return s;
 }
+
+std::string& path(std::string& s)
+{
+    //Only consider everything up to "&"
+    auto endpart = s.find('&');//std::find(s.begin(), s.end(), '&');
+    std::string postfix;
+    if (endpart != std::string::npos)
+        postfix = s.substr(endpart);
+
+    //Ignore the <...> at the front
+    auto curpart = 0;
+    if (s[0] == '<')
+    {
+        curpart = s.find('>');//std::find(s.begin(), s.end(), '>');
+        if (curpart != std::string::npos)
+        {
+            ++curpart;
+        }
+    }
+    auto prefix = s.substr(0, curpart);
+
+    std::vector<std::string> parts;
+    for(auto nextStep = s.find(PATHDIV);
+        ;
+        curpart = nextStep + 1, nextStep = s.find(PATHDIV, curpart))
+    {
+        auto dir = nextStep == std::string::npos ? s.substr(curpart) : s.substr(curpart, nextStep - curpart);
+
+        if (dir == ".")
+        {
+            continue;
+        }
+        if (dir == "..")
+        {
+            parts.pop_back();
+            continue;
+        }
+        parts.push_back(dir);
+        if (nextStep == std::string::npos) break;
+    }
+    s = std::accumulate(parts.begin() + 1, parts.end(), prefix + parts.front(),
+       [](std::string& output, const std::string& element){
+        return output + PATHDIV + element;
+    });
+
+    return s;
+}
+
 
 char *path(const char *s, bool copy)
 {
@@ -428,7 +478,7 @@ const char *addpackagedir(const char *dir)
         if(filter > pdir && filter[-1] == PATHDIV && filter[len] == PATHDIV) break;
         filter += len;
     }
-    packagedir &pf = packagedirs.add();
+    packagedir &pf = packagedirs.emplace_back();
     pf.dir = filter ? newcubestr(pdir, filter-pdir) : newcubestr(pdir);
     pf.dirlen = filter ? filter-pdir : strlen(pdir);
     pf.filter = filter ? newcubestr(filter) : NULL;
@@ -470,9 +520,9 @@ const char *findfile(const char *filename, const char *mode)
     return filename;
 }
 
-bool listdir(const char *dirname, bool rel, const char *ext, vector<char *> &files)
+bool listdir(const std::string& dirname, bool rel, const std::string& ext, std::vector<std::string> &files)
 {
-    size_t extsize = ext ? strlen(ext)+1 : 0;
+    size_t extsize = ext.empty() ? 0 : ext.size()+1;
 #ifdef WIN32
     defformatcubestr(pathname, rel ? ".\\%s\\*.%s" : "%s\\*.%s", dirname, ext ? ext : "*");
     WIN32_FIND_DATA FindFileData;
@@ -496,22 +546,22 @@ bool listdir(const char *dirname, bool rel, const char *ext, vector<char *> &fil
         return true;
     }
 #else
-    defformatcubestr(pathname, rel ? "./%s" : "%s", dirname);
-    DIR *d = opendir(pathname);
+    auto pathname = fmt::format(rel ? "./{}" : "{}", dirname);
+    DIR *d = opendir(pathname.c_str());
     if(d)
     {
         struct dirent *de;
         while((de = readdir(d)) != NULL)
         {
-            if(!ext) files.add(newcubestr(de->d_name));
+            if(ext.empty()) files.emplace_back(de->d_name);
             else
             {
                 size_t namelen = strlen(de->d_name);
                 if(namelen > extsize)
                 {
                     namelen -= extsize;
-                    if(de->d_name[namelen] == '.' && strncmp(de->d_name+namelen+1, ext, extsize-1)==0)
-                        files.add(newcubestr(de->d_name, namelen));
+                    if(de->d_name[namelen] == '.' && strncmp(de->d_name+namelen+1, ext.c_str(), extsize-1)==0)
+                        files.emplace_back(de->d_name, namelen);
                 }
             }
         }
@@ -522,27 +572,27 @@ bool listdir(const char *dirname, bool rel, const char *ext, vector<char *> &fil
     else return false;
 }
 
-int listfiles(const char *dir, const char *ext, vector<char *> &files)
+int listfiles(const std::string& dir, const std::string& ext, std::vector<std::string> &files)
 {
-    cubestr dirname;
-    copycubestr(dirname, dir);
+    std::string dirname = dir;
+
     path(dirname);
-    size_t dirlen = strlen(dirname);
-    while(dirlen > 1 && dirname[dirlen-1] == PATHDIV) dirname[--dirlen] = '\0';
+    size_t dirlen = dirname.size();
+//    while(dirlen > 1 && dirname[dirlen-1] == PATHDIV) dirname[--dirlen] = '\0';
     int dirs = 0;
     if(listdir(dirname, true, ext, files)) dirs++;
-    cubestr s;
+    std::string s;
     if(homedir[0])
     {
-        formatcubestr(s, "%s%s", homedir, dirname);
+        s = fmt::format("{}{}", homedir, dirname);
         if(listdir(s, false, ext, files)) dirs++;
     }
     loopv(packagedirs)
     {
         packagedir &pf = packagedirs[i];
-        if(pf.filter && strncmp(dirname, pf.filter, dirlen == pf.filterlen-1 ? dirlen : pf.filterlen))
+        if(pf.filter && strncmp(dirname.c_str(), pf.filter, dirlen == pf.filterlen-1 ? dirlen : pf.filterlen))
             continue;
-        formatcubestr(s, "%s%s", pf.dir, dirname);
+        s = fmt::format("{}{}", pf.dir, dirname);
         if(listdir(s, false, ext, files)) dirs++;
     }
 #ifndef STANDALONE

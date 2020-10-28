@@ -546,7 +546,7 @@ void checkmsaasamples()
 void initgbuffer()
 {
     msaamaxsamples = msaamaxdepthtexsamples = msaamaxcolortexsamples = msaaminsamples = msaasamples = msaalight = 0;
-    msaapositions.setsize(0);
+    msaapositions.resize(0);
 
 //    msaalight = 1;
 //    msaasamples = 1;
@@ -719,7 +719,7 @@ void setupmsbuffer(int w, int h)
     glClearColor(0, 0, 0, 0);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | (ghasstencil ? GL_STENCIL_BUFFER_BIT : 0));
 
-    msaapositions.setsize(0);
+    msaapositions.resize(0);
     loopi(msaasamples)
     {
         GLfloat vals[2];
@@ -1969,7 +1969,7 @@ struct lightbatch : lightbatchkey
 
     void reset()
     {
-        rects.setsize(0);
+        rects.resize(0);
     }
 
     bool overlaps(int tx1, int ty1, int tx2, int ty2, const uint *tilemask) const
@@ -2007,7 +2007,7 @@ vector<shadowmapinfo> shadowmaps;
 
 void clearshadowcache()
 {
-    shadowmaps.setsize(0);
+    shadowmaps.resize(0);
 
     clearradiancehintscache();
     clearshadowmeshes();
@@ -2722,10 +2722,10 @@ void resetlights()
         }
     }
 
-    lights.setsize(0);
-    lightorder.setsize(0);
+    lights.resize(0);
+    lightorder.resize(0);
 
-    shadowmaps.setsize(0);
+    shadowmaps.resize(0);
     shadowatlaspacker.reset();
 
     calctilesize();
@@ -3790,7 +3790,7 @@ static inline bool sortlightbatches(const lightbatch *x, const lightbatch *y)
 
 static void batchlights()
 {
-    lightbatches.setsize(0);
+    lightbatches.resize(0);
     lightbatchstacksused = 0;
     lightbatchrectsused = 0;
 
@@ -3808,7 +3808,7 @@ void packlights()
 {
     lightsvisible = lightsoccluded = 0;
     lightpassesused = 0;
-    batchrects.setsize(0);
+    batchrects.resize(0);
 
     loopv(lightorder)
     {

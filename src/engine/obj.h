@@ -104,9 +104,9 @@ struct obj : vertloader<obj>
                             curmesh = m;
 
                             verthash.clear();
-                            verts.setsize(0);
-                            tcverts.setsize(0);
-                            tris.setsize(0);
+                            verts.resize(0);
+                            tcverts.resize(0);
+                            tris.resize(0);
                         }
                         int v0 = -1, v1 = -1;
                         while(isalpha(*c)) c++;

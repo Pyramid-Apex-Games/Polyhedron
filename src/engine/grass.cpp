@@ -240,8 +240,8 @@ void generategrass()
     const auto& activeCamera = Camera::GetActiveCamera();
     if (!activeCamera) return;
 
-    grassgroups.setsize(0);
-    grassverts.setsize(0);
+    grassgroups.clear();
+    grassverts.clear();
 
     if(grassoffsets[0] < 0) loopi(NUMGRASSOFFSETS) grassoffsets[i] = rnd(0x1000000)/float(0x1000000);
 

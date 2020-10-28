@@ -646,7 +646,7 @@ const vector<MovableEntity*> &checkdynentcache(int x, int y)
     dec.x = x;
     dec.y = y;
     dec.frame = dynentframe;
-    dec.dynents.shrink(0);
+    dec.dynents.clear();
     int numdyns = game::numdynents(), dsize = 1<<dynentsize, dx = x<<dynentsize, dy = y<<dynentsize;
     loopi(numdyns)
     {

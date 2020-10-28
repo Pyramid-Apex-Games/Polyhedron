@@ -5,27 +5,7 @@
 #include "databuf.h"
 #include "macros.h"
 #include "sort.h"
-
-template<typename>
-struct is_carray : std::false_type {};
-
-template<typename T, size_t N>
-struct is_carray<T[N]> : std::true_type {};
-
-template<typename T>
-struct is_carray<T[]> : std::true_type {};
-
-//template<typename T, size_t N>
-//struct arr_trait<std::array<T, N>> {using type = T;};
-
-//template<typename T>
-//struct arr_trait<T&> : arr_trait<T> {};
-//
-//template<typename T>
-//struct arr_trait<T&&> : arr_trait<T> {};
-//
-//template<typename T>
-//using element_type = typename arr_trait<T>::element;
+#include <type_traits>
 
 template <class T> struct vector
 {
@@ -53,7 +33,10 @@ template <class T> struct vector
         else
         {
             reserve(ulen + v.ulen);
-            if(v.ulen) memcpy(&buf[ulen], (void  *)v.buf, v.ulen*sizeof(T));
+            if(v.ulen)
+            {
+                memcpy(&buf[ulen], (void *) v.buf, v.ulen * sizeof(T));
+            }
             ulen += v.ulen;
             v.ulen = 0;
         }
@@ -120,16 +103,11 @@ template <class T> struct vector
     T *disown() { T *r = buf; buf = NULL; alen = ulen = 0; return r; }
     bool inbuf(const T *e) const { return e >= buf && e < &buf[ulen]; }
 private:
-    void drop() { ulen--; buf[ulen].~T(); }
+//    void drop() { ulen--; buf[ulen].~T(); }
 
-
-//    template<typename U = T>
-//    typename std::enable_if<is_carray<T>::value>::type
-    void deletecontents(int n = 0) { while(ulen > n) delete pop_back(); }
-
-//    template<typename U = T>
-//    typename std::enable_if<is_carray<T>::value>::type
-    void deletearrays(int n = 0) { while(ulen > n) delete[] pop_back(); }
+//    void deletecontents(int n = 0) { while(ulen > n) delete &pop_back(); }
+//
+//    void deletearrays(int n = 0) { while(ulen > n) delete[] &pop_back(); }
 
     void call_finalizers(const T* begin, const T* end)
     {
@@ -147,14 +125,8 @@ private:
 public:
     void clear()
     {
-        if constexpr (is_carray<T>::value)
-        {
-            deletearrays();
-        }
-        else
-        {
-            deletecontents();
-        }
+        call_finalizers(buf, buf + ulen);
+        ulen = 0;
     }
 
     void erase(const T* begin, const T* end)
@@ -185,14 +157,12 @@ public:
     T &operator[](int i) { ASSERT(i>=0 && i<ulen); return buf[i]; }
     const T &operator[](int i) const { ASSERT(i >= 0 && i<ulen); return buf[i]; }
 
-
-    void shrink(int i) { ASSERT(i<=ulen); if(isclass<T>::no) ulen = i; else while(ulen>i) drop(); }
-    void setsize(int i) { ASSERT(i<=ulen); ulen = i; }
-
     T *data() { return buf; }
     const T *data() const { return buf; }
 
 private:
+    void shrink(int i) { ASSERT(i<=ulen); if constexpr (isclass<T>::yes) call_finalizers(buf + i, buf + ulen); ulen = i; }
+
     template<class F>
     void sort(F fun, int i = 0, int n = -1)
     {
@@ -203,6 +173,18 @@ private:
     void sortname() { sort(sortnameless()); }
 
 public:
+    void resize(int i, T value = T())
+    {
+        if (alen < i)
+            reserve(i+1);
+        while (ulen < i)
+            emplace_back(value);
+        if (ulen > i)
+        {
+            shrink(i);
+        }
+    }
+
     void reserve(int sz)
     {
         int olen = alen;
@@ -290,7 +272,7 @@ public:
         {
             int dst = i;
             for(int j = i+1; j < ulen; j++) if(!(buf[j] == o)) buf[dst++] = buf[j];
-            setsize(dst);
+            resize(dst);
             break;
         }
     }
@@ -328,6 +310,7 @@ public:
         loopi(ulen/2) std::swap(buf[i], buf[ulen-1-i]);
     }
 
+private:
     static int heapparent(int i) { return (i - 1) >> 1; }
     static int heapchild(int i) { return (i << 1) + 1; }
 
@@ -388,27 +371,27 @@ public:
         return -1;
     }
 
-#define UNIQUE(overwrite, cleanup) \
-        for(int i = 1; i < ulen; i++) if(htcmp(buf[i-1], buf[i])) \
-        { \
-            int n = i; \
-            while(++i < ulen) if(!htcmp(buf[n-1], buf[i])) { overwrite; n++; } \
-            cleanup; \
-            break; \
-        }
-    void unique() // contents must be initially sorted
-    {
-        UNIQUE(buf[n] = buf[i], setsize(n));
-    }
-    void uniquedeletecontents()
-    {
-        UNIQUE(std::swap(buf[n], buf[i]), deletecontents(n));
-    }
-    void uniquedeletearrays()
-    {
-        UNIQUE(std::swap(buf[n], buf[i]), deletearrays(n));
-    }
-#undef UNIQUE
+//#define UNIQUE(overwrite, cleanup) \
+//        for(int i = 1; i < ulen; i++) if(htcmp(buf[i-1], buf[i])) \
+//        { \
+//            int n = i; \
+//            while(++i < ulen) if(!htcmp(buf[n-1], buf[i])) { overwrite; n++; } \
+//            cleanup; \
+//            break; \
+//        }
+//    void unique() // contents must be initially sorted
+//    {
+//        UNIQUE(buf[n] = buf[i], resize(n));
+//    }
+//    void uniquedeletecontents()
+//    {
+//        UNIQUE(std::swap(buf[n], buf[i]), deletecontents(n));
+//    }
+//    void uniquedeletearrays()
+//    {
+//        UNIQUE(std::swap(buf[n], buf[i]), deletearrays(n));
+//    }
+//#undef UNIQUE
 };
 template <class T> const int vector<T>::MINSIZE;
 

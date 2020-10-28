@@ -550,7 +550,7 @@ struct skelmodel : animmodel
 
         void calcantipodes()
         {
-            antipodes.shrink(0);
+            antipodes.clear();
             vector<int> schedule;
             loopi(numbones)
             {
@@ -701,7 +701,7 @@ struct skelmodel : animmodel
 
         void initpitchdeps()
         {
-            pitchdeps.setsize(0);
+            pitchdeps.resize(0);
             if(pitchtargets.empty()) return;
             loopv(pitchtargets)
             {
@@ -1020,7 +1020,7 @@ struct skelmodel : animmodel
                 loopj(MAXANIMPARTS) sc.as[j].cur.fr1 = -1;
                 DELETEA(sc.bdata);
             }
-            skelcache.setsize(0);
+            skelcache.resize(0);
             blendoffsets.clear();
             if(full) loopv(users) users[i]->cleanup();
         }
@@ -1717,8 +1717,8 @@ template<class MDL> struct skelloader : modelloader<MDL, skelmodel>
             if(m) m->buildhitdata(hitzones.data());
         }
 
-        adjustments.setsize(0);
-        hitzones.setsize(0);
+        adjustments.clear();
+        hitzones.clear();
     }
 };
 

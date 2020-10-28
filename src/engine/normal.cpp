@@ -264,13 +264,13 @@ void calcnormals(bool lerptjoints)
 void clearnormals()
 {
     normalgroups.clear();
-    normals.setsize(0);
-    tnormals.setsize(0);
+    normals.clear();
+    tnormals.clear();
 }
 
 void resetsmoothgroups()
 {
-    smoothgroups.setsize(0);
+    smoothgroups.clear();
 }
 
 int smoothangle(int id, int angle)

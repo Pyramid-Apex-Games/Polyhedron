@@ -592,14 +592,14 @@ uint matliquidtiles[LIGHTTILE_MAXH], matsolidtiles[LIGHTTILE_MAXH];
 
 int findmaterials()
 {
-    editsurfs.setsize(0);
+    editsurfs.resize(0);
     loopi(4)
     {
-        glasssurfs[i].setsize(0);
-        watersurfs[i].setsize(0);
-        waterfallsurfs[i].setsize(0);
-        lavasurfs[i].setsize(0);
-        lavafallsurfs[i].setsize(0);
+        glasssurfs[i].resize(0);
+        watersurfs[i].resize(0);
+        waterfallsurfs[i].resize(0);
+        lavasurfs[i].resize(0);
+        lavafallsurfs[i].resize(0);
     }
     matliquidsx1 = matliquidsy1 = matsolidsx1 = matsolidsy1 = matrefractsx1 = matrefractsy1 = 1;
     matliquidsx2 = matliquidsy2 = matsolidsx2 = matsolidsy2 = matrefractsx2 = matrefractsy2 = -1;

@@ -650,7 +650,7 @@ struct VSlot
 
     void reset()
     {
-        params.setsize(0);
+        params.clear();
         linked = false;
         scale = 1;
         rotation = 0;
@@ -719,9 +719,9 @@ struct Slot
     void reset()
     {
         smooth = -1;
-        sts.setsize(0);
+        sts.clear();
         shader = NULL;
-        params.setsize(0);
+        params.clear();
         loaded = false;
         texmask = 0;
         DELETEA(grass);

@@ -109,7 +109,7 @@ static void genpvsnodes(cube *c, int parent = 0, const ivec &co = ivec(0, 0, 0),
         genpvsnodes(c[i].children, index+i, o, size>>1);
         if(origpvsnodes[index+i].children) branches++;
     }
-    if(!branches && mergepvsnodes(origpvsnodes[parent], &origpvsnodes[index])) origpvsnodes.setsize(index);
+    if(!branches && mergepvsnodes(origpvsnodes[parent], &origpvsnodes[index])) origpvsnodes.resize(index);
     else origpvsnodes[parent].children = index;
 }
 
@@ -768,7 +768,7 @@ struct pvsworker
         loopi(4) if(wateroccluded&(0xFF<<(i*8))) waterbytes = i+1;
 
         compresspvs(pvsnodes[0], worldsize, pvsleafsize);
-        outbuf.setsize(0);
+        outbuf.resize(0);
         serializepvs(pvsnodes[0]);
     }
 
@@ -793,7 +793,7 @@ struct pvsworker
         loopi(waterbytes) pvsbuf.emplace_back((wateroccluded >> (i * 8)) & 0xFF);
         pvsbuf.put(outbuf.data(), outbuf.size());
         int *val = pvscompress.access(key);
-        if(val) pvsbuf.setsize(key.offset);
+        if(val) pvsbuf.resize(key.offset);
         else
         {
             val = &pvscompress[key];
@@ -1022,8 +1022,8 @@ void setviewcell(const vec &p)
 SCRIPTEXPORT void clearpvs()
 {
     DELETEP(viewcells);
-    pvs.setsize(0);
-    pvsbuf.setsize(0);
+    pvs.resize(0);
+    pvsbuf.resize(0);
     curpvs = NULL;
     numwaterplanes = 0;
     lockpvs = 0;
@@ -1035,9 +1035,9 @@ static void findwaterplanes()
     loopi(MAXWATERPVS)
     {
         waterplanes[i].height = -1;
-        waterplanes[i].matsurfs.setsize(0);
+        waterplanes[i].matsurfs.resize(0);
     }
-    waterfalls.setsize(0);
+    waterfalls.resize(0);
     numwaterplanes = 0;
     loopv(valist)
     {
@@ -1101,7 +1101,7 @@ SCRIPTEXPORT void testpvs(int *vcsize)
     lockpvs = 1;
     conoutf("generated test view cell of size %d at %.1f, %.1f, %.1f (%d B)", size, activeCamera->o.x, activeCamera->o.y, activeCamera->o.z, len);
 
-    origpvsnodes.setsize(0);
+    origpvsnodes.resize(0);
     numwaterplanes = oldnumwaterplanes;
     loopi(numwaterplanes) waterplanes[i].height = oldwaterplanes[i];
 }
@@ -1169,13 +1169,13 @@ SCRIPTEXPORT void genpvs(int *viewcellsize)
             if(!remaining) break;
         }
         SDL_LockMutex(viewcellmutex);
-        viewcellrequests.setsize(0);
+        viewcellrequests.resize(0);
         SDL_UnlockMutex(viewcellmutex);
         loopv(pvsworkers) SDL_WaitThread(pvsworkers[i]->thread, NULL);
     }
     pvsworkers.clear();
 
-    origpvsnodes.setsize(0);
+    origpvsnodes.resize(0);
     pvscompress.clear();
 
     Uint32 end = SDL_GetTicks();

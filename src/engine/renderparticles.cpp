@@ -88,13 +88,13 @@ static particleemitter *seedemitter = NULL;
 
 void clearparticleemitters()
 {
-    emitters.setsize(0);
+    emitters.clear();
     regenemitters = true;
 }
 
 void addparticleemitters()
 {
-    emitters.setsize(0);
+    emitters.clear();
     const auto& ents = getents();
     loopv(ents)
     {

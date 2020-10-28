@@ -1614,7 +1614,7 @@ static void renderbatch(renderstate &cur, int pass, geombatch &b)
 
 static void resetbatches()
 {
-    geombatches.setsize(0);
+    geombatches.clear();
     firstbatch = -1;
     numbatches = 0;
 }
@@ -1999,7 +1999,7 @@ uint alphatiles[LIGHTTILE_MAXH];
 
 int findalphavas()
 {
-    alphavas.setsize(0);
+    alphavas.resize(0);
     alphafrontsx1 = alphafrontsy1 = alphabacksx1 = alphabacksy1 = alpharefractsx1 = alpharefractsy1 = 1;
     alphafrontsx2 = alphafrontsy2 = alphabacksx2 = alphabacksy2 = alpharefractsx2 = alpharefractsy2 = -1;
     alphabackvas = alpharefractvas = 0;
@@ -2278,7 +2278,7 @@ static void mergedecals(decalrenderer &cur, vtxarray *va)
 
 static void resetdecalbatches()
 {
-    decalbatches.setsize(0);
+    decalbatches.clear();
     firstbatch = -1;
     numbatches = 0;
 }
@@ -2542,8 +2542,8 @@ struct shadowverts
     void clear()
     {
         memset(table, -1, sizeof(table));
-        chain.setsize(0);
-        verts.setsize(0);
+        chain.resize(0);
+        verts.resize(0);
     }
 
     int add(const vec &v)
@@ -2600,7 +2600,7 @@ static void flushshadowmeshdraws(shadowmesh &m, int sides, shadowdrawinfo draws[
         memcpy(indexes + offset, shadowtris[i].data(), shadowtris[i].size() * sizeof(ushort));
         offset += shadowtris[i].size();
 
-        shadowtris[i].setsize(0);
+        shadowtris[i].resize(0);
         draws[i].reset();
     }
 
@@ -2682,7 +2682,7 @@ static void genshadowmeshmapmodels(shadowmesh &m, int sides, shadowdrawinfo draw
 		if(e->d.z) orient.rotate_around_y(sincosmod360(-e->d.z));
 		if(e->scale > 0) orient.scale(e->scale/100.0f);
 		orient.settranslation(e->o);
-        tris.setsize(0);
+        tris.resize(0);
         mm->genshadowmesh(tris, orient);
 
         loopv(tris)
@@ -2728,7 +2728,7 @@ static void genshadowmesh(int idx, Entity *e)
 
 void clearshadowmeshes()
 {
-    if(shadowvbos.size()) { glCheckError(glDeleteBuffers_(shadowvbos.size(), shadowvbos.data()); shadowvbos.setsize(0)); }
+    if(shadowvbos.size()) { glCheckError(glDeleteBuffers_(shadowvbos.size(), shadowvbos.data()); shadowvbos.resize(0)); }
     if(shadowmeshes.numelems)
     {
         auto &ents = getents();
@@ -2740,7 +2740,7 @@ void clearshadowmeshes()
         }
     }
     shadowmeshes.clear();
-    shadowdraws.setsize(0);
+    shadowdraws.resize(0);
 }
 
 VARF(smmesh, 0, 1, 1, { if(!smmesh) clearshadowmeshes(); });

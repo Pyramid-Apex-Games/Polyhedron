@@ -1767,7 +1767,7 @@ SCRIPTEXPORT void texturereset(int *n)
         for(VSlot *vs = s->variants; vs; vs = vs->next) vs->slot = &dummyslot;
         delete s;
     }
-    slots.setsize(limit);
+    slots.resize(limit);
     while(vslots.size())
     {
         VSlot *vs = vslots.back();
@@ -1931,7 +1931,7 @@ int compactvslots(bool cull)
             swap(vslots[i], vslots[vslots[i]->index]);
     }
     for(int i = compactedvslots; i < vslots.size(); i++) delete vslots[i];
-    vslots.setsize(compactedvslots);
+    vslots.resize(compactedvslots);
     return total;
 }
 
@@ -2978,7 +2978,7 @@ static vector<envmap> envmaps;
 void clearenvmaps()
 {
     loopv(envmaps) envmaps[i].clear();
-    envmaps.shrink(0);
+    envmaps.clear();
 }
 
 static GLuint emfbo[3] = { 0, 0, 0 }, emtex[2] = { 0, 0 };

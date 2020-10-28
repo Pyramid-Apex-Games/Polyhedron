@@ -36,9 +36,9 @@ SCRIPTEXPORT_AS(font) void newfont(char *name, char *tex, int *defaultw, int *de
 {
     font *f = &fonts[name];
     if(!f->name) f->name = newcubestr(name);
-    f->texs.shrink(0);
+    f->texs.clear();
     f->texs.emplace_back(textureload(tex));
-    f->chars.shrink(0);
+    f->chars.clear();
     f->charoffset = '!';
     f->defaultw = *defaultw;
     f->defaulth = *defaulth;

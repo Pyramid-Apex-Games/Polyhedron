@@ -171,8 +171,8 @@ void cleanuptimers()
             glCheckError(glDeleteQueries_(timer::MAXQUERY, t.query));
         }
     }
-    timers.shrink(0);
-    timerorder.shrink(0);
+    timers.clear();
+    timerorder.clear();
 }
 
 VARFN(timer, usetimers, 0, 0, 1, cleanuptimers());

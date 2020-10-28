@@ -112,8 +112,8 @@ void flushvbo(int type = -1)
     if(data.empty()) return;
     vector<vtxarray *> &vas = vbovas[type];
     genvbo(type, data.data(), data.size(), vas.data(), vas.size());
-    data.setsize(0);
-    vas.setsize(0);
+    data.resize(0);
+    vas.resize(0);
     vbosize[type] = 0;
 }
 
@@ -152,8 +152,8 @@ struct verthash
     void clearverts()
     {
         memset(table, -1, sizeof(table));
-        chain.setsize(0);
-        verts.setsize(0);
+        chain.resize(0);
+        verts.resize(0);
     }
 
     int addvert(const vertex &v)
@@ -307,14 +307,14 @@ struct vacollect : verthash
         worldtris = skytris = decaltris = 0;
         indices.clear();
         decalindices.clear();
-        skyindices.setsize(0);
-        matsurfs.setsize(0);
-        mapmodels.setsize(0);
-        decals.setsize(0);
-        extdecals.setsize(0);
-        grasstris.setsize(0);
-        texs.setsize(0);
-        decaltexs.setsize(0);
+        skyindices.resize(0);
+        matsurfs.resize(0);
+        mapmodels.resize(0);
+        decals.resize(0);
+        extdecals.resize(0);
+        grasstris.resize(0);
+        texs.resize(0);
+        decaltexs.resize(0);
         alphamin = refractmin = skymin = vec(1e16f, 1e16f, 1e16f);
         alphamax = refractmax = skymax = vec(-1e16f, -1e16f, -1e16f);
         nogimin = ivec(INT_MAX, INT_MAX, INT_MAX);
@@ -329,7 +329,7 @@ struct vacollect : verthash
         });
         std::sort(texs.begin(), texs.end(), &sortkey::sort);
 
-        matsurfs.shrink(optimizematsurfs(matsurfs.data(), matsurfs.size()));
+        matsurfs.resize(optimizematsurfs(matsurfs.data(), matsurfs.size()));
     }
 
 #define GENVERTS(type, ptr, body) do \
@@ -1410,7 +1410,7 @@ void addmergedverts(int level, const ivec &o)
         addcubeverts(vslot, mf.orient, 1<<level, pos, 0, mf.tex, mf.verts, numverts, mf.tjoints, mf.envmap, grassy, (mf.mat&MAT_ALPHA)!=0, mf.numverts&LAYER_BLEND);
         vahasmerges |= MERGE_USE;
     }
-    mfl.setsize(0);
+    mfl.resize(0);
 }
 
 static inline void finddecals(vtxarray *va)
@@ -1530,7 +1530,7 @@ void setva(cube &c, const ivec &co, int size, int csi)
     }
     else
     {
-        loopi(MAXMERGELEVEL+1) vamerges[i].setsize(vamergeoffset[i]);
+        loopi(MAXMERGELEVEL+1) vamerges[i].resize(vamergeoffset[i]);
     }
 
     vc.clear();
@@ -1697,9 +1697,9 @@ void findtjoints()
 {
     recalcprogress = 0;
     gencubeedges();
-    tjoints.setsize(0);
+    tjoints.resize(0);
     enumeratekt(edgegroups, edgegroup, g, int, e, findtjoints(e, g));
-    cubeedges.setsize(0);
+    cubeedges.resize(0);
     edgegroups.clear();
 }
 
@@ -1709,7 +1709,7 @@ void octarender()                               // creates va s for all leaf cub
     while(1<<csi < worldsize) csi++;
 
     recalcprogress = 0;
-    varoot.setsize(0);
+    varoot.resize(0);
     updateva(worldroot, ivec(0, 0, 0), worldsize/2, csi-1);
     loadprogress = 0;
     flushvbo();
@@ -1761,7 +1761,7 @@ void allchanged(bool load)
     resetclipplanes();
     if(load) initenvmaps();
     entitiesinoctanodes();
-    tjoints.setsize(0);
+    tjoints.resize(0);
     if(filltjoints) findtjoints();
     octarender();
     if(load) precachetextures();

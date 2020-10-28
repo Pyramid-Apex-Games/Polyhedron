@@ -819,7 +819,7 @@ bool load_world(const char *mname, const char *cname)        // Does not support
         conoutf(CON_WARN, "WARNING: loading map from %s game, ignoring entities except for lights/mapmodels", gametype);
     }
     int eif = f->getlil<ushort>();
-    texmru.shrink(0);
+    texmru.clear();
     ushort nummru = f->getlil<ushort>();
     loopi(nummru) texmru.emplace_back(f->getlil<ushort>());
 

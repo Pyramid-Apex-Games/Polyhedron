@@ -52,9 +52,9 @@ vector<ipmask> bans, servbans, gbans;
 
 SCRIPTEXPORT void clearbans()
 {
-    bans.shrink(0);
-    servbans.shrink(0);
-    gbans.shrink(0);
+    bans.clear();
+    servbans.clear();
+    gbans.clear();
 }
 
 void addban(vector<ipmask> &bans, const char *name)

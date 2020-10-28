@@ -95,7 +95,7 @@ struct md2 : vertloader<md2>
                 int numvertex = *command++;
                 bool isfan = numvertex<0;
                 if(isfan) numvertex = -numvertex;
-                idxs.setsize(0);
+                idxs.resize(0);
                 loopi(numvertex)
                 {
                     union { int i; float f; } u, v;

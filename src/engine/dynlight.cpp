@@ -89,7 +89,7 @@ void cleardynlights()
 {
     int faded = -1;
     loopv(dynlights) if(lastmillis<dynlights[i].expire) { faded = i; break; }
-    if(faded<0) dynlights.setsize(0);
+    if(faded<0) dynlights.clear();
     else if(faded>0) dynlights.remove(0, faded);
 }
 
@@ -114,7 +114,7 @@ void updatedynlights()
 
 int finddynlights()
 {
-    closedynlights.setsize(0);
+    closedynlights.clear();
     if(!usedynlights) return 0;
 
     const auto& activeCamera = Camera::GetActiveCamera();

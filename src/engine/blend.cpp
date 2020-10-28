@@ -869,7 +869,7 @@ void updateblendtextures(int x1, int y1, int x2, int y2)
 void clearblendtextures()
 {
     loopv(blendtexs) blendtexs[i].cleanup();
-    blendtexs.shrink(0);
+    blendtexs.clear();
 }
 
 void cleanupblendmap()

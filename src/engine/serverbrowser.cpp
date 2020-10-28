@@ -98,8 +98,8 @@ void resolverclear()
     if(resolverthreads.empty()) return;
 
     SDL_LockMutex(resolvermutex);
-    resolverqueries.shrink(0);
-    resolverresults.shrink(0);
+    resolverqueries.clear();
+    resolverresults.clear();
     loopv(resolverthreads)
     {
         resolverthread &rt = resolverthreads[i];
@@ -305,7 +305,7 @@ struct serverinfo : servinfo, pingattempts
         clearpings();
         protocol = -1;
         numplayers = maxplayers = 0;
-        attr.setsize(0);
+        attr.clear();
     }
 
     void reset()
@@ -540,7 +540,7 @@ void checkpings()
         si->numplayers = getint(p);
         si->maxplayers = getint(p);
         int numattr = getint(p);
-        si->attr.setsize(0);
+        si->attr.clear();
         loopj(numattr) { int attr = getint(p); if(p.overread()) break;
             si->attr.emplace_back(attr); }
         getcubestr(text, p);

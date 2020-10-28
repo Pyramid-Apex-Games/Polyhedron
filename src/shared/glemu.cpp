@@ -327,8 +327,8 @@ namespace gle
                 multidraw();
                 if(start) loopv(multidrawstart) multidrawstart[i] += start;
                 glCheckError(glMultiDrawArrays_(primtype, multidrawstart.data(), multidrawcount.data(), multidrawstart.size()));
-                multidrawstart.setsize(0);
-                multidrawcount.setsize(0);
+                multidrawstart.resize(0);
+                multidrawcount.resize(0);
             }
             else
 #endif

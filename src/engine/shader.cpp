@@ -797,21 +797,21 @@ void Shader::cleanup(bool full)
         glCheckError(glDeleteShader_(psobj)); psobj = 0; }
     }
     if(program) { glCheckError(glDeleteProgram_(program)); program = 0; }
-    localparams.setsize(0);
-    localparamremap.setsize(0);
-    globalparams.setsize(0);
+    localparams.clear();
+    localparamremap.clear();
+    globalparams.clear();
     if(standard || full)
     {
         type = SHADER_INVALID;
         DELETEA(vsstr);
         DELETEA(psstr);
         DELETEA(defer);
-        variants.setsize(0);
+        variants.clear();
         DELETEA(variantrows);
-        defaultparams.setsize(0);
-        attriblocs.setsize(0);
-        fragdatalocs.setsize(0);
-        uniformlocs.setsize(0);
+        defaultparams.clear();
+        attriblocs.clear();
+        fragdatalocs.clear();
+        uniformlocs.clear();
         reusevs = reuseps = NULL;
     }
     else loopv(defaultparams) defaultparams[i].loc = -1;
@@ -885,11 +885,11 @@ Shader *newshader(int type, const char *name, const char *vs, const char *ps, Sh
     }
     if(variant) loopv(variant->defaultparams) s.defaultparams.emplace_back(variant->defaultparams[i]);
     else loopv(slotparams) s.defaultparams.emplace_back(slotparams[i]);
-    s.attriblocs.setsize(0);
-    s.uniformlocs.setsize(0);
+    s.attriblocs.clear();
+    s.uniformlocs.clear();
     genattriblocs(s, vs, ps, s.reusevs, s.reuseps);
     genuniformlocs(s, vs, ps, s.reusevs, s.reuseps);
-    s.fragdatalocs.setsize(0);
+    s.fragdatalocs.clear();
     if(s.reuseps) s.fragdatalocs = s.reuseps->fragdatalocs;
     else findfragdatalocs(s, s.psstr);
     if(!s.compile())
@@ -1163,7 +1163,7 @@ void Shader::force()
     standardshaders = standard;
     forceshaders = false;
     identflags &= ~IDF_PERSIST;
-    slotparams.shrink(0);
+    slotparams.clear();
     execute(cmd);
     identflags = oldflags;
     forceshaders = wasforcing;
@@ -1209,8 +1209,8 @@ SCRIPTEXPORT void shader(int *type, char *name, char *vs, char *ps)
 #define GENSHADER(cond, body) \
     if(cond) \
     { \
-        if(vsbuf.size()) { vsbak.setsize(0); vsbak.put(vs, strlen(vs)+1); vs = vsbak.data(); vsbuf.setsize(0); } \
-        if(psbuf.size()) { psbak.setsize(0); psbak.put(ps, strlen(ps)+1); ps = psbak.data(); psbuf.setsize(0); } \
+        if(vsbuf.size()) { vsbak.clear(); vsbak.put(vs, strlen(vs)+1); vs = vsbak.data(); vsbuf.clear(); } \
+        if(psbuf.size()) { psbak.clear(); psbak.put(ps, strlen(ps)+1); ps = psbak.data(); psbuf.clear(); } \
         body; \
         if(vsbuf.size()) vs = vsbuf.data(); \
         if(psbuf.size()) ps = psbuf.data(); \
@@ -1222,7 +1222,7 @@ SCRIPTEXPORT void shader(int *type, char *name, char *vs, char *ps)
     {
         if(strstr(ps, "//:variant") || strstr(vs, "//:variant")) gengenericvariant(*s, name, vs, ps);
     }
-    slotparams.shrink(0);
+    slotparams.clear();
 }
 
 SCRIPTEXPORT void variantshader(int *type, char *name, int *row, char *vs, char *ps, int *maxvariants)
@@ -1255,7 +1255,7 @@ SCRIPTEXPORT void variantshader(int *type, char *name, int *row, char *vs, char 
 
 SCRIPTEXPORT void setshader(char *name)
 {
-    slotparams.shrink(0);
+    slotparams.clear();
     Shader *s = shaders.access(name);
     if(!s)
     {
@@ -1267,7 +1267,7 @@ SCRIPTEXPORT void setshader(char *name)
 void resetslotshader()
 {
     slotshader = NULL;
-    slotparams.shrink(0);
+    slotparams.clear();
 }
 
 void setslotshader(Slot &s)
@@ -1468,7 +1468,7 @@ void cleanuppostfx(bool fullclean)
     loopv(postfxtexs){
         glCheckError(glDeleteTextures(1, &postfxtexs[i].id));
     }
-    postfxtexs.shrink(0);
+    postfxtexs.clear();
 
     postfxw = 0;
     postfxh = 0;
@@ -1584,7 +1584,7 @@ static bool addpostfx(const char *name, int outputbind, int outputscale, uint in
 
 SCRIPTEXPORT void clearpostfx()
 {
-    postfxpasses.shrink(0);
+    postfxpasses.clear();
     cleanuppostfx(false);
 }
 

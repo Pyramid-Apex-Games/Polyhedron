@@ -441,7 +441,7 @@ SCRIPTEXPORT void entcancel()
     {
         send_entity_event(entgroup[i], EntityEventSelectStop());
     }
-    entgroup.shrink(0);
+    entgroup.clear();
 }
 
 void entadd(int id)
@@ -1450,7 +1450,7 @@ SCRIPTEXPORT void entcopy()
 {
     if(noentedit()) return;
     entcopygrid = sel.grid;
-    entcopybuf.shrink(0);
+    entcopybuf.clear();
     addimplicit({
         loopv(entgroup) entfocus(entgroup[i], entcopybuf.emplace_back(e)->o.sub(vec(sel.o)));
     });
@@ -1816,7 +1816,7 @@ void resetmap()
     clearmapcrc();
 
     clearents();
-    outsideents.setsize(0);
+    outsideents.resize(0);
     spotlights = 0;
     volumetriclights = 0;
     nospeclights = 0;
@@ -1850,7 +1850,7 @@ bool emptymap(int scale, bool force, const char *mname, bool usecfg)    // main 
     setvar("mapsize", 1<<worldscale, true, false);
     setvar("emptymap", 1, true, false);
 
-    texmru.shrink(0);
+    texmru.clear();
     logoutf("freeocta worldroot1");
     freeocta(worldroot);
     worldroot = newcubes(F_EMPTY);

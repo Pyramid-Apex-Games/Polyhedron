@@ -398,13 +398,15 @@ mapmodelinfo *getmminfo(int n)
 // model registry
 
 hashnameset<model *> models;
-vector<const char*> preloadmodels;
+vector<std::string> preloadmodels;
 hashset<char*> failedmodels;
 
 void preloadmodel(const char *name)
 {
-	if(!name || !name[0] || models.access(name) || preloadmodels.htfind(name) >= 0) return;
-    preloadmodels.emplace_back(newcubestr(name));
+	if(!name || !name[0] || models.access(name)) return;
+	auto itr = std::find(preloadmodels.begin(), preloadmodels.end(), name);
+	if (itr == preloadmodels.end()) return;
+    preloadmodels.emplace_back(name);
 
 }
 
@@ -418,7 +420,7 @@ void flushpreloadedmodels(bool msg)
 		{
 		    if(msg)
             {
-		        conoutf(CON_WARN, "could not load model: %s", preloadmodels[i]);
+		        conoutf(CON_WARN, "could not load model: %s", preloadmodels[i].c_str());
             }
 		}
 		else
@@ -441,7 +443,7 @@ void preloadusedmapmodels(bool msg, bool bih)
 		if(e && used.find(e->model_idx) < 0) used.emplace_back(e->model_idx);
 	}
 
-	vector<const char *> col;
+	vector<std::string> col;
 	loopv(used)
 	{
 		loadprogress = float(i+1)/used.size();
@@ -457,8 +459,11 @@ void preloadusedmapmodels(bool msg, bool bih)
 			else if(m->collide == COLLIDE_TRI && m->collidemodel.empty() && m->bih) m->setBIH();
 			m->preloadmeshes();
 			m->preloadshaders();
-			if(!m->collidemodel.empty() && col.htfind(m->collidemodel.c_str()) < 0)
-                col.emplace_back(m->collidemodel.c_str());
+			if(!m->collidemodel.empty())
+            {
+			    if (std::find(col.begin(), col.end(), m->collidemodel) == col.end())
+                    col.emplace_back(m->collidemodel.c_str());
+            }
 		}
 	}
 
@@ -466,7 +471,7 @@ void preloadusedmapmodels(bool msg, bool bih)
 	{
 		loadprogress = float(i+1)/col.size();
 		auto [m, n] = loadmodel(col[i], -1, msg);
-		if(!m) { if(msg) conoutf(CON_WARN, "could not load collide model: %s", col[i]); }
+		if(!m) { if(msg) conoutf(CON_WARN, "could not load collide model: %s", col[i].c_str()); }
 		else if(!m->bih) m->setBIH();
 	}
 
@@ -601,9 +606,9 @@ static vector<modelattach> modelattached;
 
 void resetmodelbatches()
 {
-	batchedmodels.setsize(0);
-	batches.setsize(0);
-	modelattached.setsize(0);
+    batchedmodels.resize(0);
+    batches.resize(0);
+    modelattached.resize(0);
 }
 
 void addbatchedmodel(model *m, batchedmodel &bm, int idx)
@@ -974,9 +979,9 @@ void endmodelquery()
 	}
 	endquery(modelquery);
 	modelquery = NULL;
-	batches.setsize(modelquerybatches);
-	batchedmodels.setsize(modelquerymodels);
-	modelattached.setsize(modelqueryattached);
+    batches.resize(modelquerybatches);
+    batchedmodels.resize(modelquerymodels);
+    modelattached.resize(modelqueryattached);
 	disableaamask();
 }
 
@@ -987,8 +992,8 @@ void clearbatchedmapmodels()
 		modelbatch &b = batches[i];
 		if(b.flags&MDL_MAPMODEL)
 		{
-			batchedmodels.setsize(b.batched);
-			batches.setsize(i);
+            batchedmodels.resize(b.batched);
+            batches.resize(i);
 			break;
 		}
 	}

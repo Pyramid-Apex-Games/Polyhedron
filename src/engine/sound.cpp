@@ -345,8 +345,8 @@ static struct soundtype
 
     void clear()
     {
-        slots.setsize(0);
-        configs.setsize(0);
+        slots.resize(0);
+        configs.resize(0);
     }
 
     void reset()
@@ -371,8 +371,8 @@ static struct soundtype
     void cleanup()
     {
         cleanupsamples();
-        slots.setsize(0);
-        configs.setsize(0);
+        slots.resize(0);
+        configs.resize(0);
         samples.clear();
     }
 
@@ -421,7 +421,7 @@ SCRIPTEXPORT void mapsoundreset()
 void resetchannels()
 {
     loopv(channels) if(channels[i].inuse) freechannel(i);
-    channels.shrink(0);
+    channels.clear();
 }
 
 void clear_sound()

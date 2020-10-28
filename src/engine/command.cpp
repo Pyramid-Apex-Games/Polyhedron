@@ -1184,7 +1184,7 @@ static inline const char *compileblock(vector<uint> &code, const char *p, int re
     }
     else
     {
-        code.setsize(start);
+        code.resize(start);
         code.emplace_back(CODE_EMPTY | rettype);
     }
     return p;
@@ -3168,7 +3168,7 @@ const char *escapecubestr(const char *s)
 {
     stridx = (stridx + 1)%4;
     vector<char> &buf = strbuf[stridx];
-    buf.setsize(0);
+    buf.clear();
     buf.emplace_back('"');
     for(; *s; s++) switch(*s)
     {
@@ -4432,7 +4432,7 @@ void clearsleep(bool clearoverrides)
         if(clearoverrides && !(sleepcmds[i].flags&IDF_OVERRIDDEN)) sleepcmds[len++] = sleepcmds[i];
         else delete[] sleepcmds[i].command;
     }
-    sleepcmds.shrink(len);
+    sleepcmds.resize(len);
 }
 
 void clearsleep_(int *clearoverrides)

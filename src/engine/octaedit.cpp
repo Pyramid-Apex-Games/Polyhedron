@@ -1097,7 +1097,7 @@ static void unpackvslots(block3 &b, ucharbuf &buf)
     cube *c = b.c();
     loopi(b.size()) unpackvslots(c[i], buf);
 
-    unpackingvslots.setsize(0);
+    unpackingvslots.resize(0);
 }
  
 static bool compresseditinfo(const uchar *inbuf, int inlen, uchar *&outbuf, int &outlen)
@@ -1644,7 +1644,7 @@ namespace hmap
 
 SCRIPTEXPORT_AS(cancel) void hmap::cancel()
 {
-	textures.setsize(0);
+    textures.resize(0);
 }
 
 SCRIPTEXPORT_AS(select) void hmap::select()
@@ -2256,7 +2256,7 @@ void mpeditvslot(int delta, VSlot &ds, int allfaces, selinfo &sel, bool local)
     bool findrep = local && !allfaces && reptex < 0;
     VSlot *findedit = NULL;
     loopselxyz(remapvslots(c, delta != 0, ds, allfaces ? -1 : sel.orient, findrep, findedit));
-    remappedvslots.setsize(0);
+    remappedvslots.resize(0);
     if(local && findedit)
     {
         lasttex = findedit->index;
@@ -2465,7 +2465,7 @@ static void filltexlist()
 
 void compactmruvslots()
 {
-    remappedvslots.setsize(0);
+    remappedvslots.resize(0);
     loopvrev(texmru)
     {
         if(vslots.inrange(texmru[i]))

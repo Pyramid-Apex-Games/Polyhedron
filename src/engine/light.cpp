@@ -300,7 +300,7 @@ void clearlightcache(int id)
             lightcacheentry &lce = lightcache[LIGHTCACHEHASH(x, y)];
             if(lce.x != x || lce.y != y) continue;
             lce.x = -1;
-            lce.lights.setsize(0);
+            lce.lights.clear();
         }
         return;
     }
@@ -308,7 +308,7 @@ void clearlightcache(int id)
     for(lightcacheentry *lce = lightcache; lce < &lightcache[LIGHTCACHESIZE]; lce++)
     {
         lce->x = -1;
-        lce->lights.setsize(0);
+        lce->lights.clear();
     }
 }
 
@@ -320,7 +320,7 @@ const vector<int> &checklightcache(int x, int y)
     lightcacheentry &lce = lightcache[LIGHTCACHEHASH(x, y)];
     if(lce.x == x && lce.y == y) return lce.lights;
 
-    lce.lights.setsize(0);
+    lce.lights.clear();
     int csize = 1<<lightcachesize, cx = x<<lightcachesize, cy = y<<lightcachesize;
     auto &ents = getents();
     loopv(ents)

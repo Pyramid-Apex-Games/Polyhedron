@@ -1761,7 +1761,7 @@ void mergepolys(int orient, const ivec &co, const ivec &n, int offset, vector<po
             if(l.polys[0] >= 0 && l.polys[1] >= 0)
                 mergepolys(orient, links, nextqueue, l.polys[0], polys[l.polys[0]], polys[l.polys[1]], l);
         }
-        queue.setsize(0);
+        queue.clear();
         queue = std::move(nextqueue);
     }
     addmerges(orient, co, n, offset, polys);

@@ -326,8 +326,8 @@ void disconnectmaster()
         mastersock = ENET_SOCKET_NULL;
     }
 
-    masterout.setsize(0);
-    masterin.setsize(0);
+    masterout.clear();
+    masterin.clear();
     masteroutpos = masterinpos = 0;
 
     masteraddress.host = ENET_HOST_ANY;
@@ -417,7 +417,7 @@ void processmasterinput()
 
     if(masterinpos >= masterin.size())
     {
-        masterin.setsize(0);
+        masterin.clear();
         masterinpos = 0;
     }
 }
@@ -440,7 +440,7 @@ void flushmasteroutput()
         masteroutpos += sent;
         if(masteroutpos >= masterout.size())
         {
-            masterout.setsize(0);
+            masterout.clear();
             masteroutpos = 0;
         }
     }

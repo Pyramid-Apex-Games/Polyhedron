@@ -750,14 +750,14 @@ void skelhitdata::build(skelmodel::skelmeshgroup *g, const uchar *ids)
             if(zj.tris.size() <= 2 && zj.parents == 1)
             {
                 zi.tris.put(zj.tris.data(), zj.tris.size());
-                zj.tris.setsize(0);
+                zj.tris.resize(0);
                 if(zj.index < 0)
                 {
                     zj.parents = 0;
                     zi.children.removeunordered(j--);
                 }
                 zi.children.put(zj.children.data(), zj.children.size());
-                zj.children.setsize(0);
+                zj.children.resize(0);
             }
         }
     }

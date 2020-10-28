@@ -187,7 +187,7 @@ struct editor
         cx = cy = 0;
         mark(false);
         loopv(lines) lines[i].clear();
-        lines.shrink(0);
+        lines.clear();
         if(init) lines.emplace_back().set(init);
     }
 

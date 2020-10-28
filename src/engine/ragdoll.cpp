@@ -65,12 +65,12 @@ void ragdollskel::setupjoints()
         m.transpose();
     }
     loopv(verts) if(verts[i].weight) verts[i].weight = 1/verts[i].weight;
-    reljoints.shrink(0);
+    reljoints.clear();
 }
 
 void ragdollskel::setuprotfrictions()
 {
-    rotfrictions.shrink(0);
+    rotfrictions.clear();
     loopv(tris) for(int j = i+1; j < tris.size(); j++) if(tris[i].shareverts(tris[j]))
     {
         rotfriction &r = rotfrictions.emplace_back();

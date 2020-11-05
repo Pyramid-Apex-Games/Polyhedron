@@ -55,7 +55,7 @@ namespace game
     void updateentities() {
         loopv(getents())
         {
-            if (getents().inrange(i))
+            if (in_range(i, getents()))
             {
                 send_entity_event(i, EntityEventTick());
             }

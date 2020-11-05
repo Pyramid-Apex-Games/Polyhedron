@@ -718,7 +718,7 @@ void skelhitdata::build(skelmodel::skelmeshgroup *g, const uchar *ids)
                     zk.parents--;
                     zj.parents++;
                     zi.children[k] = &zj;
-                    while(++k < zi.children.size()) if(zj.key.includes(zi.children[k]->key)) { zi.children[k]->parents--; zi.children.removeunordered(k--); }
+                    while(++k < zi.children.size()) if(zj.key.includes(zi.children[k]->key)) { zi.children[k]->parents--; remove_obj(zi.children[k--], zi.children); }
                     goto nextzone;
                 }
             }
@@ -749,14 +749,14 @@ void skelhitdata::build(skelmodel::skelmeshgroup *g, const uchar *ids)
             skelzoneinfo &zj = *zi.children[j];
             if(zj.tris.size() <= 2 && zj.parents == 1)
             {
-                zi.tris.put(zj.tris.data(), zj.tris.size());
+                put(zj.tris.data(), zj.tris.size(), zi.tris);
                 zj.tris.resize(0);
                 if(zj.index < 0)
                 {
                     zj.parents = 0;
-                    zi.children.removeunordered(j--);
+                    zi.children.erase(zi.children.begin() + j--);
                 }
-                zi.children.put(zj.children.data(), zj.children.size());
+                put(zj.children.data(), zj.children.size(), zi.children);
                 zj.children.resize(0);
             }
         }
@@ -765,7 +765,7 @@ void skelhitdata::build(skelmodel::skelmeshgroup *g, const uchar *ids)
     loopvrev(info)
     {
         skelzoneinfo &zi = *info[i];
-        if(zi.parents || zi.tris.empty()) info.removeunordered(i);
+        if(zi.parents || zi.tris.empty()) info.erase(info.begin() + i);
         zi.conflicts = zi.parents;
         numlinks += zi.parents + zi.children.size();
         numtris += zi.tris.size();

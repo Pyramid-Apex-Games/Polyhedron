@@ -7,9 +7,17 @@
 #include "sort.h"
 #include <type_traits>
 
+namespace TEST
+{
+    void test();
+}
+
 template <class T> struct vector
 {
+    friend void TEST::test();
+
     static const int MINSIZE {8};
+    using value_type = T;
 
     T *buf;
     int alen, ulen;
@@ -18,11 +26,17 @@ template <class T> struct vector
     {
     }
 
+    vector(int size, T value=T()) : buf(NULL), alen(0), ulen(0)
+    {
+        reserve(size);
+        resize(size, value);
+    }
+
     vector(const vector &v) : buf(NULL), alen(0), ulen(0)
     {
         *this = v;
     }
-    vector(vector<T>&& v)
+    vector(vector<T>&& v) noexcept : buf(NULL), alen(0), ulen(0)
     {
         if(!ulen)
         {
@@ -44,7 +58,7 @@ template <class T> struct vector
 
     ~vector() { shrink(0); if(buf) delete[] (uchar *)buf; }
 
-    vector<T>& operator=(vector<T>&& v)
+    vector<T>& operator=(vector<T>&& v) noexcept
     {
         if(!ulen)
         {
@@ -63,16 +77,19 @@ template <class T> struct vector
         return *this;
     }
 
-    T* begin() { return buf; }
-    const T * begin() const { return buf; }
-    T* end() { return buf + ulen; }
-    const T * end() const { return buf + ulen; }
+    [[nodiscard]] T* begin() { return buf; }
+    [[nodiscard]] const T * begin() const { return buf; }
+    [[nodiscard]] T* end() { return buf + ulen; }
+    [[nodiscard]] const T * end() const { return buf + ulen; }
 
     vector<T> &operator=(const vector<T> &v)
     {
-        shrink(0);
-        if(v.size() > alen) reserve(v.size());
-        loopv(v) emplace_back(v[i]);
+        if(this != &v)
+        {
+            shrink(0);
+            if(v.size() > alen) reserve(v.size());
+            loopv(v) emplace_back(v[i]);
+        }
         return *this;
     }
 
@@ -98,25 +115,29 @@ template <class T> struct vector
         return buf[ulen++];
     }
 
-    bool inrange(size_t i) const { return i<size_t(ulen); }
-    bool inrange(int i) const { return i>=0 && i<ulen; }
+
     T *disown() { T *r = buf; buf = NULL; alen = ulen = 0; return r; }
-    bool inbuf(const T *e) const { return e >= buf && e < &buf[ulen]; }
+    bool inbuf(const T *e) const { return buf && e >= buf && e <= &buf[ulen]; }
 private:
+    [[nodiscard]] bool inrange(size_t i) const { return i<size_t(ulen); }
+    [[nodiscard]] bool inrange(int i) const { return i>=0 && i<ulen; }
 //    void drop() { ulen--; buf[ulen].~T(); }
 
 //    void deletecontents(int n = 0) { while(ulen > n) delete &pop_back(); }
 //
 //    void deletearrays(int n = 0) { while(ulen > n) delete[] &pop_back(); }
 
-    void call_finalizers(const T* begin, const T* end)
+    void call_finalizers(const T* begin, const T* end = nullptr)
     {
-        if (inbuf(begin) && inbuf(end))
+        if (inbuf(begin))
         {
-            T* ptr = buf + (begin - buf) + (end - begin);
-            while(ptr != begin)
+            if (inbuf(end))
             {
-                (*(--ptr)).~T();
+                T* ptr = buf + (begin - buf) + (end - begin);
+                while(ptr != begin)
+                {
+                    (*(--ptr)).~T();
+                }
             }
             (*begin).~T();
         }
@@ -129,36 +150,52 @@ public:
         ulen = 0;
     }
 
-    void erase(const T* begin, const T* end)
+    T* erase(const T* begin, const T* end = nullptr)
     {
-        if (inbuf(begin) && inbuf(end))
+        auto atEnd = (end == nullptr && begin == this->end()) || this->end() == end;
+        if (inbuf(begin))
         {
-            if constexpr (std::is_destructible<T>::value)
+            if (inbuf(end))
             {
-                call_finalizers(begin, end);
-            }
+                if constexpr (std::is_destructible<T>::value)
+                {
+                    call_finalizers(begin, end);
+                }
 
-            int holeSize = end - begin;
-            int beginIndex = begin - buf;
-            for(auto i = 0; beginIndex + holeSize + i < ulen; ++i)
-            {
-                std::swap(buf[beginIndex + i], buf[beginIndex + holeSize + i]);
+                int holeSize = end - begin;
+                int beginIndex = begin - buf;
+                for(auto i = 0; beginIndex + holeSize + i < ulen; ++i)
+                {
+                    std::swap(buf[beginIndex + i], buf[beginIndex + holeSize + i]);
+                }
+                ulen -= holeSize;
             }
-            ulen -= holeSize;
+            else
+            {
+                if constexpr (std::is_destructible<T>::value)
+                {
+                    call_finalizers(begin);
+                }
+                ulen--;
+            }
         }
+        if (atEnd)
+            return this->end();
+        else
+            return this->begin() + (begin - this->begin());
     }
 
     T &pop_back() { return buf[--ulen]; }
     T &back() { return buf[ulen - 1]; }
-    bool empty() const { return ulen==0; }
+    [[nodiscard]] bool empty() const { return ulen==0; }
 
-    int capacity() const { return alen; }
-    int size() const { return ulen; }
+    [[nodiscard]] int capacity() const { return alen; }
+    [[nodiscard]] int size() const { return ulen; }
     T &operator[](int i) { ASSERT(i>=0 && i<ulen); return buf[i]; }
     const T &operator[](int i) const { ASSERT(i >= 0 && i<ulen); return buf[i]; }
 
     T *data() { return buf; }
-    const T *data() const { return buf; }
+    [[nodiscard]] const T *data() const { return buf; }
 
 private:
     void shrink(int i) { ASSERT(i<=ulen); if constexpr (isclass<T>::yes) call_finalizers(buf + i, buf + ulen); ulen = i; }
@@ -191,7 +228,7 @@ public:
         if(!alen) alen = std::max(MINSIZE, sz);
         else while(alen < sz) alen += alen/2;
         if(alen <= olen) return;
-        uchar *newbuf = new uchar[alen*sizeof(T)];
+        auto *newbuf = new uchar[alen*sizeof(T)];
         if(olen > 0)
         {
             if(ulen > 0) memcpy(newbuf, (void *)buf, ulen*sizeof(T));
@@ -206,6 +243,31 @@ public:
         return databuf<T>(&buf[ulen], sz);
     }
 
+    T &insert(int i, const T &e)
+    {
+        emplace_back(T());
+        for(int p = ulen-1; p>i; p--) buf[p] = buf[p-1];
+        buf[i] = e;
+        return buf[i];
+    }
+
+    T &insert(const T* at, const T &e)
+    {
+        const int i = at - begin();
+        return insert(i, e);
+    }
+
+    T *insert(int i, const T *first, const T *last = nullptr)
+    {
+        const int n = last - first;
+        if(alen-ulen < n) reserve(ulen + n);
+        loopj(n) emplace_back(T());
+        for(int p = ulen-1; p>=i+n; p--) buf[p] = buf[p-n];
+        loopj(n) buf[i+j] = first[j];
+        return &buf[i];
+    }
+
+private:
     void advance(int sz)
     {
         ulen += sz;
@@ -218,18 +280,18 @@ public:
 
     T *pad(int n)
     {
-        T *buf = reserve_raw_return(n).buf;
+        T *b = reserve_raw_return(n).buf;
         advance(n);
-        return buf;
+        return b;
     }
 
     void put(const T &v) { emplace_back(v); }
 
     void put(const T *v, int n)
     {
-        databuf<T> buf = reserve_raw_return(n);
-        buf.put(v, n);
-        addbuf(buf);
+        databuf<T> b = reserve_raw_return(n);
+        b.put(v, n);
+        addbuf(b);
     }
 
     void remove(int i, int n)
@@ -266,17 +328,6 @@ public:
         if(find(o) < 0) emplace_back(o);
     }
 
-    void removeobj(const T &o)
-    {
-        loopi(ulen) if(buf[i] == o)
-        {
-            int dst = i;
-            for(int j = i+1; j < ulen; j++) if(!(buf[j] == o)) buf[dst++] = buf[j];
-            resize(dst);
-            break;
-        }
-    }
-
     void replacewithlast(const T &o)
     {
         if(!ulen) return;
@@ -288,81 +339,64 @@ public:
         ulen--;
     }
 
-    T &insert(int i, const T &e)
-    {
-        emplace_back(T());
-        for(int p = ulen-1; p>i; p--) buf[p] = buf[p-1];
-        buf[i] = e;
-        return buf[i];
-    }
-
-    T *insert(int i, const T *e, int n)
-    {
-        if(alen-ulen < n) reserve(ulen + n);
-        loopj(n) emplace_back(T());
-        for(int p = ulen-1; p>=i+n; p--) buf[p] = buf[p-n];
-        loopj(n) buf[i+j] = e[j];
-        return &buf[i];
-    }
-
     void reverse()
     {
         loopi(ulen/2) std::swap(buf[i], buf[ulen-1-i]);
     }
 
 private:
-    static int heapparent(int i) { return (i - 1) >> 1; }
-    static int heapchild(int i) { return (i << 1) + 1; }
-
-    void buildheap()
-    {
-        for(int i = ulen/2; i >= 0; i--) downheap(i);
-    }
-
-    int upheap(int i)
-    {
-        float score = heapscore(buf[i]);
-        while(i > 0)
-        {
-            int pi = heapparent(i);
-            if(score >= heapscore(buf[pi])) break;
-            std::swap(buf[i], buf[pi]);
-            i = pi;
-        }
-        return i;
-    }
-
-    T &addheap(const T &x)
-    {
-        emplace_back(x);
-        return buf[upheap(ulen-1)];
-    }
-
-    int downheap(int i)
-    {
-        float score = heapscore(buf[i]);
-        for(;;)
-        {
-            int ci = heapchild(i);
-            if(ci >= ulen) break;
-            float cscore = heapscore(buf[ci]);
-            if(score > cscore)
-            {
-                if(ci+1 < ulen && heapscore(buf[ci+1]) < cscore) { std::swap(buf[ci+1], buf[i]); i = ci+1; }
-                else { std::swap(buf[ci], buf[i]); i = ci; }
-            }
-            else if(ci+1 < ulen && heapscore(buf[ci+1]) < score) { std::swap(buf[ci+1], buf[i]); i = ci+1; }
-            else break;
-        }
-        return i;
-    }
-
-    T removeheap()
-    {
-        T e = removeunordered(0);
-        if(ulen) downheap(0);
-        return e;
-    }
+//    static int heapparent(int i) { return (i - 1u) >> 1u; }
+//    static int heapchild(int i) { return (i << 1u) + 1u; }
+//
+//    void buildheap()
+//    {
+//        for(int i = ulen/2; i >= 0; i--) downheap(i);
+//    }
+//
+//    int upheap(int i)
+//    {
+//        float score = heapscore(buf[i]);
+//        while(i > 0)
+//        {
+//            int pi = heapparent(i);
+//            if(score >= heapscore(buf[pi])) break;
+//            std::swap(buf[i], buf[pi]);
+//            i = pi;
+//        }
+//        return i;
+//    }
+//
+//    T &addheap(const T &x)
+//    {
+//        emplace_back(x);
+//        return buf[upheap(ulen-1)];
+//    }
+//
+//    int downheap(int i)
+//    {
+//        float score = heapscore(buf[i]);
+//        for(;;)
+//        {
+//            int ci = heapchild(i);
+//            if(ci >= ulen) break;
+//            float cscore = heapscore(buf[ci]);
+//            if(score > cscore)
+//            {
+//                if(ci+1 < ulen && heapscore(buf[ci+1]) < cscore) { std::swap(buf[ci+1], buf[i]); i = ci+1; }
+//                else { std::swap(buf[ci], buf[i]); i = ci; }
+//            }
+//            else if(ci+1 < ulen && heapscore(buf[ci+1]) < score) { std::swap(buf[ci+1], buf[i]); i = ci+1; }
+//            else break;
+//        }
+//        return i;
+//    }
+//
+//    T removeheap()
+//    {
+//        T e = removeunordered(0);
+//        if(ulen) downheap(0);
+//        return e;
+//    }
 
     template<class K>
     int htfind(const K &key)
@@ -394,9 +428,3 @@ private:
 //#undef UNIQUE
 };
 template <class T> const int vector<T>::MINSIZE;
-
-template <typename T>
-T &duplicate_back(vector<T>& source)
-{
-    return source.emplace_back(source.back());
-}

@@ -627,8 +627,8 @@ int findmaterials()
                 materialsurface &m = va->matbuf[i];
                 if((m.material&MATF_VOLUME) != MAT_LAVA || m.visible == MATSURF_EDIT_ONLY) { i += m.skip; continue; }
                 hasmats |= 1;
-                if(m.orient == O_TOP) lavasurfs[m.material&MATF_INDEX].put(&m, 1+int(m.skip));
-                else lavafallsurfs[m.material&MATF_INDEX].put(&m, 1+int(m.skip));
+                if(m.orient == O_TOP) put(&m, 1+int(m.skip), lavasurfs[m.material&MATF_INDEX]);
+                else put(&m, 1+int(m.skip), lavafallsurfs[m.material&MATF_INDEX]);
                 i += m.skip;
             }
         }
@@ -648,8 +648,8 @@ int findmaterials()
                 materialsurface &m = va->matbuf[i];
                 if((m.material&MATF_VOLUME) != MAT_WATER || m.visible == MATSURF_EDIT_ONLY) { i += m.skip; continue; }
                 hasmats |= 4|1;
-                if(m.orient == O_TOP) watersurfs[m.material&MATF_INDEX].put(&m, 1+int(m.skip));
-                else waterfallsurfs[m.material&MATF_INDEX].put(&m, 1+int(m.skip));
+                if(m.orient == O_TOP) put(&m, 1+int(m.skip), watersurfs[m.material&MATF_INDEX]);
+                else put(&m, 1+int(m.skip), waterfallsurfs[m.material&MATF_INDEX]);
                 i += m.skip;
             }
         }
@@ -669,7 +669,7 @@ int findmaterials()
                 materialsurface &m = va->matbuf[i];
                 if((m.material&MATF_VOLUME) != MAT_GLASS) { i += m.skip; continue; }
                 hasmats |= 4|2;
-                glasssurfs[m.material&MATF_INDEX].put(&m, 1+int(m.skip));
+                put(&m, 1+int(m.skip), glasssurfs[m.material&MATF_INDEX]);
                 i += m.skip;
             }
         }
@@ -722,7 +722,7 @@ void renderglass()
 
         MatSlot &gslot = lookupmaterialslot(MAT_GLASS+k);
 
-        Texture *tex = gslot.sts.inrange(0) ? gslot.sts[0].t : notexture;
+        Texture *tex = gslot.sts.empty() ? notexture : gslot.sts[0].t;
         glassxscale = TEX_SCALE/(tex->xs*gslot.scale);
         glassyscale = TEX_SCALE/(tex->ys*gslot.scale);
 

@@ -533,7 +533,7 @@ namespace UI
         template<class T> T *buildtype()
         {
             T *t;
-            if(children.inrange(buildchild))
+            if(in_range(buildchild, children))
             {
                 Object *o = children[buildchild];
                 if(o->istype<T>()) t = (T *)o;
@@ -798,7 +798,7 @@ namespace UI
             loopwindows(w,
             {
                 w->build();
-                if(!children.inrange(i)) break;
+                if(!in_range(i, children)) break;
                 if(children[i] != w) i--;
             });
             resetstate();
@@ -806,7 +806,7 @@ namespace UI
 
         bool show(Window *w)
         {
-            if(children.find(w) >= 0) return false;
+            if(std::find(children.begin(), children.end(), w) != children.end()) return false;
             w->resetchildstate();
             children.emplace_back(w);
             w->show();
@@ -815,7 +815,7 @@ namespace UI
 
         void hide(Window *w, int index)
         {
-            children.remove(index);
+            children.erase(children.begin() + index);
             childstate = 0;
             loopchildren(o, childstate |= o->state | o->childstate);
             w->hide();
@@ -823,8 +823,9 @@ namespace UI
 
         bool hide(Window *w)
         {
-            int index = children.find(w);
-            if(index < 0) return false;
+            auto itr = std::find(children.begin(), children.end(), w);
+            auto index = itr - children.begin();
+            if(itr == children.end()) return false;
             hide(w, index);
             return true;
         }
@@ -3157,7 +3158,7 @@ namespace UI
     {
         if(!name) return world->children.size() > 0;
         Window *window = windows.find(name, NULL);
-        return window && world->children.find(window) >= 0;
+        return window && std::find(world->children.begin(), world->children.end(), window) != world->children.end();
     }
 
     SCRIPTEXPORT_AS(showui) void showui_scriptimpl(char *name)
@@ -3211,13 +3212,13 @@ namespace UI
         ICOMMANDNS("ui" #func "?", ui##func##__, "tt", (tagval *t, tagval *f), \
             IFSTATEVAL(buildparent && buildparent->haschildstate(flags), t, f), "builtin ui"); \
         ICOMMANDNS("ui!" #func "+", uinextnot##func##_, "ee", (CommandTypes::Expression t, CommandTypes::Expression f), \
-            executeret(buildparent && buildparent->children.inrange(buildchild) && buildparent->children[buildchild]->hasstate(flags) ? t : f), "builtin ui"); \
+            executeret(buildparent && in_range(buildchild, buildparent->children) && buildparent->children[buildchild]->hasstate(flags) ? t : f), "builtin ui"); \
         ICOMMANDNS("ui" #func "+", uinext##func##_, "ee", (CommandTypes::Expression t, CommandTypes::Expression f), \
-            executeret(buildparent && buildparent->children.inrange(buildchild) && buildparent->children[buildchild]->haschildstate(flags) ? t : f), "builtin ui"); \
+            executeret(buildparent && in_range(buildchild, buildparent->children) && buildparent->children[buildchild]->haschildstate(flags) ? t : f), "builtin ui"); \
         ICOMMANDNS("ui!" #func "+?", uinextnot##func##__, "tt", (tagval *t, tagval *f), \
-            IFSTATEVAL(buildparent && buildparent->children.inrange(buildchild) && buildparent->children[buildchild]->hasstate(flags), t, f), "builtin ui"); \
+            IFSTATEVAL(buildparent && in_range(buildchild, buildparent->children) && buildparent->children[buildchild]->hasstate(flags), t, f), "builtin ui"); \
         ICOMMANDNS("ui" #func "+?", uinext##func##__, "tt", (tagval *t, tagval *f), \
-            IFSTATEVAL(buildparent && buildparent->children.inrange(buildchild) && buildparent->children[buildchild]->haschildstate(flags), t, f), "builtin ui");
+            IFSTATEVAL(buildparent && in_range(buildchild, buildparent->children) && buildparent->children[buildchild]->haschildstate(flags), t, f), "builtin ui");
     DOSTATES
     #undef DOSTATE
 
@@ -3226,9 +3227,9 @@ namespace UI
     ICOMMANDNS("uifocus?", uifocus__, "tt", (tagval *t, tagval *f),
         IFSTATEVAL(buildparent && TextEditor::focus == buildparent, t, f), "builtin ui");
     ICOMMANDNS("uifocus+", uinextfocus_, "ee", (CommandTypes::Expression t, CommandTypes::Expression f),
-        executeret(buildparent && buildparent->children.inrange(buildchild) && TextEditor::focus == buildparent->children[buildchild] ? t : f), "builtin ui");
+        executeret(buildparent && in_range(buildchild, buildparent->children) && TextEditor::focus == buildparent->children[buildchild] ? t : f), "builtin ui");
     ICOMMANDNS("uifocus+?", uinextfocus__, "tt", (tagval *t, tagval *f),
-        IFSTATEVAL(buildparent && buildparent->children.inrange(buildchild) && TextEditor::focus == buildparent->children[buildchild], t, f), "builtin ui");
+        IFSTATEVAL(buildparent && in_range(buildchild, buildparent->children) && TextEditor::focus == buildparent->children[buildchild], t, f), "builtin ui");
 
     SCRIPTEXPORT void uialign(int *xalign, int *yalign)
     {

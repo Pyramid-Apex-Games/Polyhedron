@@ -17,6 +17,11 @@ struct databuf
     int len, maxlen;
     uchar flags;
 
+    T* begin() { return buf; }
+    const T* begin() const { return buf; }
+    T* end() { return buf + len; }
+    const T* end() const { return buf + len;}
+
     databuf() : buf(nullptr), len(0), maxlen(0), flags(0) {}
 
     template<class U>

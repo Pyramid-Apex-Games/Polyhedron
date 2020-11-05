@@ -889,7 +889,7 @@ SCRIPTEXPORT void delblendbrush(const char *name)
     loopv(brushes) if(!strcmp(brushes[i]->name, name))
     {
         delete brushes[i];
-        brushes.remove(i--);
+        brushes.erase(brushes.begin() + (i--));
     }
     curbrush = brushes.empty() ? -1 : clamp(curbrush, 0, brushes.size()-1);
 }
@@ -1083,7 +1083,7 @@ SCRIPTEXPORT_AS(moveblendmap) void moveblendmap_scriptimpl(int *dx, int *dy)
 
 void renderblendbrush()
 {
-    if(!blendpaintmode || !brushes.inrange(curbrush)) return;
+    if(!blendpaintmode || !in_range(curbrush, brushes)) return;
     const auto& activeCamera = Camera::GetActiveCamera();
     if (!activeCamera) return;
 

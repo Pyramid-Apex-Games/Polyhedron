@@ -672,7 +672,7 @@ void updatedynentcache(MovableEntity *d)
     loopdynentcache(x, y, d->o, d->radius)
     {
         dynentcacheentry &dec = dynentcache[DYNENTHASH(x, y)];
-        if(dec.x != x || dec.y != y || dec.frame != dynentframe || dec.dynents.find(d) >= 0) continue;
+        if(dec.x != x || dec.y != y || dec.frame != dynentframe || in_list(d, dec.dynents)) continue;
         dec.dynents.emplace_back(d);
     }
 }

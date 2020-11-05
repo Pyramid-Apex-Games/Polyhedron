@@ -323,7 +323,12 @@ SCRIPTEXPORT bool removezip(const char *name)
         return false;
     }
     conoutf("removed zip %s", exists->name);
-    archives.removeobj(exists);
+    archives.erase(
+        std::remove_if(archives.begin(), archives.end(), [&exists](const ziparchive* arch){
+            return arch == exists;
+        }),
+        archives.end()
+    );
     delete exists;
     return true;
 }

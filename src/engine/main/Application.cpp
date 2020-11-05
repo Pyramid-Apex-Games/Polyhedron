@@ -78,13 +78,12 @@ Application::Application(const CommandlineArguments& commandlineArguments)
     m_Window->Initialize();
     m_Renderer = std::make_unique<Renderer>(*m_Window);
 
+    TEST::test();
     m_Renderer->Initialize();
 
     m_SoundConfig = std::make_unique<SoundConfig>();
     LoadJson(*this, "config/sound.json", *m_SoundConfig, false);
     m_SoundConfig->Load();
-
-    m_Renderer->Initialize();
 
 #ifdef BUILD_WITH_PYTHON
     m_Python = std::make_unique<PythonScript>(commandlineArguments.Get(Argument::Any));

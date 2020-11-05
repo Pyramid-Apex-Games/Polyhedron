@@ -90,12 +90,12 @@ void cleardynlights()
     int faded = -1;
     loopv(dynlights) if(lastmillis<dynlights[i].expire) { faded = i; break; }
     if(faded<0) dynlights.clear();
-    else if(faded>0) dynlights.remove(0, faded);
+    else if(faded>0) dynlights.erase(dynlights.begin(), dynlights.begin() + faded);
 }
 
 void removetrackeddynlights(Entity *owner)
 {
-    loopvrev(dynlights) if(owner ? dynlights[i].owner == owner : dynlights[i].owner != NULL) dynlights.remove(i);
+    loopvrev(dynlights) if(owner ? dynlights[i].owner == owner : dynlights[i].owner != NULL) dynlights.erase(dynlights.begin() + i);
 }
 
 void updatedynlights()
@@ -142,7 +142,7 @@ int finddynlights()
 
 bool getdynlight(int n, vec &o, float &radius, vec &color, vec &dir, int &spot, int &flags)
 {
-    if(!closedynlights.inrange(n)) return false;
+    if(!in_range(n, closedynlights)) return false;
     dynlight &d = *closedynlights[n];
     o = d.o;
     radius = d.curradius;

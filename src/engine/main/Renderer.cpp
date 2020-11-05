@@ -50,6 +50,10 @@ void Renderer::Initialize()
 //    {
 //        Application::Instance().Fatal("cannot find default font");
 //    }
+    if(!execfile("config/test.cfg", false))
+    {
+        Application::Instance().Fatal("test.cfg failed");
+    }
     if(!execfile("config/font.cfg", false))
     {
         Application::Instance().Fatal("cannot find default font");

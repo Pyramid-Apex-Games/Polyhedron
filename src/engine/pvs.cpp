@@ -791,7 +791,7 @@ struct pvsworker
         numviewcells++;
         pvsdata key(pvsbuf.size(), waterbytes + outbuf.size());
         loopi(waterbytes) pvsbuf.emplace_back((wateroccluded >> (i * 8)) & 0xFF);
-        pvsbuf.put(outbuf.data(), outbuf.size());
+        put(outbuf, pvsbuf);
         int *val = pvscompress.access(key);
         if(val) pvsbuf.resize(key.offset);
         else
@@ -1314,7 +1314,7 @@ void loadpvs(stream *f, int numpvs)
         offset += len;
     }
     f->read(pvsbuf.reserve_raw_return(totallen).buf, totallen);
-    pvsbuf.advance(totallen);
+    pvsbuf.resize(pvsbuf.size() + totallen);
     viewcells = loadviewcells(f);
 }
 

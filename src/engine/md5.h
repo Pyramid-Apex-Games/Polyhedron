@@ -242,7 +242,7 @@ struct md5 : skelloader<md5>
                     if(!m->numtris || !m->numverts)
                     {
                         conoutf("empty mesh in %s", filename);
-                        meshes.removeobj(m);
+                        remove_obj(static_cast<mesh*>(m), meshes);
                         delete m;
                     }
                 }
@@ -403,7 +403,7 @@ struct md5 : skelloader<md5>
                             j.orient.restorew();
                         }
                         dualquat dq(j.orient, j.pos);
-                        if(adjustments.inrange(i)) adjustments[i].adjust(dq);
+                        if(in_range(i, adjustments)) adjustments[i].adjust(dq);
                         boneinfo &b = skel->bones[i];
                         dq.mul(b.invbase);
                         dualquat &dst = frame[i];

@@ -138,7 +138,7 @@ void findnormal(const vec &pos, int smooth, const vec &surface, vec &v)
     const normalgroup *g = normalgroups.access(key);
     if(g)
     {
-        int angle = smoothgroups.inrange(smooth) && smoothgroups[smooth] >= 0 ? smoothgroups[smooth] : lerpangle;
+        int angle = in_range(smooth, smoothgroups) && smoothgroups[smooth] >= 0 ? smoothgroups[smooth] : lerpangle;
         float lerpthreshold = cos360(angle) - 1e-5f;
         if(g->tnormals < 0 || !findtnormal(*g, lerpthreshold, surface, v))
             findnormal(*g, lerpthreshold, surface, v);

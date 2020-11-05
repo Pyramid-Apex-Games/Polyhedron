@@ -440,7 +440,7 @@ void preloadusedmapmodels(bool msg, bool bih)
 	loopv(ents)
 	{
 		auto e = dynamic_cast<ModelEntity*>(ents[i]);
-		if(e && used.find(e->model_idx) < 0) used.emplace_back(e->model_idx);
+		if(e && !in_list(e->model_idx, used)) used.emplace_back(e->model_idx);
 	}
 
 	vector<std::string> col;
@@ -614,7 +614,7 @@ void resetmodelbatches()
 void addbatchedmodel(model *m, batchedmodel &bm, int idx)
 {
 	modelbatch *b = NULL;
-	if(batches.inrange(m->batch))
+	if(in_range(m->batch, batches))
 	{
 		b = &batches[m->batch];
 		if(b->m == m && (b->flags & MDL_MAPMODEL) == (bm.flags & MDL_MAPMODEL))
@@ -1207,7 +1207,7 @@ SCRIPTEXPORT void findanims(char *name)
     {
         formatcubestr(num, "%d", anims[i]);
         if(i > 0) buf.emplace_back(' ');
-        buf.put(num, strlen(num));
+        put(num, strlen(num), buf);
     }
     buf.emplace_back('\0');
     result(buf.data());

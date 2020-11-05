@@ -173,7 +173,7 @@ void clearoverrides()
 }
 
 static bool initedidents = false;
-static vector<ident> *identinits = NULL;
+static vector<ident> *identinits = nullptr;
 
 static inline ident *addident(const ident &id)
 {
@@ -933,7 +933,7 @@ static char *conc(vector<char> &buf, tagval *v, int n, bool space, const char *p
 {
     if(prefix)
     {
-        buf.put(prefix, prefixlen);
+        put(prefix, prefixlen, buf);
         if(space && n) buf.emplace_back(' ');
     }
     loopi(n)
@@ -949,7 +949,7 @@ static char *conc(vector<char> &buf, tagval *v, int n, bool space, const char *p
         }
         len = int(strlen(s));
     haslen:
-        buf.put(s, len);
+        put(s, len, buf);
         if(i == n-1) break;
         if(space) buf.emplace_back(' ');
     }
@@ -1041,7 +1041,7 @@ static inline void cutcubestr(const char *&p, cubestrslice &s)
 
     stridx = (stridx + 1)%4;
     vector<char> &buf = strbuf[stridx];
-    if(buf.alen < maxlen) buf.reserve(maxlen);
+    if(buf.alen < maxlen) buf.reserve(buf.size() + maxlen);
 
     s.str = buf.buf;
     s.len = unescapecubestr(buf.buf, p, end);
@@ -1094,11 +1094,30 @@ static inline char *cutword(const char *&p)
     return p!=word ? newcubestr(word, p-word) : NULL;
 }
 
-#define retcode(type, defaultret) ((type) >= VAL_ANY ? ((type) == VAL_CSTR ? RET_STR : (defaultret)) : (type) << CODE_RET)
-#define retcodeint(type) retcode(type, RET_INT)
-#define retcodefloat(type) retcode(type, RET_FLOAT)
-#define retcodeany(type) retcode(type, 0)
-#define retcodestr(type) ((type) >= VAL_ANY ? RET_STR : (type) << CODE_RET)
+static inline int retcode(VAL_T type, CODE_T defaultret)
+{
+    return type >= VAL_ANY ? (type == VAL_CSTR ? RET_STR : defaultret) : type << CODE_RET;
+}
+
+static inline int retcodeint(VAL_T type)
+{
+    return retcode(type, RET_INT);
+}
+
+static inline int retcodefloat(VAL_T type)
+{
+    return retcode(type, RET_FLOAT);
+}
+
+static inline int retcodeany(VAL_T type)
+{
+    return retcode(type, (CODE_T) 0);
+}
+
+static inline int retcodestr(VAL_T type)
+{
+    return type >= VAL_ANY ? RET_STR : type << CODE_RET;
+}
 
 static inline void compilestr(vector<uint> &code, const char *word, int len, bool macro = false)
 {
@@ -1110,7 +1129,7 @@ static inline void compilestr(vector<uint> &code, const char *word, int len, boo
         return;
     }
     code.emplace_back((macro ? CODE_MACRO : CODE_VAL | RET_STR) | (len << 8));
-    code.put((const uint *)word, len/sizeof(uint));
+    put((const uint *)word, len/sizeof(uint), code);
     size_t endlen = len%sizeof(uint);
     union
     {
@@ -1130,12 +1149,14 @@ static inline void compileunescapecubestr(vector<uint> &code, const char *&p, bo
 {
     p++;
     const char *end = parsecubestr(p);
-    code.emplace_back(macro ? CODE_MACRO : CODE_VAL | RET_STR);
-    char *buf = (char *)code.reserve_raw_return(int(end-p)/sizeof(uint) + 1).buf;
-    int len = unescapecubestr(buf, p, end);
-    memset(&buf[len], 0, sizeof(uint) - len%sizeof(uint));
-    code.back() |= len << 8;
-    code.advance(len/sizeof(uint) + 1);
+    const int uintsize = sizeof(uint);
+    const int bufsize = int(end-p) / uintsize + 1;
+    std::vector<char> buf(bufsize*uintsize, 0);
+    int len = unescapecubestr(buf.data(), p, end);
+    code.emplace_back(( macro ? CODE_MACRO : CODE_VAL | RET_STR) | len << 8);
+    auto oldbackIdx = code.size();
+    code.reserve(code.size() + len/uintsize + 1);
+    putraw(buf, code);
     p = end;
     if(*p == '\"') p++;
 }
@@ -1169,7 +1190,7 @@ static inline void compileblock(vector<uint> &code)
     code.emplace_back(CODE_EMPTY);
 }
 
-static void compilestatements(vector<uint> &code, const char *&p, int rettype, int brak = '\0', int prevargs = 0);
+static void compilestatements(vector<uint> &code, const char *&p, VAL_T rettype, int brak = '\0', int prevargs = 0);
 
 static inline const char *compileblock(vector<uint> &code, const char *p, int rettype = RET_NULL, int brak = '\0')
 {
@@ -1281,9 +1302,9 @@ static inline void compileval(vector<uint> &code, int wordtype, const cubestrsli
 }
 
 static cubestrslice unusedword(NULL, 0);
-static bool compilearg(vector<uint> &code, const char *&p, int wordtype, int prevargs = MAXRESULTS, cubestrslice &word = unusedword);
+static bool compilearg(vector<uint> &code, const char *&p, VAL_T wordtype, int prevargs = MAXRESULTS, cubestrslice &word = unusedword);
 
-static void compilelookup(vector<uint> &code, const char *&p, int ltype, int prevargs = MAXRESULTS)
+static void compilelookup(vector<uint> &code, const char *&p, VAL_T ltype, int prevargs = MAXRESULTS)
 {
     cubestrslice lookup;
     switch(*++p)
@@ -1438,9 +1459,13 @@ static bool compileblockstr(vector<uint> &code, const char *str, const char *end
 {
     int start = code.size();
     code.emplace_back(macro ? CODE_MACRO : CODE_VAL | RET_STR);
-    char *buf = (char *)code.reserve_raw_return((end-str)/sizeof(uint)+1).buf;
+    const int uintsize = sizeof(uint);
+    const int reservelen = (end-str)/uintsize+1;
+    vector<char> buf(reservelen*uintsize, '\0');
+    //char *buf = (char *)code.reserve_raw_return().buf;
     int len = 0;
-    while(str < end)
+    bool done = false;
+    while(done == false && str < end)
     {
         int n = strcspn(str, "\r/\"@]\0");
         memcpy(&buf[len], str, n);
@@ -1474,13 +1499,14 @@ static bool compileblockstr(vector<uint> &code, const char *str, const char *end
             case '@':
             case ']':
                 if(str < end) { buf[len++] = *str++; break; }
-            case '\0': goto done;
+            case '\0': done = true; break;
         }
     }
-done:
-    memset(&buf[len], '\0', sizeof(uint)-len%sizeof(uint));
-    code.advance(len/sizeof(uint)+1);
+
+//    memset(buf.data() + len, '\0', sizeof(uint)-len%sizeof(uint));
+    code.reserve(code.size() + reservelen);
     code[start] |= len<<8;
+    putraw(buf, code);
     return true;
 }
 
@@ -1528,7 +1554,7 @@ static bool compileblocksub(vector<uint> &code, const char *&p, int prevargs)
     return true;
 }
 
-static void compileblockmain(vector<uint> &code, const char *&p, int wordtype, int prevargs)
+static void compileblockmain(vector<uint> &code, const char *&p, VAL_T wordtype, int prevargs)
 {
     const char *line = p, *start = p;
     int concs = 0;
@@ -1628,7 +1654,7 @@ done:
     }
 }
 
-static bool compilearg(vector<uint> &code, const char *&p, int wordtype, int prevargs, cubestrslice &word)
+static bool compilearg(vector<uint> &code, const char *&p, VAL_T wordtype, int prevargs, cubestrslice &word)
 {
     skipcomments(p);
     switch(*p)
@@ -1692,7 +1718,10 @@ static bool compilearg(vector<uint> &code, const char *&p, int wordtype, int pre
                 {
                     code.emplace_back(CODE_RESULT_ARG | retcodeany(wordtype));
                 }
-                else { compileval(code, wordtype); return true; }
+                else
+                {
+                    compileval(code, wordtype); return true;
+                }
             }
             switch(wordtype)
             {
@@ -1750,7 +1779,7 @@ static bool compilearg(vector<uint> &code, const char *&p, int wordtype, int pre
     }
 }
 
-static void compilestatements(vector<uint> &code, const char *&p, int rettype, int brak, int prevargs)
+static void compilestatements(vector<uint> &code, const char *&p, VAL_T rettype, int brak, int prevargs)
 {
     const char *line = p;
     cubestrslice idname;
@@ -2932,6 +2961,9 @@ static const uint *runcode(const uint *code, tagval &result)
                 }
             }
             #undef SKIPARGS
+//            default:
+//                conoutf(CON_WARN, "Unknown opcode %x", op&0xFF);
+//                assert(false && "unknown opcode");
         }
     }
 exit:
@@ -3156,6 +3188,7 @@ bool execfile(const char *cfgfile, bool msg)
     const char *oldsourcefile = sourcefile, *oldsourcestr = sourcestr;
     sourcefile = cfgfile;
     sourcestr = buf;
+    conoutf("Executing file %s", cfgfile);
     execute(buf);
     sourcefile = oldsourcefile;
     sourcestr = oldsourcestr;
@@ -3170,17 +3203,18 @@ const char *escapecubestr(const char *s)
     vector<char> &buf = strbuf[stridx];
     buf.clear();
     buf.emplace_back('"');
+
     for(; *s; s++) switch(*s)
     {
-        case '\n': buf.put("^n", 2); break;
-        case '\t': buf.put("^t", 2); break;
-        case '\f': buf.put("^f", 2); break;
-        case '"': buf.put("^\"", 2); break;
-        case '^': buf.put("^^", 2); break;
+        case '\n': put("^n", buf); break;
+        case '\t': put("^t", buf); break;
+        case '\f': put("^f", buf); break;
+        case '"': put("^\"",buf); break;
+        case '^': put("^^", buf); break;
         default:
             buf.emplace_back(*s); break;
     }
-    buf.put("\"\0", 2);
+    put("\"\0", buf);
     return buf.data();
 }
 
@@ -3457,7 +3491,7 @@ static inline void loopconc(ident &id, int offset, int n, int step, uint *body, 
         const char *vstr = v.getstr();
         int len = strlen(vstr);
         if(space && i) s.emplace_back(' ');
-        s.put(vstr, len);
+        put(vstr, len, s);
         freearg(v);
     }
     if(n > 0) poparg(id);
@@ -3814,7 +3848,7 @@ void looplistconc(ident *id, const char *list, const uint *body, bool space)
         executeret(body, v);
         const char *vstr = v.getstr();
         int len = strlen(vstr);
-        r.put(vstr, len);
+        put(vstr, len, r);
         freearg(v);
     }
     if(n) poparg(*id);
@@ -3838,7 +3872,7 @@ void listfilter(ident *id, const char *list, const uint *body)
         if(executebool(body))
         {
             if(r.size()) r.emplace_back(' ');
-            r.put(qstart, qend-qstart);
+            put(qstart, qend-qstart, r);
         }
     }
     if(n) poparg(*id);
@@ -3869,15 +3903,15 @@ void prettylist(const char *s, const char *conj)
     const char *start, *end, *qstart;
     for(int len = listlen(s), n = 0; parselist(s, start, end, qstart); n++)
     {
-        if(*qstart == '"') p.advance(unescapecubestr(p.reserve_raw_return(end - start + 1).buf, start, end));
-        else p.put(start, end - start);
+        if(*qstart == '"') p.resize(p.size() + unescapecubestr(p.reserve_raw_return(end - start + 1).buf, start, end));
+        else put(start, end - start, p);
         if(n+1 < len)
         {
             if(len > 2 || !conj[0]) p.emplace_back(',');
             if(n+2 == len && conj[0])
             {
                 p.emplace_back(' ');
-                p.put(conj, strlen(conj));
+                put(conj, strlen(conj), p);
             }
             p.emplace_back(' ');
         }
@@ -3911,7 +3945,7 @@ ICOMMAND(indexof, "ss", (char *list, char *elem), intret(listincludes(list, elem
             if(listincludes(filter, start, len) dir 0) \
             { \
                 if(!p.empty()) p.emplace_back(' '); \
-                p.put(qstart, qend-qstart); \
+                put(qstart, qend-qstart, p); \
             } \
         } \
         p.emplace_back('\0'); \
@@ -3920,7 +3954,7 @@ ICOMMAND(indexof, "ss", (char *list, char *elem), intret(listincludes(list, elem
 
 LISTMERGECMD(listdel, , list, elems, <);
 LISTMERGECMD(listintersect, , list, elems, >=);
-LISTMERGECMD(listunion, p.put(list, strlen(list)), elems, list, <);
+LISTMERGECMD(listunion, put(list, p), elems, list, <);
 
 void listsplice(const char *s, const char *vals, int *skip, int *count)
 {
@@ -3928,11 +3962,11 @@ void listsplice(const char *s, const char *vals, int *skip, int *count)
     const char *list = s, *start, *end, *qstart, *qend = s;
     loopi(offset) if(!parselist(s, start, end, qstart, qend)) break;
     vector<char> p;
-    if(qend > list) p.put(list, qend-list);
+    if(qend > list) put(list, qend-list, p);
     if(*vals)
     {
         if(!p.empty()) p.emplace_back(' ');
-        p.put(vals, strlen(vals));
+        put(vals, p);
     }
     loopi(len) if(!parselist(s)) break;
     skiplist(s);
@@ -3941,7 +3975,7 @@ void listsplice(const char *s, const char *vals, int *skip, int *count)
         case '\0': case ')': case ']': break;
         default:
             if(!p.empty()) p.emplace_back(' ');
-            p.put(s, strlen(s));
+            put(s, p);
             break;
     }
     p.emplace_back('\0');
@@ -4419,7 +4453,7 @@ void checksleep(int millis)
             execute(cmd);
             identflags = oldflags;
             delete[] cmd;
-            if(sleepcmds.inrange(i) && !sleepcmds[i].command) sleepcmds.remove(i--);
+            if(in_range(i, sleepcmds) && !sleepcmds[i].command) sleepcmds.erase(sleepcmds.begin() + i--);
         }
     }
 }

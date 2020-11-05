@@ -187,7 +187,7 @@ void searchbinds(char *action, int type)
         if(!strcmp(km.actions[type], action))
         {
             if(names.size()) names.emplace_back(' ');
-            names.put(km.name, strlen(km.name));
+            put(km.name, 1, names);
         }
     });
     names.emplace_back('\0');
@@ -299,7 +299,7 @@ SCRIPTEXPORT void clearallbinds()
 }
 
 
-SCRIPTEXPORT void inputcommand(char *init, char *action = NULL, char *prompt = NULL, char *flags = NULL) // turns input to the command line on or off
+SCRIPTEXPORT void inputcommand(char *init, char *action =  NULL, char *prompt = NULL, char *flags = NULL) // turns input to the command line on or off
 {
     commandmillis = init ? totalmillis : -1;
     textinput(commandmillis >= 0, TI_CONSOLE);
@@ -398,7 +398,7 @@ VARP(maxhistory, 0, 1000, 10000);
 SCRIPTEXPORT_AS(history) void history_(int *n)
 {
     static bool inhistory = false;
-    if(!inhistory && history.inrange(*n))
+    if(!inhistory && in_range(*n, history))
     {
         inhistory = true;
         history[history.size()-*n-1]->run();
@@ -457,7 +457,7 @@ void execbind(keym &k, bool isdown)
                 delete[] ra.action;
             }
             else execute(isdown ? NULL : ra.id, ra.args, ra.numargs);
-            releaseactions.remove(i--);
+            releaseactions.erase(releaseactions.begin() + i--);
         }
     }
     if(isdown)
@@ -590,7 +590,7 @@ bool consolekey(int code, bool isdown)
                     if(maxhistory && history.size() >= maxhistory)
                     {
                         loopi(history.size()-maxhistory+1) delete history[i];
-                        history.remove(0, history.size()-maxhistory+1);
+                        history.erase(history.begin(), history.begin() + history.size()-maxhistory+1);
                     }
                     history.emplace_back(h = new hline)->save();
                 }

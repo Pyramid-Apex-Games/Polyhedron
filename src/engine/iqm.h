@@ -249,7 +249,7 @@ struct iqm : skelloader<iqm>
                 if(!m->numtris || !m->numverts)
                 {
                     conoutf("empty mesh in %s", filename);
-                    meshes.removeobj(m);
+                    remove_obj(static_cast<mesh*>(m), meshes);
                     delete m;
                     continue;
                 }
@@ -315,7 +315,7 @@ struct iqm : skelloader<iqm>
                             if(p.mask&0x200) animdata++;
                         }
                         dualquat dq(orient, pos);
-                        if(adjustments.inrange(k)) adjustments[k].adjust(dq);
+                        if(in_range(k, adjustments)) adjustments[k].adjust(dq);
                         boneinfo &b = skel->bones[k];
                         dq.mul(b.invbase);
                         dualquat &dst = frame[k];

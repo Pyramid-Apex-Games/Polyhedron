@@ -7,7 +7,7 @@
 #include "shared/geom/matrix3.h"
 #include "shared/geom/vec.h"
 #include "shared/geom/vec2.h"
-#include "shared/tools/vector.h"
+#include "shared/tools/vector_util.h"
 
 struct stainrenderer;
 struct Texture;

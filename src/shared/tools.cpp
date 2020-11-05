@@ -94,12 +94,19 @@ uint randomMT()
 
 // all network traffic is in 32bit ints, which are then compressed using the following simple scheme (assumes that most values are small).
 
-template<class T>
+template<typename T>
 static inline void putint_(T &p, int n)
 {
     if(n<128 && n>-127) p.put(n);
     else if(n<0x8000 && n>=-0x8000) { p.put(0x80); p.put(n); p.put(n>>8); }
     else { p.put(0x81); p.put(n); p.put(n>>8); p.put(n>>16); p.put(n>>24); }
+}
+template<typename T>
+static inline void putint_(vector<T> &p, int n)
+{
+    if(n<128 && n>-127) p.emplace_back(n);
+    else if(n<0x8000 && n>=-0x8000) { p.emplace_back(0x80); p.emplace_back(n); p.emplace_back(n>>8); }
+    else { p.emplace_back(0x81); p.emplace_back(n); p.emplace_back(n>>8); p.emplace_back(n>>16); p.emplace_back(n>>24); }
 }
 void putint(ucharbuf &p, int n) { putint_(p, n); }
 void putint(packetbuf &p, int n) { putint_(p, n); }
@@ -137,6 +144,29 @@ static inline void putuint_(T &p, int n)
         p.put(n >> 14);
     }
 }
+template<class T>
+static inline void putuint_(vector<T> &p, int n)
+{
+    if(n < 0 || n >= (1<<21))
+    {
+        p.emplace_back(0x80 | (n & 0x7F));
+        p.emplace_back(0x80 | ((n >> 7) & 0x7F));
+        p.emplace_back(0x80 | ((n >> 14) & 0x7F));
+        p.emplace_back(n >> 21);
+    }
+    else if(n < (1<<7)) p.emplace_back(n);
+    else if(n < (1<<14))
+    {
+        p.emplace_back(0x80 | (n & 0x7F));
+        p.emplace_back(n >> 7);
+    }
+    else
+    {
+        p.emplace_back(0x80 | (n & 0x7F));
+        p.emplace_back(0x80 | ((n >> 7) & 0x7F));
+        p.emplace_back(n >> 14);
+    }
+}
 void putuint(ucharbuf &p, int n) { putuint_(p, n); }
 void putuint(packetbuf &p, int n) { putuint_(p, n); }
 void putuint(vector<uchar> &p, int n) { putuint_(p, n); }
@@ -159,6 +189,12 @@ static inline void putfloat_(T &p, float f)
 {
     lilswap(&f, 1);
     p.put((uchar *)&f, sizeof(float));
+}
+template<class T>
+static inline void putfloat_(vector<T> &p, float f)
+{
+    lilswap(&f, 1);
+    put((uchar *)&f, sizeof(float), p);
 }
 void putfloat(ucharbuf &p, float f) { putfloat_(p, f); }
 void putfloat(packetbuf &p, float f) { putfloat_(p, f); }
@@ -263,7 +299,3 @@ int ipmask::print(char *buf) const
     if(!bits && range%8) buf += sprintf(buf, "/%d", range);
     return int(buf-start);
 }
-
-
-// >>>>>>>>>> SCRIPTBIND >>>>>>>>>>>>>> //
-// <<<<<<<<<< SCRIPTBIND <<<<<<<<<<<<<< //

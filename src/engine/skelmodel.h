@@ -1150,7 +1150,7 @@ struct skelmodel : animmodel
         {
             if(skel)
             {
-                if(skel->shared) skel->users.removeobj(this);
+                if(skel->shared) remove_obj(this, skel->users);
                 else DELETEP(skel);
             }
             if(ebuf) glDeleteBuffers_(1, &ebuf);
@@ -2011,7 +2011,7 @@ template<class MDL> struct skelcommands : modelcommands<MDL, struct MDL::skelmes
             conoutf(CON_ERROR, "could not find bone %s to adjust", name);
             return;
         }
-        while(!MDL::adjustments.inrange(i))
+        while(!in_range(i, MDL::adjustments))
         {
             MDL::adjustments.emplace_back(skeladjustment(0, 0, 0, vec(0, 0, 0)));
         }

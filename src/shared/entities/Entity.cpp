@@ -278,7 +278,7 @@ void send_entity_event(Entity* entity, const Event& event)
 void send_entity_event(int entity_id, const Event& event)
 {
 	auto& ents = getents();
-	if (ents.inrange(entity_id))
+	if (in_range(entity_id, ents))
 	{
 		send_entity_event(ents[entity_id], event);
 	}

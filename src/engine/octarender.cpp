@@ -136,7 +136,7 @@ uchar *addvbo(vtxarray *va, int type, int numelems, int elemsize)
 
     int len = numelems*elemsize;
     uchar *buf = data.reserve_raw_return(len).buf;
-    data.advance(len);
+    data.resize(data.size() + len);
     return buf;
 }
 
@@ -428,7 +428,7 @@ struct vacollect : verthash
 
     void gendecals()
     {
-        if(decals.size()) extdecals.put(decals.data(), decals.size());
+        if(decals.size()) put(decals, extdecals);
         if(extdecals.empty()) return;
         const auto& ents = getents();
         loopv(extdecals)
@@ -633,8 +633,8 @@ struct vacollect : verthash
             loadgrassshaders();
         }
 
-        if(mapmodels.size()) va->mapmodels.put(mapmodels.data(), mapmodels.size());
-        if(decals.size()) va->decals.put(decals.data(), decals.size());
+        if(mapmodels.size()) put(mapmodels, va->mapmodels);
+        if(decals.size()) put(decals, va->decals);
     }
 
     bool emptyva()
@@ -1212,11 +1212,13 @@ void destroyva(vtxarray *va, bool reparent)
     wverts -= va->verts;
     wtris -= va->tris + va->blends + va->alphabacktris + va->alphafronttris + va->refracttris + va->decaltris;
     allocva--;
-    valist.removeobj(va);
-    if(!va->parent) varoot.removeobj(va);
+
+    remove_obj(va, valist);
+
+    if(!va->parent) remove_obj(va, varoot);
     if(reparent)
     {
-        if(va->parent) va->parent->children.removeobj(va);
+        if(va->parent) remove_obj(va, va->parent->children);
         loopv(va->children)
         {
             vtxarray *child = va->children[i];
@@ -1733,13 +1735,13 @@ void precachetextures()
         loopj(va->texs + va->blends)
         {
             int tex = va->texelems[j].texture;
-            if(texs.find(tex) < 0)
+            if(!in_list(tex, texs))
             {
                 texs.emplace_back(tex);
 
                 VSlot &vslot = lookupvslot(tex, false);
-                if(vslot.layer && texs.find(vslot.layer) < 0) texs.emplace_back(vslot.layer);
-                if(vslot.detail && texs.find(vslot.detail) < 0) texs.emplace_back(vslot.detail);
+                if(vslot.layer && !in_list(vslot.layer , texs)) texs.emplace_back(vslot.layer);
+                if(vslot.detail && !in_list(vslot.detail, texs)) texs.emplace_back(vslot.detail);
             }
         }
     }

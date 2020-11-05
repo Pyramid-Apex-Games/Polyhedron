@@ -66,7 +66,7 @@ void preloadentities()
     // Execute preload actions for entities.
     loopv(getents())
     {
-        if (getents().inrange(i) && getents()[i] != nullptr) {
+        if (in_range(i, getents()) && getents()[i] != nullptr) {
             // Let's go at it!
             auto entity = getents()[i];
             send_entity_event(entity, EntityEventPrecache());
@@ -82,7 +82,7 @@ void preloadentities()
 void resetspawns()
 {
     loopv(getents())
-        if (getents().inrange(i))
+        if (in_range(i, getents()))
             send_entity_event(i, EntityEventClearSpawn());
 
     if (game::player1 != nullptr)
@@ -91,7 +91,7 @@ void resetspawns()
 
 void setspawn(int i, bool on)
 {
-    if(getents().inrange(i))
+    if(in_range(i, getents()))
     {
         if (on)
         {

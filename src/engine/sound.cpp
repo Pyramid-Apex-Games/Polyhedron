@@ -87,7 +87,7 @@ soundchannel &newchannel(int n, soundslot *slot, const vec *loc = NULL, Entity *
         loc = &ent->o;
         ent->flags |= EntityFlags::EF_SOUND;
     }
-    while(!channels.inrange(n)) channels.emplace_back(channels.size());
+    while(!in_range(n, channels)) channels.emplace_back(channels.size());
     soundchannel &chan = channels[n];
     chan.reset();
     chan.inuse = true;
@@ -101,7 +101,7 @@ soundchannel &newchannel(int n, soundslot *slot, const vec *loc = NULL, Entity *
 
 void freechannel(int n)
 {
-    if(!channels.inrange(n) || !channels[n].inuse) return;
+    if(!in_range(n, channels) || !channels[n].inuse) return;
     soundchannel &chan = channels[n];
     chan.inuse = false;
     if(chan.ent) chan.ent->flags &= ~EntityFlags::EF_SOUND;
@@ -378,7 +378,7 @@ static struct soundtype
 
     void preloadsound(int n)
     {
-        if(nosound || !configs.inrange(n)) return;
+        if(nosound || !in_range(n, configs)) return;
         soundconfig &config = configs[n];
         loopk(config.numslots) slots[config.slots+k].sample->load(dir, true);
     }
@@ -599,7 +599,7 @@ int playsound(int n, const vec *loc, Entity *ent, int flags, int loops, int fade
     if(nosound || !soundvol || Application::Instance().GetAppState().Minimized) return -1;
 
     soundtype &sounds = ent || flags&SND_MAP ? mapsounds : gamesounds;
-    if(!sounds.configs.inrange(n)) { conoutf(CON_WARN, "unregistered sound: %d", n); return -1; }
+    if(!in_range(n, sounds.configs)) { conoutf(CON_WARN, "unregistered sound: %d", n); return -1; }
     soundconfig &config = sounds.configs[n];
 
     const auto& activeCamera = Camera::GetActiveCamera();
@@ -612,7 +612,7 @@ int playsound(int n, const vec *loc, Entity *ent, int flags, int loops, int fade
         if(radius <= 0 || maxrad < radius) radius = maxrad;
         if(activeCamera->o.dist(*loc) > 1.5f*radius)
         {
-            if(channels.inrange(chanid) && sounds.playing(channels[chanid], config))
+            if(in_range(chanid, channels) && sounds.playing(channels[chanid], config))
             {
                 Mix_HaltChannel(chanid);
                 freechannel(chanid);
@@ -636,7 +636,7 @@ int playsound(int n, const vec *loc, Entity *ent, int flags, int loops, int fade
         if(maxsoundsatonce && soundsatonce > maxsoundsatonce) return -1;
     }
 
-    if(channels.inrange(chanid))
+    if(in_range(chanid, channels))
     {
         soundchannel &chan = channels[chanid];
         if(sounds.playing(chan, config))
@@ -684,7 +684,7 @@ void stopsounds()
 
 bool stopsound(int n, int chanid, int fade)
 {
-    if(!gamesounds.configs.inrange(n) || !channels.inrange(chanid) || !gamesounds.playing(channels[chanid], gamesounds.configs[n])) return false;
+    if(!in_range(n, gamesounds.configs) || !in_range(chanid, channels) || !gamesounds.playing(channels[chanid], gamesounds.configs[n])) return false;
     if(dbgsound) conoutf("stopsound: %s%s", gamesounds.dir, channels[chanid].slot->sample->name);
     if(!fade || !Mix_FadeOutChannel(chanid, fade))
     {

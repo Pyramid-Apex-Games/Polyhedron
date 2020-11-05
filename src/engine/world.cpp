@@ -151,7 +151,7 @@ void modifyoctaentity(int flags, int id, Entity *e, cube *c, const ivec &cor, in
 				if(va)
 				{
 					va->bbmin.x = -1;
-					if(oe.decals.empty()) va->decals.removeobj(&oe);
+					if(oe.decals.empty()) remove_obj(&oe, va->decals);
 				}
 				oe.bbmin = oe.bbmax = oe.o;
 				oe.bbmin.add(oe.size);
@@ -178,7 +178,7 @@ void modifyoctaentity(int flags, int id, Entity *e, cube *c, const ivec &cor, in
 					if(va)
 					{
 						va->bbmin.x = -1;
-						if(oe.mapmodels.empty()) va->mapmodels.removeobj(&oe);
+						if(oe.mapmodels.empty()) remove_obj(&oe, va->mapmodels);
 					}
 					oe.bbmin = oe.bbmax = oe.o;
 					oe.bbmin.add(oe.size);
@@ -252,12 +252,12 @@ static bool modifyoctaent(int flags, int id, Entity *e)
 
 	if(!insideworld(e->o))
     {
-        int idx = outsideents.find(id);
+        auto idx = std::find(outsideents.begin(), outsideents.end(), id);
         if(flags&MODOE_ADD)
         {
-            if(idx < 0) outsideents.emplace_back(id);
+            if(idx == outsideents.end()) outsideents.emplace_back(id);
         }
-        else if(idx >= 0) outsideents.removeunordered(idx);
+        else if(idx != outsideents.end()) outsideents.erase(idx);
     }
     else
     {
@@ -287,7 +287,7 @@ static bool modifyoctaent(int flags, int id, Entity *e)
 static inline bool modifyoctaent(int flags, int id)
 {
     auto &ents = getents();
-	return ents.inrange(id) && modifyoctaent(flags, id, ents[id]);
+	return in_range(id, ents) && modifyoctaent(flags, id, ents[id]);
 }
 
 static inline void addentity(int id)        { modifyoctaent(MODOE_ADD|MODOE_UPDATEBB, id); }
@@ -331,7 +331,7 @@ void entitiesinoctanodes()
     auto &ents = getents();
 
     loopv(ents) {
-        if (ents.inrange(i)) {
+        if (in_range(i, ents)) {
             if (ents[i] != NULL)
             {
 				modifyoctaent(MODOE_ADD, i, ents[i]);
@@ -346,7 +346,7 @@ static inline void findents(octaentities &oe, int low, int high, bool notspawned
     auto &ents = getents();
     for(auto& id : oe.other)
     {
-        if (ents.inrange(id)) {
+        if (in_range(id, ents)) {
             auto e = ents[id];
             // TODO: Fix this, et_type? and ent_type?
 			if(/*e->et_type >= low && e->et_type <= high && */ (e->spawned || notspawned) && vec(e->o).sub(pos).mul(invradius).squaredlen() <= 1)
@@ -572,8 +572,8 @@ void attachentities()
 vec getselpos()
 {
     auto &ents = getents();
-    if(entgroup.size() && ents.inrange(entgroup[0])) return ents[entgroup[0]]->o;
-    if(ents.inrange(enthover)) return ents[enthover]->o;
+    if(entgroup.size() && in_range(entgroup[0], ents)) return ents[entgroup[0]]->o;
+    if(in_range(enthover, ents)) return ents[enthover]->o;
     return vec(sel.o);
 }
 
@@ -590,7 +590,7 @@ undoblock *copyundoents(undoblock *u)
         if(e[i].e->classname == "core_entity")
 		{
 			send_entity_event(e[i].i, EntityEventSelectStop());
-			entgroup.removeobj(e[i].i);
+			remove_obj(e[i].i, entgroup);
 		}
 	}
     return c;
@@ -1039,17 +1039,18 @@ void renderentselection(const vec &o, const vec &ray, bool entmoving)
 bool enttoggle(int id)
 {
     undonext = true;
-    int i = entgroup.find(id);
-    if(i < 0)
+    auto i = std::find(entgroup.begin(), entgroup.end(), id);
+    if(i == entgroup.end())
     {
         entadd(id);
+        return true;
 	}
     else
     {
-		send_entity_event(i, EntityEventSelectStop());
-        entgroup.remove(i);
+		send_entity_event(id, EntityEventSelectStop());
+        entgroup.erase(i);
+        return false;
 	}
-    return i < 0;
 }
 
 bool hoveringonent(int ent, int orient)
@@ -1089,7 +1090,7 @@ SCRIPTEXPORT_AS(entadd) void entadd_scriptimpl()
 {
     if(enthover >= 0 && !noentedit())
     {
-        if(entgroup.find(enthover) < 0)
+        if(!in_list(enthover, entgroup))
         {
 			entadd(enthover);
 			send_entity_event(enthover, EntityEventMoveStart());
@@ -1128,7 +1129,7 @@ SCRIPTEXPORT_AS(entmoving) void entmoving_scriptimpl(CommandTypes::Boolean n)
 		}
         else
         {
-            if(entgroup.find(enthover) < 0)
+            if(!in_list(enthover, entgroup))
             {
 				entadd(enthover); entmoving = 1;
 			}
@@ -1394,7 +1395,7 @@ Entity *new_game_entity(bool local, const vec &o, int &idx, const char *strclass
 
     ent->o = o;
 
-	if (ents.inrange(idx))
+	if (in_range(idx, ents))
 	{
 		deletegameentity(ents[idx]);
         ents[idx] = ent;
@@ -1535,7 +1536,7 @@ SCRIPTEXPORT void enthavesel()
 
 SCRIPTEXPORT void entselect(CommandTypes::Expression body)
 {
-    if(!noentedit()) addgroup(/*e->et_type != ET_EMPTY && */ entgroup.find(n)<0 && executebool(body));
+    if(!noentedit()) addgroup(/*e->et_type != ET_EMPTY && */ !in_list(n, entgroup) && executebool(body));
 }
 
 SCRIPTEXPORT void entloop(CommandTypes::Expression body)
@@ -1963,9 +1964,3 @@ void mpeditent(int i, const vec &o, int type, int attr1, int attr2, int attr3, i
 int getworldsize() { return worldsize; }
 int getmapversion() { return mapversion; }
 
-
-// >>>>>>>>>> SCRIPTBIND >>>>>>>>>>>>>> //
-#if 0
-#include "/Users/micha/dev/ScMaMike/src/build/binding/..+engine+world.binding.cpp"
-#endif
-// <<<<<<<<<< SCRIPTBIND <<<<<<<<<<<<<< //

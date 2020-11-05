@@ -49,7 +49,7 @@ static inline T clamp(T a, U b, U c)
 #include "tools/cubestr.h"
 #include "tools/sort.h"
 #include "tools/loop.h"
-#include "tools/vector.h"
+#include "tools/vector_util.h"
 #include "tools/hash.h"
 #include "tools/queue.h"
 #include "tools/endianness.h"

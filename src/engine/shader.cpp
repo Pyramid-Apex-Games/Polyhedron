@@ -542,7 +542,8 @@ static int addlocalparam(Shader &s, const char *name, int loc, int size, GLenum 
     if(idx >= s.localparamremap.size())
     {
         int n = idx + 1 - s.localparamremap.size();
-        memset(s.localparamremap.pad(n), 0xFF, n);
+        s.localparamremap.resize(idx + 1);
+        memset(s.localparamremap.data(), 0xFF, n);
     }
     s.localparamremap[idx] = s.localparams.size();
 
@@ -732,7 +733,7 @@ static inline void setslotparam(SlotShaderParamState &l, const float *val)
     loopv(slotparams) \
     { \
         SlotShaderParam &p = slotparams[i]; \
-        if(!defaultparams.inrange(p.loc)) continue; \
+        if(!in_range(p.loc, defaultparams)) continue; \
         SlotShaderParamState &l = defaultparams[p.loc]; \
         SETSLOTPARAM(l, unimask, p.loc, p.val); \
     }
@@ -915,8 +916,9 @@ static void gengenericvariant(Shader &s, const char *sname, const char *vs, cons
     int rowoffset = 0;
     bool vschanged = false, pschanged = false;
     vector<char> vsv, psv;
-    vsv.put(vs, strlen(vs)+1);
-    psv.put(ps, strlen(ps)+1);
+
+    put(vs, strlen(vs)+1, vsv);
+    put(ps, strlen(ps)+1, psv);
 
     static const int len = strlen("//:variant"), olen = strlen("override");
     for(char *vspragma = vsv.data();; vschanged = true)
@@ -973,31 +975,31 @@ static void genfogshader(vector<char> &vsbuf, vector<char> &psbuf, const char *v
     {
         if(!strstr(vs, "lineardepth"))
         {
-            vsbuf.put(vs, vsmain - vs);
+            put(vs, vsmain - vs, vsbuf);
             const char *fogparams = "\nuniform vec2 lineardepthscale;\nvarying float lineardepth;\n";
-            vsbuf.put(fogparams, strlen(fogparams));
-            vsbuf.put(vsmain, vsend - vsmain);
+            put(fogparams, strlen(fogparams), vsbuf);
+            put(vsmain, vsend - vsmain, vsbuf);
             const char *vsfog = "\nlineardepth = dot(lineardepthscale, gl_Position.zw);\n";
-            vsbuf.put(vsfog, strlen(vsfog));
-            vsbuf.put(vsend, strlen(vsend)+1);
+            put(vsfog, strlen(vsfog), vsbuf);
+            put(vsend, strlen(vsend)+1, vsbuf);
         }
     }
     const char *psmain = findglslmain(ps), *psend = strrchr(ps, '}');
     if(psmain && psend)
     {
-        psbuf.put(ps, psmain - ps);
+        put(ps, psmain - ps, psbuf);
         if(!strstr(ps, "lineardepth"))
         {
             const char *foginterp = "\nvarying float lineardepth;\n";
-            psbuf.put(foginterp, strlen(foginterp));
+            put(foginterp, strlen(foginterp), psbuf);
         }
         const char *fogparams =
             "\nuniform vec3 fogcolor;\n"
             "uniform vec2 fogdensity;\n"
             "uniform vec4 radialfogscale;\n"
             "#define fogcoord lineardepth*length(vec3(gl_FragCoord.xy*radialfogscale.xy + radialfogscale.zw, 1.0))\n";
-        psbuf.put(fogparams, strlen(fogparams));
-        psbuf.put(psmain, psend - psmain);
+        put(fogparams, strlen(fogparams), psbuf);
+        put(psmain, psend - psmain, psbuf);
         const char *psdef = "\n#define FOG_COLOR ";
         const char *psfog =
             pspragma && !strncmp(pspragma+pragmalen, "rgba", 4) ?
@@ -1013,10 +1015,10 @@ static void genfogshader(vector<char> &vsbuf, vector<char> &psbuf, const char *v
             clen = strcspn(pspragma, "\r\n");
         }
         if(clen <= 0) { pspragma = "fogcolor"; clen = strlen(pspragma); }
-        psbuf.put(psdef, strlen(psdef));
-        psbuf.put(pspragma, clen);
-        psbuf.put(psfog, strlen(psfog));
-        psbuf.put(psend, strlen(psend)+1);
+        put(psdef, strlen(psdef), psbuf);
+        put(pspragma, clen, psbuf);
+        put(psfog, strlen(psfog), psbuf);
+        put(psend, strlen(psend)+1, psbuf);
     }
 }
 
@@ -1025,22 +1027,22 @@ static void genuniformdefs(vector<char> &vsbuf, vector<char> &psbuf, const char 
     if(variant ? variant->defaultparams.empty() : slotparams.empty()) return;
     const char *vsmain = findglslmain(vs), *psmain = findglslmain(ps);
     if(!vsmain || !psmain) return;
-    vsbuf.put(vs, vsmain - vs);
-    psbuf.put(ps, psmain - ps);
+    put(vs, vsmain - vs, vsbuf);
+    put(ps, psmain - ps, psbuf);
     if(variant) loopv(variant->defaultparams)
     {
         defformatcubestr(uni, "\nuniform vec4 %s;\n", variant->defaultparams[i].name);
-        vsbuf.put(uni, strlen(uni));
-        psbuf.put(uni, strlen(uni));
+        put(uni, strlen(uni), vsbuf);
+        put(uni, strlen(uni), psbuf);
     }
     else loopv(slotparams)
     {
         defformatcubestr(uni, "\nuniform vec4 %s;\n", slotparams[i].name);
-        vsbuf.put(uni, strlen(uni));
-        psbuf.put(uni, strlen(uni));
+        put(uni, strlen(uni), vsbuf);
+        put(uni, strlen(uni), psbuf);
     }
-    vsbuf.put(vsmain, strlen(vsmain)+1);
-    psbuf.put(psmain, strlen(psmain)+1);
+    put(vsmain, strlen(vsmain)+1, vsbuf);
+    put(psmain, strlen(psmain)+1, psbuf);
 }
 
 void setupshaders()
@@ -1202,6 +1204,7 @@ SCRIPTEXPORT void forceshader(const char *name)
 SCRIPTEXPORT void shader(int *type, char *name, char *vs, char *ps)
 {
     if(lookupshaderbyname(name)) return;
+    conoutf("Loading shader %s", name);
 
     defformatcubestr(info, "shader %s", name);
     renderprogress(loadprogress, info);
@@ -1209,8 +1212,8 @@ SCRIPTEXPORT void shader(int *type, char *name, char *vs, char *ps)
 #define GENSHADER(cond, body) \
     if(cond) \
     { \
-        if(vsbuf.size()) { vsbak.clear(); vsbak.put(vs, strlen(vs)+1); vs = vsbak.data(); vsbuf.clear(); } \
-        if(psbuf.size()) { psbak.clear(); psbak.put(ps, strlen(ps)+1); ps = psbak.data(); psbuf.clear(); } \
+        if(vsbuf.size()) { vsbak.clear(); put(vs, strlen(vs)+1, vsbak); vs = vsbak.data(); vsbuf.clear(); } \
+        if(psbuf.size()) { psbak.clear(); put(ps, strlen(ps)+1, psbak); ps = psbak.data(); psbuf.clear(); } \
         body; \
         if(vsbuf.size()) vs = vsbuf.data(); \
         if(psbuf.size()) ps = psbuf.data(); \
@@ -1512,7 +1515,7 @@ void renderpostfx(GLuint outfbo)
         postfxpass &p = postfxpasses[i];
 
         int tex = -1;
-        if(!postfxpasses.inrange(i+1))
+        if(!in_range(i+1, postfxpasses))
         {
             glCheckError(glBindFramebuffer_(GL_FRAMEBUFFER, outfbo));
         }

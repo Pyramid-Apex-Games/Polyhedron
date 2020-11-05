@@ -528,7 +528,7 @@ bool animmodel::part::link(part *p, const char *tag, const vec &translate, int a
 
 bool animmodel::part::unlink(part *p)
 {
-    loopvrev(links) if(links[i].p==p) { links.remove(i, 1); return true; }
+    loopvrev(links) if(links[i].p==p) { links.erase(links.begin() + i); return true; }
     loopv(links) if(links[i].p && links[i].p->unlink(p)) return true;
     return false;
 }

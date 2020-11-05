@@ -120,7 +120,7 @@ struct obj : vertloader<obj>
                                 vkey[i] = strtol(c, &c, 10);
                                 if(vkey[i] < 0) vkey[i] = attrib[i].size() + vkey[i];
                                 else vkey[i]--;
-                                if(!attrib[i].inrange(vkey[i])) vkey[i] = -1;
+                                if(!in_range(vkey[i], attrib[i])) vkey[i] = -1;
                                 if(*c!='/') break;
                                 c++;
                             }

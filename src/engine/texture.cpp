@@ -1809,8 +1809,8 @@ static void assignvslot(VSlot &vs);
 
 static inline void assignvslotlayer(VSlot &vs)
 {
-    if(vs.layer && vslots.inrange(vs.layer) && vslots[vs.layer]->index < 0) assignvslot(*vslots[vs.layer]);
-    if(vs.detail && vslots.inrange(vs.detail) && vslots[vs.detail]->index < 0) assignvslot(*vslots[vs.detail]);
+    if(vs.layer && in_range(vs.layer, vslots) && vslots[vs.layer]->index < 0) assignvslot(*vslots[vs.layer]);
+    if(vs.detail && in_range(vs.detail, vslots) && vslots[vs.detail]->index < 0) assignvslot(*vslots[vs.detail]);
 }
 
 static void assignvslot(VSlot &vs)
@@ -1821,7 +1821,7 @@ static void assignvslot(VSlot &vs)
 
 void compactvslot(int &index)
 {
-    if(vslots.inrange(index))
+    if(in_range(index, vslots))
     {
         VSlot &vs = *vslots[index];
         if(vs.index < 0) assignvslot(vs);
@@ -1840,7 +1840,7 @@ void compactvslots(cube *c, int n)
     loopi(n)
     {
         if(c[i].children) compactvslots(c[i].children);
-        else loopj(6) if(vslots.inrange(c[i].texture[j]))
+        else loopj(6) if(in_range(c[i].texture[j], vslots))
         {
             VSlot &vs = *vslots[c[i].texture[j]];
             if(vs.index < 0) assignvslot(vs);
@@ -1916,13 +1916,13 @@ int compactvslots(bool cull)
         VSlot &vs = *vslots[i];
         if(vs.index >= 0)
         {
-            if(vs.layer && vslots.inrange(vs.layer)) vs.layer = vslots[vs.layer]->index;
-            if(vs.detail && vslots.inrange(vs.detail)) vs.detail = vslots[vs.detail]->index;
+            if(vs.layer && in_range(vs.layer, vslots)) vs.layer = vslots[vs.layer]->index;
+            if(vs.detail && in_range(vs.detail, vslots)) vs.detail = vslots[vs.detail]->index;
         }
     }
     if(cull)
     {
-        loopvrev(slots) if(slots[i]->variants->index < 0) delete slots.remove(i);
+        loopvrev(slots) if(slots[i]->variants->index < 0) slots.erase(slots.begin() + i);
         loopv(slots) slots[i]->index = i;
     }
     loopv(vslots)
@@ -1946,7 +1946,7 @@ SCRIPTEXPORT_AS(compactvslots) void compactvslots_scriptimpl(int *cull)
 static void clampvslotoffset(VSlot &dst, Slot *slot = NULL)
 {
     if(!slot) slot = dst.slot;
-    if(slot && slot->sts.inrange(0))
+    if(slot && !slot->sts.empty())
     {
         if(!slot->loaded) slot->load();
         Texture *t = slot->sts[0].t;
@@ -2109,56 +2109,56 @@ void packvslot(vector<uchar> &buf, const VSlot &src)
         loopv(src.params)
         {
             const SlotShaderParam &p = src.params[i];
-            buf.put(VSLOT_SHPARAM);
+            buf.emplace_back(VSLOT_SHPARAM);
             sendcubestr(p.name, buf);
             loopj(4) putfloat(buf, p.val[j]);
         }
     }
     if(src.changed & (1<<VSLOT_SCALE))
     {
-        buf.put(VSLOT_SCALE);
+        buf.emplace_back(VSLOT_SCALE);
         putfloat(buf, src.scale);
     }
     if(src.changed & (1<<VSLOT_ROTATION))
     {
-        buf.put(VSLOT_ROTATION);
+        buf.emplace_back(VSLOT_ROTATION);
         // WatIsDeze: Todo: Fetched from svn rev 2199/rev 2200 from Tesseract svn.
         //putfloat(buf, src.rotation);
         putint(buf, src.rotation);
     }
     if(src.changed & (1<<VSLOT_OFFSET))
     {
-        buf.put(VSLOT_OFFSET);
+        buf.emplace_back(VSLOT_OFFSET);
         putint(buf, src.offset.x);
         putint(buf, src.offset.y);
     }
     if(src.changed & (1<<VSLOT_SCROLL))
     {
-        buf.put(VSLOT_SCROLL);
+        buf.emplace_back(VSLOT_SCROLL);
         putfloat(buf, src.scroll.x);
         putfloat(buf, src.scroll.y);
     }
     if(src.changed & (1<<VSLOT_LAYER))
     {
-        buf.put(VSLOT_LAYER);
-        putuint(buf, vslots.inrange(src.layer) && !vslots[src.layer]->changed ? src.layer : 0);
+        buf.emplace_back(VSLOT_LAYER);
+        putuint(buf, in_range(src.layer, vslots) && !vslots[src.layer]->changed ? src.layer : 0);
     }
     if(src.changed & (1<<VSLOT_ALPHA))
     {
-        buf.put(VSLOT_ALPHA);
+        buf.emplace_back(VSLOT_ALPHA);
         putfloat(buf, src.alphafront);
         putfloat(buf, src.alphaback);
     }
     if(src.changed & (1<<VSLOT_COLOR))
     {
-        buf.put(VSLOT_COLOR);
+        buf.emplace_back(VSLOT_COLOR);
         putfloat(buf, src.colorscale.r);
         putfloat(buf, src.colorscale.g);
         putfloat(buf, src.colorscale.b);
     }
     if(src.changed & (1<<VSLOT_REFRACT))
     {
-        buf.put(VSLOT_REFRACT);
+        buf.emplace_back(VSLOT_REFRACT);
         putfloat(buf, src.refractscale);
         putfloat(buf, src.refractcolor.r);
         putfloat(buf, src.refractcolor.g);
@@ -2166,22 +2166,22 @@ void packvslot(vector<uchar> &buf, const VSlot &src)
     }
     if(src.changed & (1<<VSLOT_DETAIL))
     {
-        buf.put(VSLOT_DETAIL);
-        putuint(buf, vslots.inrange(src.detail) && !vslots[src.detail]->changed ? src.detail : 0);
+        buf.emplace_back(VSLOT_DETAIL);
+        putuint(buf, in_range(src.detail, vslots) && !vslots[src.detail]->changed ? src.detail : 0);
     }
-    buf.put(0xFF);
+    buf.emplace_back(0xFF);
 }
 
 void packvslot(vector<uchar> &buf, int index)
 {
-    if(vslots.inrange(index)) packvslot(buf, *vslots[index]);
-    else buf.put(0xFF);
+    if(in_range(index, vslots)) packvslot(buf, *vslots[index]);
+    else buf.emplace_back(0xFF);
 }
 
 void packvslot(vector<uchar> &buf, const VSlot *vs)
 {
     if(vs) packvslot(buf, *vs);
-    else buf.put(0xFF);
+    else buf.emplace_back(0xFF);
 }
 
 bool unpackvslot(ucharbuf &buf, VSlot &dst, bool delta)
@@ -2222,7 +2222,7 @@ bool unpackvslot(ucharbuf &buf, VSlot &dst, bool delta)
             case VSLOT_LAYER:
             {
                 int tex = getuint(buf);
-                dst.layer = vslots.inrange(tex) ? tex : 0;
+                dst.layer = in_range(tex, vslots) ? tex : 0;
                 break;
             }
             case VSLOT_ALPHA:
@@ -2243,7 +2243,7 @@ bool unpackvslot(ucharbuf &buf, VSlot &dst, bool delta)
             case VSLOT_DETAIL:
             {
                 int tex = getuint(buf);
-                dst.detail = vslots.inrange(tex) ? tex : 0;
+                dst.detail = in_range(tex, vslots) ? tex : 0;
                 break;
             }
             default:
@@ -2311,7 +2311,7 @@ SCRIPTEXPORT_AS(fixinsidefaces) void fixinsidefaces_scriptimpl(int *tex)
 {
     extern int nompedit;
     if(noedit(true) || (nompedit && multiplayer())) return;
-    fixinsidefaces(worldroot, ivec(0, 0, 0), worldsize>>1, *tex && vslots.inrange(*tex) ? *tex : DEFAULT_GEOM);
+    fixinsidefaces(worldroot, ivec(0, 0, 0), worldsize>>1, *tex && in_range(*tex, vslots) ? *tex : DEFAULT_GEOM);
     allchanged();
 }
 
@@ -2668,14 +2668,14 @@ MatSlot &lookupmaterialslot(int index, bool load)
 
 Slot &lookupslot(int index, bool load)
 {
-    Slot &s = slots.inrange(index) ? *slots[index] : (slots.inrange(DEFAULT_GEOM) ? *slots[DEFAULT_GEOM] : dummyslot);
+    Slot &s = in_range(index, slots) ? *slots[index] : (in_range(DEFAULT_GEOM, slots) ? *slots[DEFAULT_GEOM] : dummyslot);
     if(!s.loaded && load) s.load();
     return s;
 }
 
 VSlot &lookupvslot(int index, bool load)
 {
-    VSlot &s = vslots.inrange(index) && vslots[index]->slot ? *vslots[index] : (slots.inrange(DEFAULT_GEOM) && slots[DEFAULT_GEOM]->variants ? *slots[DEFAULT_GEOM]->variants : dummyvslot);
+    VSlot &s = in_range(index, vslots) && vslots[index]->slot ? *vslots[index] : (in_range(DEFAULT_GEOM, slots) && slots[DEFAULT_GEOM]->variants ? *slots[DEFAULT_GEOM]->variants : dummyvslot);
     if(load && !s.linked)
     {
         if(!s.slot->loaded) s.slot->load();
@@ -2687,7 +2687,7 @@ VSlot &lookupvslot(int index, bool load)
 
 DecalSlot &lookupdecalslot(int index, bool load)
 {
-    DecalSlot &s = decalslots.inrange(index) ? *decalslots[index] : dummydecalslot;
+    DecalSlot &s = in_range(index, decalslots) ? *decalslots[index] : dummydecalslot;
     if(load && !s.linked)
     {
         if(!s.loaded) s.load();
@@ -3185,7 +3185,7 @@ GLuint lookupenvmap(Slot &slot)
 GLuint lookupenvmap(ushort emid)
 {
     if(emid==EMID_SKY || emid==EMID_CUSTOM || drawtex) return lookupskyenvmap();
-    if(emid==EMID_NONE || !envmaps.inrange(emid-EMID_RESERVED)) return 0;
+    if(emid==EMID_NONE || !in_range(emid-EMID_RESERVED, envmaps)) return 0;
     GLuint tex = envmaps[emid-EMID_RESERVED].tex;
     return tex ? tex : lookupskyenvmap();
 }

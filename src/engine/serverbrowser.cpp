@@ -161,7 +161,7 @@ bool resolverwait(const char *name, ENetAddress *address)
         loopv(resolverresults) if(resolverresults[i].query == name)
         {
             address->host = resolverresults[i].address.host;
-            resolverresults.remove(i);
+            resolverresults.erase(resolverresults.begin() + i);
             resolved = true;
             break;
         }
@@ -581,7 +581,7 @@ SCRIPTEXPORT void numservers()
 }
 
 #define GETSERVERINFO_(idx, si, body) \
-    if(servers.inrange(idx)) \
+    if(in_range(idx, servers)) \
     { \
         serverinfo &si = *servers[idx]; \
         body; \
@@ -653,7 +653,7 @@ SCRIPTEXPORT void servinfoplayers(int *i)
 
 SCRIPTEXPORT void servinfoattr(int *i, int *n)
 {
-    GETSERVERINFO(*i, si, { if(si.attr.inrange(*n)) intret(si.attr[*n]); });
+    GETSERVERINFO(*i, si, { if(in_range(*n, si.attr)) intret(si.attr[*n]); });
 }
 
 SCRIPTEXPORT void connectservinfo(int *i, char *pw)
@@ -663,14 +663,14 @@ SCRIPTEXPORT void connectservinfo(int *i, char *pw)
 
 servinfo *getservinfo(int i)
 {
-    return servers.inrange(i) && servers[i]->valid() ? servers[i] : NULL;
+    return in_range(i, servers) && servers[i]->valid() ? servers[i] : NULL;
 }
 
 void clearservers(bool full = false)
 {
     resolverclear();
     if(full) servers.clear();
-    else loopvrev(servers) if(!servers[i]->keep) delete servers.remove(i);
+    else loopvrev(servers) if(!servers[i]->keep) servers.erase(servers.begin() + i);
 }
 
 #define RETRIEVELIMIT 20000
@@ -717,7 +717,7 @@ void retrieveservers(vector<char> &data)
             buf.dataLength = data.capacity() - data.size();
             int recv = enet_socket_receive(sock, NULL, &buf, 1);
             if(recv <= 0) break;
-            data.advance(recv);
+            data.resize(data.size() + recv);
         }
         timeout = SDL_GetTicks() - starttime;
         renderprogress(min(float(timeout)/RETRIEVELIMIT, 1.0f), text);

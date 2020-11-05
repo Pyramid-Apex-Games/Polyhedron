@@ -80,7 +80,7 @@ struct smd : skelloader<smd>
                 readname(curbuf, name, sizeof(name));
                 int parent = strtol(curbuf, &curbuf, 10);
                 if(id < 0 || id > 255 || parent > 255 || !name[0]) continue;
-                while(!bones.inrange(id)) bones.emplace_back();
+                while(!in_range(id, bones)) bones.emplace_back();
                 smdbone &bone = bones[id];
                 copycubestr(bone.name, name);
                 bone.parent = parent;
@@ -309,8 +309,8 @@ struct smd : skelloader<smd>
                     {
                         databuf<dualquat> framebones = animbones.reserve_raw_return(skel->numbones * (nextframe + 1 - numframes));
                         loopi(nextframe - numframes) framebones.put(animbones.data(), skel->numbones);
-                        animbones.addbuf(framebones);
-                        animbones.advance(skel->numbones);
+                        std::copy(framebones.begin(), framebones.end(), animbones.end());
+                        animbones.resize(animbones.size() + skel->numbones);
                         numframes = nextframe + 1;
                     }
                     frame = nextframe;
@@ -335,7 +335,7 @@ struct smd : skelloader<smd>
                                  -(cx*cy*sz - sx*sy*cz),
                                  cx*cy*cz + sx*sy*sz),
                             pos);
-                if(adjustments.inrange(bone)) adjustments[bone].adjust(dq);
+                if(in_range(bone, adjustments)) adjustments[bone].adjust(dq);
                 smdbone &h = bones[bone];
                 boneinfo &b = skel->bones[bone];
                 dq.mul(b.invbase);
@@ -445,7 +445,7 @@ static inline uint hthash(const smd::smdmeshgroup::smdvertkey &k)
 
 static inline bool htcmp(const smd::smdmeshgroup::smdvertkey &k, int index)
 {
-    if(!k.mesh->verts.inrange(index)) return false;
+    if(!in_range(index, k.mesh->verts)) return false;
     const smd::vert &v = k.mesh->verts[index];
     return k.pos == v.pos && k.norm == v.norm && k.tc == v.tc && k.blend == v.blend;
 }

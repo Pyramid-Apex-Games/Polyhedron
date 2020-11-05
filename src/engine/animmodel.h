@@ -806,7 +806,7 @@ template<class MDL, class MESH> struct modelcommands
             conoutf(CON_ERROR, "skelmodel: not loading an %s", MDL::formatname());
             return;
         }
-        if(!MDL::loading->parts.inrange(*parent) || !MDL::loading->parts.inrange(*child))
+        if(!in_range(*parent, MDL::loading->parts) || !in_range(*child, MDL::loading->parts))
         {
             conoutf(CON_ERROR, "no models loaded to link");
             return;

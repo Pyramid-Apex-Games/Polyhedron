@@ -339,7 +339,7 @@ struct editor
             }
             else if(y == sy) line += sx;
             else if(y == ey) len = ex;
-            buf.put(line, len);
+            put(line, len, buf);
             buf.emplace_back('\n');
         }
         buf.emplace_back('\0');
@@ -349,7 +349,7 @@ struct editor
     void removelines(int start, int count)
     {
         loopi(count) lines[start+i].clear();
-        lines.remove(start, count);
+        lines.erase(lines.begin() + start, lines.begin() + count);
     }
 
     bool del() // removes the current selection (if any)
@@ -695,7 +695,8 @@ static void flusheditors()
 {
     loopvrev(editors) if(!editors[i]->active)
     {
-        editor *e = editors.remove(i);
+        editor *e = editors[i];
+        editors.erase(editors.begin() + i);
         if(e == textfocus) textfocus = NULL;
         delete e;
     }
@@ -734,8 +735,8 @@ SCRIPTEXPORT void textlist()
     vector<char> s;
     loopv(editors)
     {
-        if(i > 0) s.put(", ", 2);
-        s.put(editors[i]->name, strlen(editors[i]->name));
+        if(i > 0) put(", ", s);
+        put(editors[i]->name, s);
     }
     s.emplace_back('\0');
     result(s.data());

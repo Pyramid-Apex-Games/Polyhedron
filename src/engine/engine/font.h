@@ -1,5 +1,5 @@
 #pragma once
-#include "tools/vector.h"
+#include "tools/vector_util.h"
 
 struct Texture;
 struct Shader;

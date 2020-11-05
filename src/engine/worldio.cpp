@@ -602,7 +602,7 @@ void loadvslots(stream *f, int numvslots)
             numvslots--;
         }
     }
-    loopv(vslots) if(vslots.inrange(prev[i])) vslots[prev[i]]->next = vslots[i];
+    loopv(vslots) if(in_range(prev[i], vslots)) vslots[prev[i]]->next = vslots[i];
     delete[] prev;
 }
 
@@ -955,7 +955,7 @@ SCRIPTEXPORT void writeobj(char *name)
         loopj(va.texs)
         {
             elementset &es = va.texelems[j];
-            if(usedmtl.find(es.texture) < 0) usedmtl.emplace_back(es.texture);
+            if(!in_list(int(es.texture), usedmtl)) usedmtl.emplace_back(es.texture);
             vector<ivec2> &keys = mtls[es.texture];
             loopk(es.length)
             {

@@ -96,7 +96,7 @@ void EntityEditorMenu::Show()
 Entity* EntityEditorMenu::GetEntity() const
 {
     const auto& ents = getents();
-    if (ents.inrange(m_EntityID))
+    if (in_range(m_EntityID, ents))
     {
         return ents[m_EntityID];
     }
@@ -111,7 +111,7 @@ bool EntityEditorMenu::HasEntity(Entity* entity) const
 const Entity* EntityEditorWidget::GetEntity() const
 {
     const auto& ents = getents();
-    if (ents.inrange(m_EntityID))
+    if (in_range(m_EntityID, ents))
     {
         return ents[m_EntityID];
     }
@@ -122,7 +122,7 @@ const Entity* EntityEditorWidget::GetEntity() const
 Entity* EntityEditorWidget::GetEntity()
 {
     const auto& ents = getents();
-    if (ents.inrange(m_EntityID))
+    if (in_range(m_EntityID, ents))
     {
         return ents[m_EntityID];
     }
@@ -312,7 +312,7 @@ EditorWidgetGroup::EditorWidgetGroup(size_t entityId, const attributeList_T& att
 void EditorWidgetGroup::AppendWidget(size_t entityId, const attributeRow_T& attributes)
 {
     const auto& ents = getents();
-    if (!ents.inrange(entityId))
+    if (!in_range(entityId, ents))
     {
         return;
     }

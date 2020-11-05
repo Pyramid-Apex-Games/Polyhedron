@@ -1,7 +1,7 @@
 #pragma once
 
 #include "game/entities/ModelEntity.h"
-#include "shared/tools/vector.h"
+#include "shared/tools/vector_util.h"
 #include <string>
 
 struct vec;

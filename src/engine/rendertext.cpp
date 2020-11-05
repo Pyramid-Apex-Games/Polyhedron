@@ -99,7 +99,7 @@ static void text_color(char c, char *stack, int size, int &sp, bvec color, int a
 		else if(c==' ')  { x += scale*font::CurrentFont()->defaultw; TEXTWHITE(i) }\
 		else if(c=='\n') { TEXTLINE(i) x = 0; y += FONTH; }\
 		else if(c=='\f') { if(str[i+1]) { i++; TEXTCOLOR(i) }}\
-		else if(font::CurrentFont()->chars.inrange(c-font::CurrentFont()->charoffset))\
+		else if(in_range(c-font::CurrentFont()->charoffset, font::CurrentFont()->chars))\
 		{\
 			float cw = scale*font::CurrentFont()->chars[c-font::CurrentFont()->charoffset].advance;\
 			if(cw <= 0) continue;\
@@ -111,7 +111,7 @@ static void text_color(char c, char *stack, int size, int &sp, bvec color, int a
 				{\
 					int c = uchar(str[i+1]);\
 					if(c=='\f') { if(str[i+2]) i++; continue; }\
-					if(!font::CurrentFont()->chars.inrange(c-font::CurrentFont()->charoffset)) break;\
+					if(!in_range(c-font::CurrentFont()->charoffset, font::CurrentFont()->chars)) break;\
 					float cw = scale*font::CurrentFont()->chars[c-font::CurrentFont()->charoffset].advance;\
 					if(cw <= 0 || w + cw > maxwidth) break;\
 					w += cw;\

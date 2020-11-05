@@ -9,7 +9,7 @@ namespace game
     {
 		auto& ents = getents();
 		
-        for (int i = 0; ents.inrange(i); ++i)
+        for (int i = 0; in_range(i, ents); ++i)
         {
 			auto& entity = ents[i];
 			

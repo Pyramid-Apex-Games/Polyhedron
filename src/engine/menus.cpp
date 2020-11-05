@@ -48,7 +48,7 @@ void clearchanges(int type)
         if(c.type&type)
         {
             c.type &= ~type;
-            if(!c.type) needsapply.remove(i);
+            if(!c.type) needsapply.erase(needsapply.begin() + i);
         }
     }
     if(needsapply.empty()) UI::hideui("changes");
@@ -65,7 +65,7 @@ SCRIPTEXPORT void applychanges()
 
 SCRIPTEXPORT void pendingchanges(int *idx)
 {
-    if (needsapply.inrange(*idx))
+    if (in_range(*idx, needsapply))
     {
         result(needsapply[*idx].desc); 
     }

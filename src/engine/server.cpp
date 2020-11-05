@@ -130,10 +130,10 @@ void process(ENetPacket *packet, int sender, int chan);
 //void disconnect_client(int n, int reason);
 
 int getservermtu() { return serverhost ? serverhost->mtu : -1; }
-void *getclientinfo(int i) { return !clients.inrange(i) || clients[i]->type==ST_EMPTY ? NULL : clients[i]->info; }
-ENetPeer *getclientpeer(int i) { return clients.inrange(i) && clients[i]->type==ST_TCPIP ? clients[i]->peer : NULL; }
+void *getclientinfo(int i) { return !in_range(i, clients) || clients[i]->type==ST_EMPTY ? NULL : clients[i]->info; }
+ENetPeer *getclientpeer(int i) { return in_range(i, clients) && clients[i]->type==ST_TCPIP ? clients[i]->peer : NULL; }
 int getnumclients()        { return clients.size(); }
-uint getclientip(int n)    { return clients.inrange(n) && clients[n]->type==ST_TCPIP ? clients[n]->peer->address.host : 0; }
+uint getclientip(int n)    { return in_range(n, clients) && clients[n]->type==ST_TCPIP ? clients[n]->peer->address.host : 0; }
 
 void sendpacket(int n, int chan, ENetPacket *packet, int exclude)
 {
@@ -215,7 +215,7 @@ ENetPacket *sendfile(int cn, int chan, stream *file, const char *format, ...)
         return NULL;
 #endif
     }
-    else if(!clients.inrange(cn)) return NULL;
+    else if(!in_range(cn, clients)) return NULL;
 
     int len = (int)min(file->size(), stream::offset(INT_MAX));
     if(len <= 0 || len > 16<<20) return NULL;
@@ -267,7 +267,7 @@ const char *disconnectreason(int reason)
 
 void disconnect_client(int n, int reason)
 {
-    if(!clients.inrange(n) || clients[n]->type!=ST_TCPIP) return;
+    if(!in_range(n, clients) || clients[n]->type!=ST_TCPIP) return;
     enet_peer_disconnect(clients[n]->peer, reason);
     server::clientdisconnect(n);
     delclient(clients[n]);
@@ -379,7 +379,7 @@ bool requestmaster(const char *req)
 
     if(masterout.size() >= 4096) return false;
 
-    masterout.put(req, strlen(req));
+    put(req, strlen(req), masterout);
     return true;
 }
 
@@ -458,7 +458,7 @@ void flushmasterinput()
     int recv = enet_socket_receive(mastersock, NULL, &buf, 1);
     if(recv > 0)
     {
-        masterin.advance(recv);
+        masterin.resize(masterin.size() + recv);
         processmasterinput();
     }
     else disconnectmaster();

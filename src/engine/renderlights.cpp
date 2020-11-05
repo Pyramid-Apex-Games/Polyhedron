@@ -3533,7 +3533,7 @@ void viewlightscissor()
     loopv(entgroup)
     {
         int idx = entgroup[i];
-        if(ents.inrange(idx) && dynamic_cast<LightEntity*>(ents[idx]))
+        if(in_range(idx, ents) && dynamic_cast<LightEntity*>(ents[idx]))
         {
             auto e = ents[idx];
             loopvj(lights) if(lights[j].o == e->o)

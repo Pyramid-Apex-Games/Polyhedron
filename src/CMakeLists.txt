@@ -227,6 +227,21 @@ list(APPEND fileListShared
     # shared/tessfont.c
     shared/tools.cpp
     shared/tools.h
+    shared/tools/cubestr.h
+    shared/tools/databuf.h
+    shared/tools/endianness.h
+    shared/tools/hash.h
+    shared/tools/isclass.h
+    shared/tools/loop.h
+    shared/tools/macros.h
+    shared/tools/packetbuf.h
+    shared/tools/queue.h
+    shared/tools/sort.h
+    shared/tools/stream.h
+    shared/tools/streambuf.h
+    shared/tools/vector.h
+    shared/tools/vector_util.cpp
+    shared/tools/vector_util.h
     shared/zip.cpp
 )
 
@@ -591,4 +606,8 @@ if (APPLE)
         DEPENDS ${CMAKE_CURRENT_LIST_DIR}/xcode/English.lproj/MainMenu.xib
         COMMENT "Compiling ${CMAKE_CURRENT_LIST_DIR}/xcode/English.lproj/MainMenu.xib")
 
+    #for Valgrind
+    target_link_options(Polyhedron
+        PRIVATE
+            -Wl,-stack_size -Wl,4000000)
 endif()

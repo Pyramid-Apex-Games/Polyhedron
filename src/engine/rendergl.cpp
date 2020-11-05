@@ -92,7 +92,7 @@ timer *findtimer(const char *name, bool gpu)
 {
     loopv(timers) if(!strcmp(timers[i].name, name) && timers[i].gpu == gpu)
     {
-        timerorder.removeobj(i);
+        remove_obj(i, timerorder);
         timerorder.emplace_back(i);
         return &timers[i];
     }

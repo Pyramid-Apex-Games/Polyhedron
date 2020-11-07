@@ -446,7 +446,7 @@ SCRIPTEXPORT void onrelease(const char *s)
 
 void execbind(keym &k, bool isdown)
 {
-    vector<int> deletelist(releaseactions.size());
+//    vector<int> deletelist(releaseactions.size());
     loopv(releaseactions)
     {
         releaseaction &ra = releaseactions[i];
@@ -461,7 +461,7 @@ void execbind(keym &k, bool isdown)
                 delete[] ra.action;
             }
             else execute(isdown ? NULL : ra.id, ra.args, ra.numargs);
-            deletelist.emplace_back(i);
+//            deletelist.emplace_back(i);
 //            releaseactions.erase(releaseactions.begin() + i--);
         }
     }
@@ -469,9 +469,8 @@ void execbind(keym &k, bool isdown)
     releaseactions.erase(
         std::remove_if(
             releaseactions.begin(), releaseactions.end(),
-            [&deletelist](const releaseaction& ra){
-                const int index = &ra - &*releaseactions.data();
-                return std::find(deletelist.begin(), deletelist.end(), index) != deletelist.end();
+            [&k](const releaseaction& ra){
+                return ra.key == &k;
             }
         ),
         releaseactions.end()

@@ -408,14 +408,14 @@ SCRIPTEXPORT_AS(history) void history_(int *n)
 
 struct releaseaction
 {
-    keym *key;
+    keym *key = nullptr;
     union
     {
-        char *action;
+        char *action = nullptr;
         ident *id;
     };
     int numargs;
-    tagval args[3];
+    tagval args[3] = {0};
 };
 vector<releaseaction> releaseactions;
 
@@ -446,6 +446,7 @@ SCRIPTEXPORT void onrelease(const char *s)
 
 void execbind(keym &k, bool isdown)
 {
+    vector<int> deletelist(releaseactions.size());
     loopv(releaseactions)
     {
         releaseaction &ra = releaseactions[i];
@@ -453,13 +454,29 @@ void execbind(keym &k, bool isdown)
         {
             if(ra.numargs < 0)
             {
-                if(!isdown) execute(ra.action);
+                if(!isdown)
+                {
+                    execute(ra.action);
+                }
                 delete[] ra.action;
             }
             else execute(isdown ? NULL : ra.id, ra.args, ra.numargs);
-            releaseactions.erase(releaseactions.begin() + i--);
+            deletelist.emplace_back(i);
+//            releaseactions.erase(releaseactions.begin() + i--);
         }
     }
+
+    releaseactions.erase(
+        std::remove_if(
+            releaseactions.begin(), releaseactions.end(),
+            [&deletelist](const releaseaction& ra){
+                const int index = &ra - &*releaseactions.data();
+                return std::find(deletelist.begin(), deletelist.end(), index) != deletelist.end();
+            }
+        ),
+        releaseactions.end()
+    );
+
     if(isdown)
     {
         int state = keym::ACTION_DEFAULT;

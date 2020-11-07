@@ -49,7 +49,7 @@ void Input::HandleEvent(const SDL_Event& event)
             }
             break;
 
-    case SDL_MOUSEMOTION:
+        case SDL_MOUSEMOTION:
             {
                 if (m_GrabMode)
                 {

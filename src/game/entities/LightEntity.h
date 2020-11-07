@@ -22,10 +22,6 @@ public:
     void setStyle(LightEntity::LIGHT_STYLE &style);
 
 public:
-    //
-    // Light.
-    //
-    // Stores the current state of the dynamic light.
     LightEntity::LIGHT_STATE lightState;
     LightEntity::LIGHT_STYLE lightStyle;
     vec lightColor;

@@ -1,4 +1,5 @@
 #pragma once
+#include <cassert>
 
 #ifdef _DEBUG
 #define ASSERT(c) assert(c)

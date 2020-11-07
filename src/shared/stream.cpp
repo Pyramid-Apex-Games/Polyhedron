@@ -369,7 +369,7 @@ std::string& path(std::string& s)
         if (nextStep == std::string::npos) break;
     }
     s = std::accumulate(parts.begin() + 1, parts.end(), prefix + parts.front(),
-       [](std::string& output, const std::string& element){
+       [](const std::string& output, const std::string& element){
         return output + PATHDIV + element;
     });
 

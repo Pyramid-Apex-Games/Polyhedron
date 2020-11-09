@@ -23,7 +23,7 @@ vec MovableEntity::abovehead() {
 }
 
 
-void MovableEntity::on(const Event& event)
+void MovableEntity::On(const Event& event)
 {
 }
 

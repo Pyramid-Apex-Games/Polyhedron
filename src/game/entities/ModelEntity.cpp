@@ -122,7 +122,7 @@ const std::string& ModelEntity::getModelName() const
 	return modelname;
 }
 
-void ModelEntity::on(const Event& event)
+void ModelEntity::On(const Event& event)
 {
 	switch(event.type)
 	{

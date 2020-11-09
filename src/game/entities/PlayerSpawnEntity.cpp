@@ -21,7 +21,7 @@ void PlayerSpawnEntity::reset()
 }
 
 
-void PlayerSpawnEntity::on(const Event& event)
+void PlayerSpawnEntity::On(const Event& event)
 {
 }
 

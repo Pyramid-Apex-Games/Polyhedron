@@ -20,7 +20,7 @@ void LightEntity::think() {
 void LightEntity::setState(LightEntity::LIGHT_STATE &_lightState) { lightState = _lightState; }
 void LightEntity::setStyle(LightEntity::LIGHT_STYLE &_lightStyle) { lightStyle = _lightStyle; }
 
-void LightEntity::on(const Event& event)
+void LightEntity::On(const Event& event)
 {
 }
 

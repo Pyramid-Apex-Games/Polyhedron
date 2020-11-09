@@ -12,7 +12,7 @@ bool DynamicEntity::crouched() const {
     return fabs(eyeheight - maxheight*CROUCHHEIGHT) < 1e-4f;
 }
 
-void DynamicEntity::on(const Event& event)
+void DynamicEntity::On(const Event& event)
 {
 }
 

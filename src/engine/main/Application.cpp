@@ -115,7 +115,7 @@ Application::Application(const CommandlineArguments& commandlineArguments)
         player = activeCamera;
     }
     activeCamera->o = vec(0, 0, 9.f);
-    player->setAttribute("model", "actors/bones");
+    player->SetAttribute("model", "actors/bones");
     //emptymap(0, true, NULL, false);
 
     execfile("config/stdlib.cfg", true);

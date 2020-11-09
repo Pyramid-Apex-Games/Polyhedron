@@ -18,7 +18,7 @@ EntityEditorMenu::EntityEditorMenu(size_t entityId)
         return;
     }
 
-    m_AttributeTree = GetEntity()->attributeTree();
+    m_AttributeTree = GetEntity()->AttributeTree();
     for (const auto& attribSection : m_AttributeTree)
     {
         if (attribSection.size() > 1)
@@ -130,7 +130,7 @@ Entity* EntityEditorWidget::GetEntity()
     return nullptr;
 }
 
-const attributeRow_T &EntityEditorWidget::GetAttributes() const
+const AttributeRow_T &EntityEditorWidget::GetAttributes() const
 {
     return m_Attributes;
 }
@@ -139,7 +139,7 @@ void InputEntityEditorWidget::Render()
 {
     auto label = std::get<std::string>(GetAttributes()[0]);
     auto variableKey = std::get<std::string>(GetAttributes()[1]);
-    auto attribValue = GetEntity()->getAttribute(variableKey);
+    auto attribValue = GetEntity()->GetAttribute(variableKey);
 
     if (!m_InputTypeConfig)
     {
@@ -189,7 +189,7 @@ void InputEntityEditorWidget::Render()
 
     if (needsUpdate)
     {
-        GetEntity()->setAttribute(variableKey, m_InputTypeConfig->m_SourceVariable);
+        GetEntity()->SetAttribute(variableKey, m_InputTypeConfig->m_SourceVariable);
     }
 
 //    if (inputFieldCount > 1)
@@ -209,13 +209,13 @@ void InputEntityEditorWidget::InputStorageSpace::Render(const std::string& label
     );
 }
 
-InputEntityEditorWidget::InputEntityEditorWidget(size_t entityId, const attributeRow_T &attributes)
+InputEntityEditorWidget::InputEntityEditorWidget(size_t entityId, const AttributeRow_T &attributes)
     : EntityEditorWidget(entityId, attributes)
 {
 }
 
 template <>
-SliderEntityEditorWidget<int>::SliderEntityEditorWidget(size_t entityId, const attributeRow_T &attributes)
+SliderEntityEditorWidget<int>::SliderEntityEditorWidget(size_t entityId, const AttributeRow_T &attributes)
     : EntityEditorWidget(entityId, attributes)
 {}
 
@@ -226,7 +226,7 @@ void SliderEntityEditorWidget<int>::ImGuiSliderAnyImpl(const char* label, int *v
 }
 
 template <>
-SliderEntityEditorWidget<float>::SliderEntityEditorWidget(size_t entityId, const attributeRow_T &attributes)
+SliderEntityEditorWidget<float>::SliderEntityEditorWidget(size_t entityId, const AttributeRow_T &attributes)
     : EntityEditorWidget(entityId, attributes)
 {
 }
@@ -237,7 +237,7 @@ void SliderEntityEditorWidget<float>::ImGuiSliderAnyImpl(const char* label, floa
     ImGui::SliderFloat(label, val, min, max);
 }
 
-CheckboxEntityEditorWidget::CheckboxEntityEditorWidget(size_t entityId, const attributeRow_T &attributes)
+CheckboxEntityEditorWidget::CheckboxEntityEditorWidget(size_t entityId, const AttributeRow_T &attributes)
     : EntityEditorWidget(entityId, attributes)
 {
 }
@@ -245,7 +245,7 @@ CheckboxEntityEditorWidget::CheckboxEntityEditorWidget(size_t entityId, const at
 void CheckboxEntityEditorWidget::Render()
 {
     auto variableKey = std::get<std::string>(GetAttributes()[1]);
-    auto variable = GetEntity()->getAttribute(variableKey);
+    auto variable = GetEntity()->GetAttribute(variableKey);
     m_Storage = false;
     if (std::holds_alternative<bool>(variable))
     {
@@ -264,11 +264,11 @@ void CheckboxEntityEditorWidget::Render()
     {
         if (std::holds_alternative<bool>(variable))
         {
-            GetEntity()->setAttribute(variableKey, workValue ? true : false);
+            GetEntity()->SetAttribute(variableKey, workValue ? true : false);
         }
         else if (std::holds_alternative<int>(variable))
         {
-            GetEntity()->setAttribute(variableKey, workValue ? 1 : 0);
+            GetEntity()->SetAttribute(variableKey, workValue ? 1 : 0);
         }
 
         m_Storage = workValue;
@@ -292,7 +292,7 @@ void WidgetLabelPair::Render()
     ImGui::PopID();
 }
 
-EditorWidgetGroup::EditorWidgetGroup(size_t entityId, const attributeList_T& attributeList)
+EditorWidgetGroup::EditorWidgetGroup(size_t entityId, const AttributeList_T& attributeList)
 {
     using namespace std::string_literals;
 
@@ -309,7 +309,7 @@ EditorWidgetGroup::EditorWidgetGroup(size_t entityId, const attributeList_T& att
     }
 }
 
-void EditorWidgetGroup::AppendWidget(size_t entityId, const attributeRow_T& attributes)
+void EditorWidgetGroup::AppendWidget(size_t entityId, const AttributeRow_T& attributes)
 {
     const auto& ents = getents();
     if (!in_range(entityId, ents))
@@ -325,7 +325,7 @@ void EditorWidgetGroup::AppendWidget(size_t entityId, const attributeRow_T& attr
 
     if (widgetType == "slider"s)
     {
-        auto variable = entity->getAttribute(variableKey);
+        auto variable = entity->GetAttribute(variableKey);
         if (std::holds_alternative<float>(variable))
         {
             m_Widgets.push_back(
@@ -409,7 +409,7 @@ void EditorWidgetGroup::Render()
     }
 }
 
-DummyEntityEditorWidget::DummyEntityEditorWidget(size_t entityId, const attributeRow_T &attributes)
+DummyEntityEditorWidget::DummyEntityEditorWidget(size_t entityId, const AttributeRow_T &attributes)
     : EntityEditorWidget(entityId, attributes)
     , m_Storage(std::get<std::string>(attributes[0]))
 {
@@ -528,12 +528,12 @@ int InputEntityEditorWidget::InputTypeConfig::StorageCount()
     return 1;
 }
 
-InputEntityEditorWidget::InputTypeConfig::InputTypeConfig(const attribute_T variable)
+InputEntityEditorWidget::InputTypeConfig::InputTypeConfig(const Attribute_T variable)
     : m_SourceVariable(variable)
 {
 }
 
-void InputEntityEditorWidget::InputTypeConfig::Update(const attribute_T variable)
+void InputEntityEditorWidget::InputTypeConfig::Update(const Attribute_T variable)
 {
     m_SourceVariable = variable;
 }

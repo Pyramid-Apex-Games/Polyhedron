@@ -688,7 +688,7 @@ bool save_world(const char *mname, bool nolms)
     loopv(ents)
     {
         json eleDoc {};
-        ents[i]->saveToJson(eleDoc);
+        ents[i]->SaveToJson(eleDoc);
         document[i] = eleDoc;
     }
 
@@ -845,7 +845,7 @@ bool load_world(const char *mname, const char *cname)        // Does not support
 		std::ifstream(jsonname) >> document;
 
         for (auto& element : document) {
-			std::string classname = "core_entity";
+			std::string classname = "entity";
 			
             if (element.contains("class") && element["class"].is_string()) {
                 classname = element["class"];
@@ -856,7 +856,7 @@ bool load_world(const char *mname, const char *cname)        // Does not support
             vec pos;
             int index = -1;
             Entity *ent = new_game_entity(true, pos, index, classname.c_str());
-			ent->loadFromJson(element);
+			ent->LoadFromJson(element);
 		}
 	}
     catch (json::type_error& e)	{

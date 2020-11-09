@@ -18,7 +18,7 @@ public:
 class EntityEditorWidget : public EditorRenderable
 {
 public:
-    EntityEditorWidget(size_t entityId, const attributeRow_T& attributes)
+    EntityEditorWidget(size_t entityId, const AttributeRow_T& attributes)
         : m_EntityID(entityId)
         , m_Attributes(attributes)
         , m_Label(std::get<std::string>(attributes[2]))
@@ -28,11 +28,11 @@ public:
 protected:
     const Entity* GetEntity() const;
     Entity* GetEntity();
-    const attributeRow_T& GetAttributes() const;
+    const AttributeRow_T& GetAttributes() const;
 
 private:
     size_t m_EntityID;
-    const attributeRow_T& m_Attributes;
+    const AttributeRow_T& m_Attributes;
 
 protected:
     const std::string m_Label;
@@ -41,20 +41,20 @@ protected:
 class InputEntityEditorWidget : public EntityEditorWidget
 {
 public:
-    InputEntityEditorWidget(size_t entityId, const attributeRow_T& attributes);
+    InputEntityEditorWidget(size_t entityId, const AttributeRow_T& attributes);
     void Render() override;
 
 private:
     struct InputTypeConfig
     {
         using filter_func_t = int (*)(ImGuiInputTextCallbackData*);
-        attribute_T m_SourceVariable;
+        Attribute_T m_SourceVariable;
 
         std::string ToString(int fromStorageIndex = 0);
         void ToSource(const std::string& stringValue, int fromStorageIndex = 0);
         int StorageCount();
-        explicit InputTypeConfig(const attribute_T variable);
-        void Update(const attribute_T variable);
+        explicit InputTypeConfig(const Attribute_T variable);
+        void Update(const Attribute_T variable);
         filter_func_t GetInputFilterer() const;
 
 
@@ -126,11 +126,11 @@ template <
 class SliderEntityEditorWidget : public EntityEditorWidget
 {
 public:
-    SliderEntityEditorWidget(size_t entityId, const attributeRow_T& attributes);
+    SliderEntityEditorWidget(size_t entityId, const AttributeRow_T& attributes);
     void Render() override
     {
         auto variableKey = std::get<std::string>(GetAttributes()[1]);
-        m_Storage = std::get<IntFloat>(GetEntity()->getAttribute(variableKey));
+        m_Storage = std::get<IntFloat>(GetEntity()->GetAttribute(variableKey));
 
         auto minValue = std::get<IntFloat>(GetAttributes()[3]);
         auto maxValue = std::get<IntFloat>(GetAttributes()[4]);
@@ -142,7 +142,7 @@ public:
 
         if (workValue != m_Storage)
         {
-            GetEntity()->setAttribute(variableKey, workValue);
+            GetEntity()->SetAttribute(variableKey, workValue);
             m_Storage = workValue;
         }
     }
@@ -155,7 +155,7 @@ private:
 class CheckboxEntityEditorWidget : public EntityEditorWidget
 {
 public:
-    CheckboxEntityEditorWidget(size_t entityId, const attributeRow_T& attributes);
+    CheckboxEntityEditorWidget(size_t entityId, const AttributeRow_T& attributes);
     void Render() override;
 
 private:
@@ -165,7 +165,7 @@ private:
 class DummyEntityEditorWidget : public EntityEditorWidget
 {
 public:
-    DummyEntityEditorWidget(size_t entityId, const attributeRow_T& attributes);
+    DummyEntityEditorWidget(size_t entityId, const AttributeRow_T& attributes);
     void Render() override;
 
 private:
@@ -195,12 +195,12 @@ private:
 class EditorWidgetGroup : public EditorRenderable
 {
 public:
-    explicit EditorWidgetGroup(size_t entityId, const attributeList_T& attributeList);
+    explicit EditorWidgetGroup(size_t entityId, const AttributeList_T& attributeList);
 
     void Render() override;
 
 private:
-    void AppendWidget(size_t entityId, const attributeRow_T& attributes);
+    void AppendWidget(size_t entityId, const AttributeRow_T& attributes);
 
     std::string m_Label;
     bool m_OpenState = true;
@@ -230,7 +230,7 @@ private:
     int m_AnimSlideInStart = 0;
     int m_AnimSlideOutStart = 0;
 
-    attributeTree_T m_AttributeTree;
+    AttributeTree_T m_AttributeTree;
     std::vector<std::unique_ptr<EditorRenderable> > m_Widgets;
 };
 

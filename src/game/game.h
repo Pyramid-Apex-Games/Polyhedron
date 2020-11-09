@@ -3,7 +3,7 @@
 
 #include "cube.h"
 #include "ents.h"
-
+#include "shared/event/EntityEvent.h"
 
 class SkeletalEntity;
 class Entity;
@@ -14,9 +14,6 @@ namespace game
     extern SkeletalEntity *player1;  // Main player entity in the game code.
     extern int maptime, maprealtime;            // Times.
     extern cubestr clientmap;                   // The map the client is currently running or loading.
-
-    // Entities.
-    extern void clearworld();
 
     // Update functions.
     extern void updateentities();
@@ -40,16 +37,36 @@ namespace game
         bool ragdoll;
     };
 
-    extern void saveragdoll(Entity *d);
-    extern void clearragdolls();
-    extern void moveragdolls();
-    extern const playermodelinfo &getplayermodelinfo(Entity *d);
-    extern int getplayercolor(Entity *d, int team);
-    extern int chooserandomplayermodel(int seed);
-    extern void syncplayer();
+//    extern void clearragdolls();
+//    extern void moveragdolls();
+//    extern const playermodelinfo &getplayermodelinfo(Entity *d);
+//    extern int getplayercolor(Entity *d, int team);
+//    extern int chooserandomplayermodel(int seed);
+//    extern void syncplayer();
     extern void swayhudgun(int curtime);
     extern vec hudgunorigin(int gun, const vec &from, const vec &to, Entity *d);
 }
+
+class iGame
+{
+    virtual void Render(game::RenderPass pass) = 0;
+    virtual void Update();
+    virtual bool OnEvent(const Event&) = 0;
+
+protected:
+    void TriggerEvent(const Event& event);
+    void TriggerEvent(const Event& event, int index);
+    void TriggerEvent(const Event& event, const std::function<bool (const Event::Listener_T&)>& target_if);
+    void TriggerEvent(const Event& event, const Event::Listener_T& target);
+};
+
+
+class FpsGame : public iGame
+{
+    void Render(game::RenderPass pass) override;
+    void Update() override;
+    bool OnEvent(const Event&) override;
+};
 
 #endif
 

@@ -8,7 +8,7 @@ SkeletalEntity::SkeletalEntity() : ModelEntity("actors/bones") {
 	physstate = PHYS_FALL;
 
 	conoutf("%s", "Preloading player entity");
-	setAttribute("name", "SkeletalEntity");
+	SetAttribute("name", "SkeletalEntity");
 }
 
 //SkeletalEntity::~SkeletalEntity() {
@@ -235,7 +235,7 @@ void SkeletalEntity::render(game::RenderPass pass)
 
 bool SkeletalEntity::onTrigger(const Entity *otherEnt, const vec &dir) {
     if (otherEnt != nullptr) {
-        conoutf("%s '%s' %s %s %s %f %f %f", "SkeletalEntity: ", name.c_str(), " triggered by entity: ", otherEnt->classname.c_str(),
+        conoutf("%s '%s' %s %s %s %f %f %f", "SkeletalEntity: ", name.c_str(), " triggered by entity: ", otherEnt->GetInstanceName().c_str(),
             "from Vector Direction: ", dir.x, dir.y, dir.z);
             return true;
     } else {
@@ -245,7 +245,7 @@ bool SkeletalEntity::onTrigger(const Entity *otherEnt, const vec &dir) {
 
 bool SkeletalEntity::onTouch(const Entity *otherEnt, const vec &dir) {
      if (otherEnt != nullptr) {
-        conoutf("%s %s %s %f %f %f", "SkeletalEntity touched by entity: ", otherEnt->classname.c_str(),
+        conoutf("%s %s %s %f %f %f", "SkeletalEntity touched by entity: ", otherEnt->GetInstanceName().c_str(),
             "from Vector Direction: ", dir.x, dir.y, dir.z);
         return true;
     } else {
@@ -255,15 +255,15 @@ bool SkeletalEntity::onTouch(const Entity *otherEnt, const vec &dir) {
 
 void SkeletalEntity::reset()
 {
-	on(EntityEventClearSpawn());
+	On(EntityEventClearSpawn());
 }
 
 void SkeletalEntity::respawn()
 {
-	on(EntityEventSpawn());
+	On(EntityEventSpawn());
 }
 
-void SkeletalEntity::on(const Event& event)
+void SkeletalEntity::On(const Event& event)
 {
 	switch(event.type)
 	{

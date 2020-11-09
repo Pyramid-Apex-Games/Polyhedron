@@ -116,11 +116,11 @@ def GenerateAttributeDefinition(cxxClass):
     if len(output) > 0:
         output = [f"{{\"header\"s, \"{cxxClass}\"s}}"] + output
     body = ",\n\t\t".join(output)
-    return f"""const attributeList_T {templateValues['className']}::attributes()
+    return f"""const AttributeList_T {templateValues['className']}::Attributes()
 {{
     using namespace std::string_literals;
 
-    return attributeList_T {{
+    return AttributeList_T {{
         {body}
     }};
 }}
@@ -217,13 +217,13 @@ def GenerateAttributeGetter(cxxClass):
     body = ""
     if len(output) != 0:
         body = "\n\t".join(output)
-    return f"""attribute_T {templateValues['className']}::getAttributeImpl(const std::string &key) const
+    return f"""Attribute_T {templateValues['className']}::GetAttributeImpl(const std::string &key) const
 {{
 \tusing namespace std::string_literals;
 
 \t{body}
 
-\treturn attribute_T();
+\treturn Attribute_T();
 }}
 """
 
@@ -247,14 +247,14 @@ def GenerateAttributeSetter(cxxClass):
         {{
 			{childTemplateValues['variableName']} = std::visit(AttributeVisitCoercer<{childTemplateValues['variableType']}>(), value);
         }}
-        onImpl(changedEvent);
+        OnImpl(changedEvent);
 	}}""")
 
                 if len(output) > 0:
                     hasElse = "else "
 
     body = "\n\t".join(output)
-    return f"""void {templateValues['className']}::setAttributeImpl(const std::string &key, const attribute_T &value)
+    return f"""void {templateValues['className']}::SetAttributeImpl(const std::string &key, const Attribute_T &value)
 {{
 \tusing namespace std::string_literals;
 

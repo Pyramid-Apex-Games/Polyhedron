@@ -556,7 +556,7 @@ void attachentities()
         removeentityedit(n);  \
         f; \
         /*if(old_et_type!=e->et_type)*/ detachentity(e); \
-        if(e->classname!="core_entity") { addentityedit(n); /*if(old_et_type!=e->et_type)*/ attachentity(e); } \
+        if(e->GetInstanceName()!="entity") { addentityedit(n); /*if(old_et_type!=e->et_type)*/ attachentity(e); } \
         editent(n, true); \
         clearshadowcache(); \
     }, v); \
@@ -587,7 +587,7 @@ undoblock *copyundoents(undoblock *u)
     loopi(u->numents)
     {
 //		if(e[i].e->et_type==ET_EMPTY)
-        if(e[i].e->classname == "core_entity")
+        if(e[i].e->GetInstanceName() == "entity")
 		{
 			send_entity_event(e[i].i, EntityEventSelectStop());
 			remove_obj(e[i].i, entgroup);
@@ -1391,7 +1391,7 @@ Entity *new_game_entity(bool local, const vec &o, int &idx, const char *strclass
         }
     }
 
-    Entity *ent = EntityFactory::constructEntity(std::string(strclass));
+    Entity *ent = EntityFactory::ConstructObject(std::string(strclass));
 
     ent->o = o;
 
@@ -1422,11 +1422,11 @@ Entity *new_game_entity(bool local, const vec &o, int &idx, const char *strclass
 Entity *new_game_entity(int &idx, Entity *copy)
 {
 	find_next_entity_index(idx);
-	auto ent = new_game_entity(true, copy->o, idx, copy->currentClassname().c_str());
+	auto ent = new_game_entity(true, copy->o, idx, copy->GetInstanceName().c_str());
 	
 	nlohmann::json data {};
-	copy->saveToJson(data);
-	ent->loadFromJson(data);
+	copy->SaveToJson(data);
+	ent->LoadFromJson(data);
 	
 	return ent;
 }
@@ -1487,8 +1487,8 @@ SCRIPTEXPORT void entreplace()
     {
         groupedit({
 			nlohmann::json data {};
-			c->saveToJson(data);
-			e->loadFromJson(data);
+			c->SaveToJson(data);
+			e->LoadFromJson(data);
         });
     }
     else
@@ -1568,7 +1568,7 @@ SCRIPTEXPORT void enttype(char *type, CommandTypes::ArgLen numargs)
     }
     else entfocus(efocus,
     {
-        result(e->classname.c_str());
+        result(e->GetInstanceName().c_str());
     })
 }
 
@@ -1632,7 +1632,7 @@ int findentity_byclass(const std::string &classname)
 	const auto &ents = getents();
 	for(int i = 0; i <ents.size(); i++)
 	{
-		if (ents[i]->classname != classname) continue;
+		if (ents[i]->GetInstanceName() != classname) continue;
 		
 		return i;
 	}
@@ -1730,8 +1730,8 @@ void findplayerspawn(SkeletalEntity *d, int forceent, int tag) // Place at spawn
 //        {
 //            Entity *e = ents[i];
 
-//            if(e->classname == classname) {
-//				conoutf("Found Entity by Class: %s , %s", classname.c_str(), e->classname.c_str());
+//            if(e->GetInstanceName() == classname) {
+//				conoutf("Found Entity by Class: %s , %s", GetInstanceName().c_str(), e->GetInstanceName().c_str());
 //                return i;
 //            }
 //        }

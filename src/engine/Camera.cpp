@@ -136,7 +136,7 @@ void Camera::UpdateAll()
     }
 }
 
-void Camera::on(const Event& event)
+void Camera::On(const Event& event)
 {
 }
 

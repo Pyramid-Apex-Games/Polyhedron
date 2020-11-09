@@ -24,7 +24,7 @@ bool DecalEntity::getBoundingBox(int entselradius, vec &minbb, vec &maxbb) const
 	return false;
 }
 
-void DecalEntity::on(const Event& event)
+void DecalEntity::On(const Event& event)
 {
 }
 

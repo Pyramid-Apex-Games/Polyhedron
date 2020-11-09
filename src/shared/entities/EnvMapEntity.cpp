@@ -1,6 +1,6 @@
 #include "EnvMapEntity.h"
 
-void EnvMapEntity::on(const Event& event)
+void EnvMapEntity::On(const Event& event)
 {
 }
 

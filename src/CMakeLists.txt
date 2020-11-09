@@ -327,6 +327,8 @@ list(APPEND fileListGameEntities
         game/entities/LightEntity.h
         game/entities/MonsterEntity.cpp
         game/entities/MonsterEntity.h
+        game/entities/PickupEntity.cpp
+        game/entities/PickupEntity.h
         game/entities/PlayerSpawnEntity.cpp
         game/entities/PlayerSpawnEntity.h
         game/entities/SkeletalEntity.cpp
@@ -336,6 +338,8 @@ list(APPEND fileListGameEntities
 )
 
 list(APPEND fileListSharedEntities
+    shared/architecture/Attribute.cpp
+    shared/architecture/Attribute.h
     shared/entities/DecalEntity.cpp
     shared/entities/DecalEntity.h
     shared/entities/DynamicEntity.cpp
@@ -353,6 +357,12 @@ list(APPEND fileListSharedEntities
     shared/entities/animinfo.h
     shared/entities/attributes.cpp
     shared/entities/attributes.h
+    shared/event/EntityEvent.cpp
+    shared/event/EntityEvent.h
+    shared/event/Event.cpp
+    shared/event/Event.h
+    shared/event/GameEvent.cpp
+    shared/event/GameEvent.h
 )
 
 list(APPEND extRenderdocFiles

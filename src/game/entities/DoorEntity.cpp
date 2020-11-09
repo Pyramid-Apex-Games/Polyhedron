@@ -10,7 +10,7 @@ DoorEntity::DoorEntity()
     : ModelEntity("world/door_2")
 {
     // Reset.
-    setAttribute("name", "DoorEntity");
+    SetAttribute("name", "DoorEntity");
 
     // Setup the door its states.
     state = CS_ALIVE;
@@ -48,7 +48,7 @@ bool DoorEntity::onTrigger(const Entity *otherEnt, const vec &dir)
     if (otherEnt == nullptr) {
         return false;
     }
-    conoutf("%s %s %s %f %f %f", "DoorEntity triggered by entity: ", otherEnt->classname.c_str(),
+    conoutf("%s %s %s %f %f %f", "DoorEntity triggered by entity: ", otherEnt->GetInstanceName().c_str(),
             "from Vector Direction: ", dir.x, dir.y, dir.z);
     return true;
 }
@@ -58,13 +58,13 @@ bool DoorEntity::onTouch(const Entity *otherEnt, const vec &dir)
     if (otherEnt == nullptr) {
         return false;
     }
-    conoutf("%s %s %s %f %f %f", "DoorEntity touched by entity: ", otherEnt->classname.c_str(),
+    conoutf("%s %s %s %f %f %f", "DoorEntity touched by entity: ", otherEnt->GetInstanceName().c_str(),
             "from Vector Direction: ", dir.x, dir.y, dir.z);
     return true;
 }
 
 
-void DoorEntity::on(const Event& event)
+void DoorEntity::On(const Event& event)
 {
 }
 

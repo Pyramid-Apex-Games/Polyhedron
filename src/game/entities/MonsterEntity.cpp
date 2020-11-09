@@ -19,7 +19,7 @@ void MonsterEntity::render(game::RenderPass pass) {
 }
 
 
-void MonsterEntity::on(const Event& event)
+void MonsterEntity::On(const Event& event)
 {
 }
 

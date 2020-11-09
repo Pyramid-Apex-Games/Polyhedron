@@ -446,7 +446,6 @@ SCRIPTEXPORT void onrelease(const char *s)
 
 void execbind(keym &k, bool isdown)
 {
-//    vector<int> deletelist(releaseactions.size());
     loopv(releaseactions)
     {
         releaseaction &ra = releaseactions[i];
@@ -461,8 +460,6 @@ void execbind(keym &k, bool isdown)
                 delete[] ra.action;
             }
             else execute(isdown ? NULL : ra.id, ra.args, ra.numargs);
-//            deletelist.emplace_back(i);
-//            releaseactions.erase(releaseactions.begin() + i--);
         }
     }
 

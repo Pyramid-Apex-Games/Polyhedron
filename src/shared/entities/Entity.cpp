@@ -4,6 +4,7 @@
 #include "shared/entities/Entity.h"
 #include "shared/entities/MovableEntity.h"
 #include "shared/entities/EntityFactory.h"
+#include "shared/event/Event.h"
 #include "game/game.h"
 #include "engine/engine.h"
 #include "engine/texture.h"
@@ -23,56 +24,56 @@ extern int worldsize;
 
 ADD_ENTITY_TO_FACTORY(Entity, "entity");
 
-void Entity::saveToJsonImpl(nlohmann::json& document)
+void Entity::SaveToJsonImpl(nlohmann::json& document)
 {
-	document[classname] = {};
-	to_json(document[classname], *this);
+	document[GetInstanceName()] = {};
+	to_json(document[GetInstanceName()], *this);
 }
 
 
-void Entity::saveToJson(nlohmann::json& document)
+void Entity::SaveToJson(nlohmann::json& document)
 {
 	document = {
-		{"class", currentClassname()}
+		{"class", GetInstanceName()}
 	};
 
-	saveToJsonImpl(document);
+	SaveToJsonImpl(document);
 }
 
-void Entity::fromJsonImpl(const nlohmann::json& document)
+void Entity::FromJsonImpl(const nlohmann::json& document)
 {
-    if (document.find(classname) != document.end())
+    if (document.find(GetInstanceName()) != document.end())
     {
-	    document.at(classname).get_to(*this);
+	    document.at(GetInstanceName()).get_to(*this);
     }
 }
 
-void Entity::loadFromJson(const nlohmann::json& document)
+void Entity::LoadFromJson(const nlohmann::json& document)
 {
-	fromJsonImpl(document);
+	FromJsonImpl(document);
 	
-	on(EntityEventPrecache());
+	On(EntityEventPrecache());
 }
 
-void Entity::setAttribute(const std::string &key, const attribute_T &value)
+void Entity::SetAttribute(const std::string &key, const Attribute_T &value)
 {
-	setAttributeImpl(key, value);
+	SetAttributeImpl(key, value);
 }
 
-attribute_T Entity::getAttribute(const std::string &key) const
+Attribute_T Entity::GetAttribute(const std::string &key) const
 {
-	return getAttributeImpl(key);
+	return GetAttributeImpl(key);
 }
 
-const void Entity::attributeTreeImpl(attributeTree_T& tree)
+void Entity::AttributeTreeImpl(AttributeTree_T& tree) const
 {
-	tree.push_back(attributes());
+	tree.push_back(Attributes());
 }
 
-const attributeTree_T Entity::attributeTree()
+const AttributeTree_T Entity::AttributeTree() const
 {
-	attributeTree_T tree;
-	attributeTreeImpl(tree);
+	AttributeTree_T tree;
+	AttributeTreeImpl(tree);
 	return tree;
 }
 
@@ -166,12 +167,12 @@ void Entity::renderMoveShadow(int entselradius, int size)
 
 }
 
-void Entity::onImpl(const Event& event)
+void Entity::OnImpl(const Event& event)
 {
-	on(event);
+	On(event);
 }
 
-void Entity::on(const Event& event)
+void Entity::On(const Event& event)
 {
 	if (
         event.type != EntityEventType::HoverStart &&
@@ -271,7 +272,7 @@ void send_entity_event(Entity* entity, const Event& event)
 {
 	if (entity)
 	{
-		entity->onImpl(event);
+		entity->OnImpl(event);
 	}
 }
 

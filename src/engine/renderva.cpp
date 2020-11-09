@@ -545,9 +545,22 @@ static inline void rendermapmodel(Entity *ee)
 	if (!e)
         return;
 
-    int anim = ANIM_MAPMODEL|ANIM_LOOP, basetime = 0;
-    if(e->flags&EntityFlags::EF_ANIM) ((ModelEntity*)e)->onAnimate(anim, basetime);
-	rendermapmodel(e->model_idx, anim, e->o, e->d.x, e->d.y, e->d.z, MDL_CULL_VFC | MDL_CULL_DIST, basetime, e->scale > 0 ? e->scale/100.0f : 1.0f);
+    int anim = ANIM_MAPMODEL | ANIM_LOOP;
+    int basetime = 0;
+
+    if(e->flags & EntityFlags::EF_ANIM)
+    {
+        e->onAnimate(anim, basetime);
+    }
+
+	rendermapmodel(
+        e->model_idx, anim,
+        e->o,
+        e->d.x, e->d.y, e->d.z,
+        MDL_CULL_VFC | MDL_CULL_DIST,
+        basetime,
+        e->scale > 0 ? e->scale/100.0f : 1.0f
+    );
 }
 
 void rendermapmodels()
@@ -557,8 +570,11 @@ void rendermapmodels()
     const auto& ents = getents();
     findvisiblemms(ents, doquery);
 
-    for(octaentities *oe = visiblemms; oe; oe = oe->next) if(oe->distance>=0)
+    for(octaentities *oe = visiblemms; oe; oe = oe->next)
     {
+        if(oe->distance<0)
+            continue;
+
         bool rendered = false;
         for(auto& modelIdx : oe->mapmodels)
         {
@@ -567,17 +583,24 @@ void rendermapmodels()
 				continue;
 				
             //conoutf("oe mapmodel: %d (%s)", oe->mapmodels[i], e.flags&EF_RENDER ? "render" : "no render");
-			if(!(e->flags&EntityFlags::EF_RENDER)) continue;
+			if(!(e->flags&EntityFlags::EF_RENDER))
+			    continue;
             if(!rendered)
             {
                 rendered = true;
                 oe->query = doquery && oe->distance>0 && !(++skipoq%oqmm) ? newquery(oe) : NULL;
-                if(oe->query) startmodelquery(oe->query);
+                if(oe->query)
+                {
+                    startmodelquery(oe->query);
+                }
             }
 			rendermapmodel(e);
 			e->flags &= ~EntityFlags::EF_RENDER;
         }
-        if(rendered && oe->query) endmodelquery();
+        if(rendered && oe->query)
+        {
+            endmodelquery();
+        }
     }
     rendermapmodelbatches();
     clearbatchedmapmodels();

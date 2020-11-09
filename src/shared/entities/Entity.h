@@ -3,6 +3,7 @@
 #include "cube.h"
 #include "ents.h"
 #include "EntityFactory.h"
+#include "shared/event/EntityEvent.h"
 #include "engine/scriptexport.h"
 #include <nlohmann/json.hpp>
 #include <map>
@@ -23,143 +24,14 @@ inline int& operator&= (EntityEditorState& a, EntityEditorState b) { return ((in
 inline int& operator^= (EntityEditorState& a, EntityEditorState b) { return ((int&)a ^= (int)b); }
 
 
-enum class EntityEventType
-{
-    None,
-    Tick,
-    AttributeChanged,
-    SelectStart,
-    SelectStop,
-    MoveStart,
-    MoveStop,
-    HoverStart,
-    HoverStop,
-    TouchStart,
-    TouchStop,
-    Use,
-    Trigger,
-    Precache,
-    Spawn,
-    ClearSpawn,
-
-    Count
-};
-
-static const std::map<EntityEventType, std::string> EntityEventTypeToStringMap = {
-    {EntityEventType::None, "None"},
-    {EntityEventType::Tick, "Tick"},
-    {EntityEventType::AttributeChanged, "AttributeChanged"},
-    {EntityEventType::SelectStart, "SelectStart"},
-    {EntityEventType::SelectStop, "SelectStop"},
-    {EntityEventType::MoveStart, "MoveStart"},
-    {EntityEventType::MoveStop, "MoveStop"},
-    {EntityEventType::HoverStart, "HoverStart"},
-    {EntityEventType::HoverStop, "HoverStop"},
-    {EntityEventType::TouchStart, "TouchStart"},
-    {EntityEventType::TouchStop, "TouchStop"},
-    {EntityEventType::Use, "Use"},
-    {EntityEventType::Trigger, "Trigger"},
-    {EntityEventType::Precache, "Precache"},
-    {EntityEventType::Spawn, "Spawn"},
-    {EntityEventType::ClearSpawn, "ClearSpawn"},
-    {EntityEventType::Count, "Count"}
-};
-
-struct Event
-{
-    Event(EntityEventType type)
-        : type(type)
-    {}
-    const EntityEventType type = EntityEventType::None;
-};
-
-template <EntityEventType E>
-struct EntityEvent : public Event
-{
-    EntityEvent()
-        : Event(E)
-    {}
-};
-
-template <EntityEventType E, typename T>
-struct EntityEventData : public EntityEvent<E>
-{
-    EntityEventData(const T& payload)
-        : EntityEvent<E>()
-        , payload(payload)
-    {}
-
-    const T payload;
-};
-
-struct EntityEventAttributeChanged : public EntityEventData<EntityEventType::AttributeChanged, std::string>
-{
-    EntityEventAttributeChanged(const std::string& key)
-        : EntityEventData<EntityEventType::AttributeChanged, std::string>(key)
-    {}
-};
-
-struct EntityEventSelectStart : public EntityEvent<EntityEventType::SelectStart>
-{
-};
-
-struct EntityEventSelectStop : public EntityEvent<EntityEventType::SelectStop>
-{
-};
-
-struct EntityEventMoveStart : public EntityEvent<EntityEventType::MoveStart>
-{
-};
-
-struct EntityEventMoveStop : public EntityEvent<EntityEventType::MoveStop>
-{
-};
-
-struct EntityEventTouchStart : public EntityEventData<EntityEventType::TouchStart, vec>
-{
-    EntityEventTouchStart(const vec& val)
-    : EntityEventData<EntityEventType::TouchStart, vec>(val)
-    {}
-};
-
-struct EntityEventTouchStop : public EntityEvent<EntityEventType::TouchStop>
-{
-};
-
-struct EntityEventHoverStart : public EntityEventData<EntityEventType::HoverStart, int>
-{
-    EntityEventHoverStart(int orient)
-        : EntityEventData<EntityEventType::HoverStart, int>(orient)
-    {}
-};
-
-struct EntityEventHoverStop : public EntityEvent<EntityEventType::HoverStop>
-{
-};
-
-struct EntityEventPrecache : public EntityEvent<EntityEventType::Precache>
-{
-};
-
-struct EntityEventSpawn : public EntityEvent<EntityEventType::Spawn>
-{
-};
-
-struct EntityEventClearSpawn : public EntityEvent<EntityEventType::ClearSpawn>
-{
-};
-
-struct EntityEventTick : public EntityEvent<EntityEventType::Tick>
-{
-};
 
 class Entity
 {
     ENTITY_FACTORY_IMPL(Entity)
 public:
 
-    void saveToJson(nlohmann::json& document);
-    void loadFromJson(const nlohmann::json& document);
+    void SaveToJson(nlohmann::json& document);
+    void LoadFromJson(const nlohmann::json& document);
 
     virtual void render(game::RenderPass pass);
 
@@ -205,6 +77,6 @@ void to_json(nlohmann::json& document, const Entity* entity_ptr);
 void from_json(const nlohmann::json& document,  Entity& entity_t);
 void to_json(nlohmann::json& document, const Entity& entity_t);
 
-void send_entity_event(Entity* entity, const Event& event);
+void send_entity_event(Entity* entity, const Event & event);
 void send_entity_event(int entity_id, const Event& event);
 

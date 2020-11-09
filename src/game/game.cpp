@@ -365,3 +365,31 @@ namespace game
 
 }; // namespace game.
 
+bool iGame::OnEvent(const Event &)
+{
+    return true;
+}
+
+void iGame::TriggerEvent(const Event& event)
+{
+    if (OnEvent(event))
+        Event::Broadcast(event);
+}
+
+void iGame::TriggerEvent(const Event& event, int index)
+{
+    if (OnEvent(event))
+        Event::SendByIndex(event, index);
+}
+
+void iGame::TriggerEvent(const Event& event, const std::function<bool (const Event::Listener_T&)>& target_if)
+{
+    if (OnEvent(event))
+        Event::SendIf(event, target_if);
+}
+
+void iGame::TriggerEvent(const Event& event, const Event::Listener_T& target)
+{
+    if (OnEvent(event))
+        Event::Send(event, target);
+}

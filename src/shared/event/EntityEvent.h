@@ -62,7 +62,6 @@ struct EntitySignalHandler
     static void Send(const Event& event, const Listener& target);
 };
 
-
 template <EntityEventType E>
 struct EntityEvent
     : public Event

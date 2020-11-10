@@ -1,48 +1,42 @@
 #pragma once
 #include "Event.h"
+#include <map>
 
-enum class EntityEventType
+enum class GameEventType
 {
     None,
 
+    Start,
     Tick,
-    AttributeChanged,
-    SelectStart,
-    SelectStop,
-    MoveStart,
-    MoveStop,
-    HoverStart,
-    HoverStop,
-    TouchStart,
-    TouchStop,
     Use,
-    Trigger,
-    Precache,
-    Spawn,
-    ClearSpawn,
+    Shoot,
+    Stop,
 
     Count
 };
 
-struct EntitySignalHandler;
-using Event = detail::Event<EntityEventType, EntitySignalHandler>;
+struct GameSignalHandler;
+using GameEvent = detail::Event<GameEventType, GameSignalHandler>;
 
-static const std::map<EntityEventType, std::string> EntityEventTypeToStringMap = {
-    {EntityEventType::None, "None"},
-    {EntityEventType::Tick, "Tick"},
-    {EntityEventType::AttributeChanged, "AttributeChanged"},
-    {EntityEventType::SelectStart, "SelectStart"},
-    {EntityEventType::SelectStop, "SelectStop"},
-    {EntityEventType::MoveStart, "MoveStart"},
-    {EntityEventType::MoveStop, "MoveStop"},
-    {EntityEventType::HoverStart, "HoverStart"},
-    {EntityEventType::HoverStop, "HoverStop"},
-    {EntityEventType::TouchStart, "TouchStart"},
-    {EntityEventType::TouchStop, "TouchStop"},
-    {EntityEventType::Use, "Use"},
-    {EntityEventType::Trigger, "Trigger"},
-    {EntityEventType::Precache, "Precache"},
-    {EntityEventType::Spawn, "Spawn"},
-    {EntityEventType::ClearSpawn, "ClearSpawn"},
-    {EntityEventType::Count, "Count"}
+static const std::map<GameEventType, std::string> GameEventTypeToStringMap = {
+    {GameEventType::None, "None"},
+    {GameEventType::Start, "Start"},
+    {GameEventType::Tick, "Tick"},
+    {GameEventType::Use, "Use"},
+    {GameEventType::Shoot, "Shoot"},
+    {GameEventType::Stop, "Stop"},
+    {GameEventType::Count, "Count"}
+};
+
+class iGame;
+
+struct GameSignalHandler
+{
+    using Listener = iGame *;
+    using FindListenerPredicate = std::function<bool (const Listener&)>;
+
+    static void Broadcast(const GameEvent& event);
+    static void SendByIndex(const GameEvent& event, int index) {}
+    static void SendIf(const GameEvent& event, const FindListenerPredicate& target_if) {}
+    static void Send(const GameEvent& event, const Listener& target) {}
 };

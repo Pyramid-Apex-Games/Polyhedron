@@ -1,7 +1,5 @@
 #pragma once
 #include "shared/tools/vector_util.h"
-#include <map>
-#include <string>
 
 namespace detail {
     template<typename Type, typename SignalHandler>
@@ -20,8 +18,3 @@ namespace detail {
         static constexpr auto Send = Signal_T::Send;
     };
 }
-
-//static const auto& Broadcast = Signal_T::Broadcast;
-//static const auto& SendByIndex = Signal_T::SendByIndex;
-//static const auto& SendIf = Signal_T::SendIf;
-//static const auto& Send = Signal_T::Send;

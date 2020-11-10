@@ -3,7 +3,7 @@
 
 #include "cube.h"
 #include "ents.h"
-#include "shared/event/EntityEvent.h"
+#include "shared/event/GameEvent.h"
 
 class SkeletalEntity;
 class Entity;
@@ -49,15 +49,13 @@ namespace game
 
 class iGame
 {
+public:
     virtual void Render(game::RenderPass pass) = 0;
     virtual void Update();
-    virtual bool OnEvent(const Event&) = 0;
+    virtual bool OnEvent(const GameEvent&) = 0;
 
 protected:
-    void TriggerEvent(const Event& event);
-    void TriggerEvent(const Event& event, int index);
-    void TriggerEvent(const Event& event, const std::function<bool (const Event::Listener_T&)>& target_if);
-    void TriggerEvent(const Event& event, const Event::Listener_T& target);
+
 };
 
 
@@ -65,7 +63,7 @@ class FpsGame : public iGame
 {
     void Render(game::RenderPass pass) override;
     void Update() override;
-    bool OnEvent(const Event&) override;
+    bool OnEvent(const GameEvent&) override;
 };
 
 #endif

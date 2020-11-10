@@ -26,10 +26,8 @@ ADD_ENTITY_TO_FACTORY(Entity, "entity");
 
 void Entity::SaveToJsonImpl(nlohmann::json& document)
 {
-	document[GetInstanceName()] = {};
-	to_json(document[GetInstanceName()], *this);
+	document[Entity::GetClassName()] = *this;
 }
-
 
 void Entity::SaveToJson(nlohmann::json& document)
 {
@@ -42,9 +40,9 @@ void Entity::SaveToJson(nlohmann::json& document)
 
 void Entity::FromJsonImpl(const nlohmann::json& document)
 {
-    if (document.find(GetInstanceName()) != document.end())
+    if (document.find(Entity::GetClassName()) != document.end())
     {
-	    document.at(GetInstanceName()).get_to(*this);
+	    document.at(Entity::GetClassName()).get_to(*this);
     }
 }
 

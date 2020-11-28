@@ -889,7 +889,7 @@ void Console::Update()
             .GetFramebufferSize(m_BufferedWidth, m_BufferedHeight);
     }
 
-    auto lineNum = std::max(0ul, m_ConsoleLines.size() - m_Config.Regular.LineNum);
+    auto lineNum = std::max(0ull, m_ConsoleLines.size() - m_Config.Regular.LineNum);
     auto height = (engine::nui::GetDevice().GetLineHeight() + 1.0f) * std::min((int)m_ConsoleLines.size(), m_Config.Regular.LineNum) + 2.0f;
     nk_style_push_style_item(
         engine::nui::GetNKContext(),

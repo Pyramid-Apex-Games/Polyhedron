@@ -1,7 +1,7 @@
 #pragma once
 
 // Include tools header.
-#include "shared/tools.h"
+//#include "shared/tools.h"
 
 //
 // Settings
@@ -49,7 +49,7 @@ public:
     int range = 0;
     int basetime = 0;
     float speed = 100.0f;
-    uint varseed = 0;
+    unsigned int varseed = 0;
 
     bool operator==(const animinfo &o) const { return frame==o.frame && range==o.range && (anim&(ANIM_SETTIME|ANIM_DIR))==(o.anim&(ANIM_SETTIME|ANIM_DIR)) && (anim&ANIM_SETTIME || basetime==o.basetime) && speed==o.speed; }
     bool operator!=(const animinfo &o) const { return frame!=o.frame || range!=o.range || (anim&(ANIM_SETTIME|ANIM_DIR))!=(o.anim&(ANIM_SETTIME|ANIM_DIR)) || (!(anim&ANIM_SETTIME) && basetime!=o.basetime) || speed!=o.speed; }

@@ -1,4 +1,5 @@
 #include "MovableEntity.h"
+#include "animinfo.h"
 
 namespace {
 	float aboveeye = 9.0f;

@@ -22,12 +22,22 @@ def CompileFlagsFor(file, buildFolder):
 
     fileabs = os.path.abspath(file)
     for tu in cached_flags:
-        if tu['file'] == fileabs:
+        tuFile = os.path.normpath(tu['file'])
+        tuDir = os.path.normpath(tu['directory'])
+        if tuFile == fileabs:
             command = list(filter(None, tu['command'].split()))
             flags = []
             for c in command:
                 if c[:1] == "-":
                     flags.append(c)
+                elif c[:1] == "@" and c[-4:] == ".rsp":
+                    #gcc type include weirdness detected
+                    rspFilePath = os.path.join(tuDir, c[1:])
+                    with open(rspFilePath) as rspHandle:
+                        rspFileContents = rspHandle.read().split(" ")
+                        for flag in rspFileContents:
+                            if flag[:1] == "-":
+                                flags.append(flag)
                 else:
                     if flags:
                         c = flags.pop() + " " + c

@@ -1,5 +1,6 @@
 #pragma once
 #include "EntityFactory.h"
+#include "shared/entities/Entity.h"
 #include "engine/editor/ui.h"
 #include <string>
 #include <cstring>

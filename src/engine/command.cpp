@@ -3989,7 +3989,7 @@ ICOMMAND(loopfiles, "rsse", (ident *id, char *dir, char *ext, uint *body),
     identstack stack;
     std::vector<std::string> files;
     listfiles(dir, ext[0] ? ext : NULL, files);
-    std::sort(files.begin(), files.end(), std::less());
+    std::sort(files.begin(), files.end(), std::less<>());
     files.erase(std::unique(files.begin(), files.end()), files.end());
     loopv(files)
     {

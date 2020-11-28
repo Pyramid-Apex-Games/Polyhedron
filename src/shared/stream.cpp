@@ -1,6 +1,6 @@
 #include "cube.h"
 #include "zip.h"
-
+#include "fmt/format.h"
 ///////////////////////// character conversion ///////////////
 
 #define CUBECTYPE(s, p, d, a, A, u, U) \
@@ -524,21 +524,21 @@ bool listdir(const std::string& dirname, bool rel, const std::string& ext, std::
 {
     size_t extsize = ext.empty() ? 0 : ext.size()+1;
 #ifdef WIN32
-    defformatcubestr(pathname, rel ? ".\\%s\\*.%s" : "%s\\*.%s", dirname, ext ? ext : "*");
+    auto pathname = fmt::format(rel ? "./{}" : "{}", dirname);
     WIN32_FIND_DATA FindFileData;
-    HANDLE Find = FindFirstFile(pathname, &FindFileData);
+    HANDLE Find = FindFirstFile(pathname.c_str(), &FindFileData);
     if(Find != INVALID_HANDLE_VALUE)
     {
         do {
-            if(!ext) files.add(newcubestr(FindFileData.cFileName));
+            if(ext.empty()) files.push_back(FindFileData.cFileName);
             else
             {
                 size_t namelen = strlen(FindFileData.cFileName);
                 if(namelen > extsize)
                 {
                     namelen -= extsize;
-                    if(FindFileData.cFileName[namelen] == '.' && strncmp(FindFileData.cFileName+namelen+1, ext, extsize-1)==0)
-                        files.add(newcubestr(FindFileData.cFileName, namelen));
+                    if(FindFileData.cFileName[namelen] == '.' && strncmp(FindFileData.cFileName+namelen+1, ext.c_str(), extsize-1)==0)
+                        files.push_back(newcubestr(FindFileData.cFileName, namelen));
                 }
             }
         } while(FindNextFile(Find, &FindFileData));

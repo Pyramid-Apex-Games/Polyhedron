@@ -29,6 +29,15 @@ if (APPLE)
 #    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -stdlib=libc++ -std=c++17")
 endif()
 
+if (CMAKE_CXX_COMPILER_ID MATCHES "Clang" AND NOT ANDROID)
+    add_compile_options(-stdlib=libc++)
+    add_link_options(-stdlib=libc++)
+endif()
+if (CMAKE_CXX_COMPILER_ID MATCHES "Clang" AND WIN32)
+    add_compile_options(--target=x86_64-w64-windows-gnu)
+    add_compile_options(-IC:\\msys64\\mingw64\\lib\\clang\\11.0.0\\include)
+endif()
+
 include(../cmake/thirdparty.cmake)
 
 #defines, project wide
@@ -418,11 +427,15 @@ list(APPEND fileList
     ${extImguiFiles}
 )
 
+option(LIBCLANG_PATH "LIBCLANG_PATH" "${CMAKE_CURRENT_BINARY_DIR}/thirdparty_sources/libclang/bin/libclang.dll")
+
 function(GenerateBindingFor input_file ide_folder)
-    if (${LIBCLANG_PATH})
+    if (LIBCLANG_PATH)
+        message("Using ${LIBCLANG_PATH}")
         set(ENV{LIBCLANG_PATH} "${LIBCLANG_PATH}")
     else()
         if (WIN32)
+            message("Warning: Missing LIBCLANG_PATH, sing ${CMAKE_CURRENT_BINARY_DIR}/thirdparty_sources/libclang/bin/libclang.dll")
             set(LIBCLANG_PATH "${CMAKE_CURRENT_BINARY_DIR}/thirdparty_sources/libclang/bin/libclang.dll")
             set(ENV{LIBCLANG_PATH} "${CMAKE_CURRENT_BINARY_DIR}/thirdparty_sources/libclang/bin/libclang.dll")
         endif()
@@ -583,7 +596,7 @@ target_include_directories(Polyhedron
         enet
 )
 
-if (NOT APPLE AND NOT ANDROID)
+if (NOT APPLE AND NOT ANDROID AND NOT WIN32)
     target_link_libraries(Polyhedron
         PUBLIC
         rt

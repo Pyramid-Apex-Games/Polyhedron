@@ -6,7 +6,6 @@
 #include <android/log.h>
 #endif
 
-#define LOGSTRLEN 512
 
 static FILE *logfile = NULL;
 

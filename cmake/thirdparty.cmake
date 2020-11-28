@@ -14,14 +14,31 @@ include(FetchContent)
 include(ExternalProject)
 
 macro(CopyFileIfDifferent FromFile ToFile)
-    execute_process(COMMAND ${CMAKE_COMMAND} -E compare_files
-        ${FromFile} ${ToFile} RESULT_VARIABLE compare_result
-    )
+    file(TO_NATIVE_PATH "${FromFile}" FromFile)
+    file(TO_NATIVE_PATH "${ToFile}" ToFile)
+    if (WIN32)
+        string(REGEX REPLACE "/" "\\\\" FromFileW32 ${FromFile})
+        string(REGEX REPLACE "/" "\\\\" ToFileW32 ${ToFile})
+        execute_process(COMMAND ${CMAKE_COMMAND} -E compare_files
+            ${FromFileW32} ${ToFileW32} RESULT_VARIABLE compare_result
+        )
+    else()
+        execute_process(COMMAND ${CMAKE_COMMAND} -E compare_files
+            ${FromFile} ${ToFile} RESULT_VARIABLE compare_result
+        )
+    endif()
     if(NOT compare_result EQUAL 1 OR NOT EXISTS "${ToFile}")
-        get_filename_component(ToFileDir ${ToFile} DIRECTORY)
-        execute_process(COMMAND mkdir -p ${ToFileDir})
-        execute_process(COMMAND cp -r ${FromFile} ${ToFile} RESULT_VARIABLE cp_result)
-        message("cp ${FromFile} ${ToFile}: ${cp_result}")
+        if (WIN32)
+            get_filename_component(ToFileDirW32 ${ToFileW32} DIRECTORY)
+            execute_process(COMMAND mkdir -p ${ToFileDirW32})
+            execute_process(COMMAND ${CMAKE_COMMAND} -E copy "${FromFileW32}" "${ToFileW32}" RESULT_VARIABLE cp_result)
+            message("copy ${FromFileW32} ${ToFileW32}: ${cp_result}")
+        else()
+            get_filename_component(ToFileDir ${ToFile} DIRECTORY)
+            execute_process(COMMAND mkdir -p ${ToFileDir})
+            execute_process(COMMAND cp -r ${FromFile} ${ToFile} RESULT_VARIABLE cp_result)
+            message("cp ${FromFile} ${ToFile}: ${cp_result}")
+        endif()
     else()
         message("Skip Copy[${compare_result}]: ${FromFile} ${ToFile}")
     endif()
@@ -36,7 +53,7 @@ if (WITH_PYTHON)
                 INSTALL_COMMAND     ""
         )
     else()
-        message("Fetching python")
+        message("Fetching dependency python")
         FetchContent_Declare(
                 PYTHON
                 SOURCE_DIR          ${CMAKE_CURRENT_BINARY_DIR}/thirdparty_sources/python
@@ -258,8 +275,8 @@ FetchContent_GetProperties(SDL2_mixer)
 if (NOT sdl2_mixer_POPULATED)
     source_group(TREE SDL2_mixer)
     CopyFileIfDifferent(
-        "${CMAKE_CURRENT_LIST_DIR}/SDL2_mixer-2.0.4_CMakeLists.txt"
-        "${CMAKE_CURRENT_BINARY_DIR}/thirdparty_sources/SDL2_mixer-2.0.4/CMakeLists.txt"
+        ${CMAKE_CURRENT_LIST_DIR}/SDL2_mixer-2.0.4_CMakeLists.txt
+        ${CMAKE_CURRENT_BINARY_DIR}/thirdparty_sources/SDL2_mixer-2.0.4/CMakeLists.txt
     )
     set(SDL_MIXER_INCLUDES ${sdl2_SOURCE_DIR}/include)
     set(SDL_MIXER_LIBRARIES SDL2-static)
@@ -276,7 +293,7 @@ endif()
 
 
 if (WIN32)
-    message("Fetching zlib")
+    message("Fetching dependency zlib")
     FetchContent_Declare(
         ZLIB
         SOURCE_DIR          ${CMAKE_CURRENT_BINARY_DIR}/thirdparty_sources/zlib
@@ -295,6 +312,9 @@ if (WIN32)
         list(APPEND THIRDPARTY_LIBRARIES
             zlibstatic
         )
+        list(APPEND THIRDPARTY_INCLUDE_DIRS
+            ${ZLIB_INCLUDE_DIR}
+        )
     endif()
 endif()
 
@@ -311,12 +331,12 @@ if (NOT sdl2_image_POPULATED)
     FetchContent_Populate(SDL2_image)
     FetchContent_MakeAvailable(SDL2_image)
     CopyFileIfDifferent(
-        "${CMAKE_CURRENT_LIST_DIR}/jpeg-9b_CMakeLists.txt"
-        "${CMAKE_CURRENT_BINARY_DIR}/thirdparty_sources/SDL2_image-2.0.5/external/jpeg-9b/CMakeLists.txt"
+        ${CMAKE_CURRENT_LIST_DIR}/jpeg-9b_CMakeLists.txt
+        ${CMAKE_CURRENT_BINARY_DIR}/thirdparty_sources/SDL2_image-2.0.5/external/jpeg-9b/CMakeLists.txt
     )
     CopyFileIfDifferent(
-        "${CMAKE_CURRENT_LIST_DIR}/SDL2_Image-2.0.5_CMakeLists.txt"
-        "${CMAKE_CURRENT_BINARY_DIR}/thirdparty_sources/SDL2_image-2.0.5/CMakeLists.txt"
+        ${CMAKE_CURRENT_LIST_DIR}/SDL2_Image-2.0.5_CMakeLists.txt
+        ${CMAKE_CURRENT_BINARY_DIR}/thirdparty_sources/SDL2_image-2.0.5/CMakeLists.txt
     )
 
     get_filename_component(SDL2_IMAGE_SOURCE_DIR ${sdl2_image_SOURCE_DIR} ABSOLUTE BASE_DIR "${CMAKE_CURRENT_BINARY_DIR}/thirdparty_sources/SDL2_image-2.0.5" CACHE)
@@ -333,25 +353,27 @@ if (NOT sdl2_image_POPULATED)
 endif()
 
 if (WIN32)
-    message("Fetching iconv")
-    FetchContent_Declare(
-        ICONV
-        SOURCE_DIR          ${CMAKE_CURRENT_BINARY_DIR}/thirdparty_sources/iconv
-        GIT_REPOSITORY      https://github.com/vovythevov/libiconv-cmake
-        DOWNLOAD_DIR        ${DEPENDENCY_DOWNLOAD_DIR}
-        INSTALL_COMMAND     ""
-    )
-    FetchContent_GetProperties(ICONV)
-    if (NOT iconv_POPULATED)
-        source_group(TREE iconv)
+    if (WITH_PYTHON)
+        message("Fetching dependency iconv")
+        FetchContent_Declare(
+            ICONV
+            SOURCE_DIR          ${CMAKE_CURRENT_BINARY_DIR}/thirdparty_sources/iconv
+            GIT_REPOSITORY      https://github.com/vovythevov/libiconv-cmake
+            DOWNLOAD_DIR        ${DEPENDENCY_DOWNLOAD_DIR}
+            INSTALL_COMMAND     ""
+        )
+        FetchContent_GetProperties(ICONV)
+        if (NOT iconv_POPULATED)
+            source_group(TREE iconv)
 
-        FetchContent_MakeAvailable(ICONV)
-        set(Iconv_LIBRARY libiconv)
-        set(Iconv_INCLUDE_DIR ${iconv_SOURCE_DIR})
+            FetchContent_MakeAvailable(ICONV)
+            set(Iconv_LIBRARY libiconv)
+            set(Iconv_INCLUDE_DIR ${iconv_SOURCE_DIR})
+        endif()
     endif()
 endif()
 
-if(WIN32)
+if(WIN32 AND NOT LIBCLANG_PATH)
     message("downloading libclang prebuilt")
     FetchContent_Declare(
         LIBCLANG
@@ -381,19 +403,19 @@ if (NOT libfmt_POPULATED)
     FetchContent_MakeAvailable(LIBFMT)
 endif()
 
-message("download daScript")
-FetchContent_Declare(
-    LIBDASCRIPT
-    SOURCE_DIR          ${CMAKE_CURRENT_BINARY_DIR}/thirdparty_sources/libdascript
-    GIT_REPOSITORY      https://github.com/GaijinEntertainment/daScript.git
-    DOWNLOAD_DIR        ${DEPENDENCY_DOWNLOAD_DIR}
-    INSTALL_COMMAND     ""
-)
-if (NOT libdascript_POPULATED)
-    source_group(TREE daScript)
-
-    FetchContent_MakeAvailable(LIBDASCRIPT)
-endif()
+#message("download daScript")
+#FetchContent_Declare(
+#    LIBDASCRIPT
+#    SOURCE_DIR          ${CMAKE_CURRENT_BINARY_DIR}/thirdparty_sources/libdascript
+#    GIT_REPOSITORY      https://github.com/GaijinEntertainment/daScript.git
+#    DOWNLOAD_DIR        ${DEPENDENCY_DOWNLOAD_DIR}
+#    INSTALL_COMMAND     ""
+#)
+#if (NOT libdascript_POPULATED)
+#    source_group(TREE daScript)
+#
+#    FetchContent_MakeAvailable(LIBDASCRIPT)
+#endif()
 
 list(APPEND THIRDPARTY_INCLUDE_DIRS
 )
@@ -409,6 +431,12 @@ list(APPEND THIRDPARTY_LIBRARIES
     fmt::fmt
 #    mpg123
 )
+
+if (WIN32)
+    list(APPEND THIRDPARTY_LIBRARIES
+        SDL2main
+    )
+endif()
 
 if (WITH_PYTHON)
     list(APPEND THIRDPARTY_LIBRARIES
@@ -456,10 +484,15 @@ endif()
 
 if (NOT ANDROID)
     find_package(OpenGL REQUIRED)
-    find_package(Iconv REQUIRED)
-
     list(APPEND THIRDPARTY_LIBRARIES
         ${OPENGL_LIBRARIES}
-        ${Iconv_LIBRARY}
     )
+
+    if (WITH_PYTHON AND WIN32)
+        find_package(Iconv REQUIRED)
+        list(APPEND THIRDPARTY_LIBRARIES
+            ${Iconv_LIBRARY}
+        )
+    endif()
 endif()
+

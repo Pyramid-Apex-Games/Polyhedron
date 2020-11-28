@@ -54,7 +54,7 @@ class CppParser:
         foundLibClang = False
         for cpath in libclang_paths:
             if os.path.exists(cpath):
-                # print(f"Using libclang: {cpath}")
+                print(f"Using libclang: {cpath}")
                 cindex.Config.set_library_file(cpath)
                 foundLibClang = True
                 break
@@ -128,10 +128,10 @@ class CppParser:
         return False
 
     def cursor_is_part_of_file_or_header(self, cursor, file):
-        file_no_ext = os.path.splitext(file)[0]
+        file_no_ext = os.path.abspath(os.path.splitext(file)[0])
         if cursor:
             if cursor.location:
-                cursor_file_no_ext = os.path.splitext(str(cursor.location.file))[0]
+                cursor_file_no_ext = os.path.abspath(os.path.splitext(str(cursor.location.file))[0])
                 if cursor_file_no_ext == file_no_ext:
                     return True
         return False

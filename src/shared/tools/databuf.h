@@ -3,7 +3,12 @@
 #include <enet/enet.h>
 #include <cstring>
 #include <algorithm>
-
+#ifdef min
+#undef min
+#endif
+#ifdef max
+#undef max
+#endif
 template <class T>
 struct databuf
 {

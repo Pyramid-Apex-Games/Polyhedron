@@ -35,6 +35,19 @@ namespace detail
     };
 }
 
+#if __cpp_lib_variant == 201606L
+namespace std
+{
+    template<>
+    struct variant_size<detail::RecursiveVariant> : variant_size<detail::CoreVariant> {
+    };
+
+    template<std::size_t I>
+    struct variant_alternative<I, detail::RecursiveVariant> :  variant_alternative<I, detail::CoreVariant> {
+    };
+}
+#endif
+
 using Attribute_T = detail::RecursiveVariant;
 using AttributeRow_T = std::vector<detail::RecursiveVariant>;
 using AttributeList_T = std::vector<AttributeRow_T>;
@@ -62,6 +75,9 @@ struct AttributeVisitCoercer
             }
         }
 
-        return operator()(std::monostate());
+        return TargetType();
     }
 };
+
+template <> std::string AttributeVisitCoercer<std::string>::operator()(const AttributeRow_T& value) const;
+

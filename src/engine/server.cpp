@@ -900,7 +900,7 @@ static char *parsecommandline(const char *src, vector<char *> &args)
     {
         while(isspace(*src)) src++;
         if(!*src) break;
-        args.add(dst);
+        args.emplace_back(dst);
         for(bool quoted = false; *src && (quoted || !isspace(*src)); src++)
         {
             if(*src != '"') *dst++ = *src;
@@ -909,43 +909,43 @@ static char *parsecommandline(const char *src, vector<char *> &args)
         }
         *dst++ = '\0';
     }
-    args.add(NULL);
+    args.emplace_back((char*)nullptr);
     return buf;
 }
 
 
-int WINAPI WinMain(HINSTANCE hInst, HINSTANCE hPrev, LPSTR szCmdLine, int sw)
-{
-    vector<char *> args;
-    char *buf = parsecommandline(GetCommandLine(), args);
-    appinstance = hInst;
-#ifdef STANDALONE
-    int standalonemain(int argc, char **argv);
-    int status = standalonemain(args.size()-1, args.data());
-    #define main standalonemain
-#else
-    SDL_SetMainReady();
-    int status = SDL_main(args.size()-1, args.data());
-#endif
-    delete[] buf;
-    exit(status);
-    return 0;
-}
+// int WINAPI WinMain(HINSTANCE hInst, HINSTANCE hPrev, LPSTR szCmdLine, int sw)
+// {
+//     vector<char *> args;
+//     char *buf = parsecommandline(GetCommandLine(), args);
+//     appinstance = hInst;
+// #ifdef STANDALONE
+//     int standalonemain(int argc, char **argv);
+//     int status = standalonemain(args.size()-1, args.data());
+//     #define main standalonemain
+// #else
+//     SDL_SetMainReady();
+//     int status = SDL_main(args.size()-1, args.data());
+// #endif
+//     delete[] buf;
+//     exit(status);
+//     return 0;
+// }
 
-void logoutfv(const char *fmt, va_list args)
-{
-    if(appwindow)
-    {
-        logline &line = loglines.add();
-        vformatcubestr(line.buf, fmt, args, sizeof(line.buf));
-        if(logfile) writelog(logfile, line.buf);
-        line.len = min(strlen(line.buf), sizeof(line.buf)-2);
-        line.buf[line.len++] = '\n';
-        line.buf[line.len] = '\0';
-        if(outhandle) writeline(line);
-    }
-    else if(logfile) writelogv(logfile, fmt, args);
-}
+//void logoutfv(const char *fmt, va_list args)
+//{
+//    if(appwindow)
+//    {
+//        logline &line = loglines.add();
+//        vformatcubestr(line.buf, fmt, args, sizeof(line.buf));
+//        if(logfile) writelog(logfile, line.buf);
+//        line.len = min(strlen(line.buf), sizeof(line.buf)-2);
+//        line.buf[line.len++] = '\n';
+//        line.buf[line.len] = '\0';
+//        if(outhandle) writeline(line);
+//    }
+//    else if(logfile) writelogv(logfile, fmt, args);
+//}
 
 #else
 

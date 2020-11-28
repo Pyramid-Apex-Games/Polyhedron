@@ -1,6 +1,7 @@
 #pragma once
 #include <cstdio>
 #include <cstdarg>
+#define LOGSTRLEN 512
 
 void closelogfile();
 FILE *getlogfile();

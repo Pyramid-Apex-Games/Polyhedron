@@ -6,6 +6,8 @@ template <class T, int SIZE> struct queue
     int head, tail, len;
     T data[SIZE];
 
+    constexpr int size() { return SIZE; }
+
     queue() { clear(); }
 
     void clear() { head = tail = len = 0; }

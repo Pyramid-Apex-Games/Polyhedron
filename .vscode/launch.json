@@ -5,6 +5,40 @@
     "version": "0.2.0",
     "configurations": [
         {
+            "name": "ScriptBind: Generate engine/Camera",
+            "type": "python",
+            "request": "launch",
+            "program": "${workspaceFolder}/src/binding/index.py",
+            "args": [
+                "gen", 
+                "${workspaceFolder}/build", 
+                "engine/Camera.cpp", 
+                "${workspaceFolder}/build/engine+Camera.binding.cpp"
+            ],
+            "env": {
+                "LIBCLANG_PATH": "C:/msys64/mingw64/bin/libclang.dll"
+            },
+            "cwd": "${workspaceFolder}/src",
+            "console": "integratedTerminal"
+        },
+        {
+            "name": "ScriptBind: CppModel engine/Camera",
+            "type": "python",
+            "request": "launch",
+            "program": "${workspaceFolder}/src/binding/index.py",
+            "args": [
+                "dump", 
+                "${workspaceFolder}/build", 
+                "engine/Camera.cpp", 
+                "${workspaceFolder}/build/engine+Camera.binding.cpp"
+            ],
+            "env": {
+                "LIBCLANG_PATH": "C:/msys64/mingw64/bin/libclang.dll"
+            },
+            "cwd": "${workspaceFolder}/src",
+            "console": "integratedTerminal"
+        },        
+        {
             "type": "lldb",
             "request": "launch",
             "name": "Debug",

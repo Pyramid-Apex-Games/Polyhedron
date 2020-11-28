@@ -46,10 +46,10 @@ void Renderer::Initialize()
         Application::Instance().Fatal("could not find core textures");
     }
 
-//    if(!execfile("media/interface/font/default.cfg", false))
-//    {
-//        Application::Instance().Fatal("cannot find default font");
-//    }
+    if(!execfile("media/interface/font/default.cfg", false))
+    {
+        Application::Instance().Fatal("cannot find default font");
+    }
 //    if(!execfile("config/test.cfg", false))
 //    {
 //        Application::Instance().Fatal("test.cfg failed");

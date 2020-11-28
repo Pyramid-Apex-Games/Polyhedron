@@ -27,7 +27,7 @@
   #ifndef _WINDOWS
     #define _WINDOWS
   #endif
-  #ifndef __GNUC__
+  #ifdef _MSC_VER
     #include <eh.h>
     #include <dbghelp.h>
     #include <intrin.h>

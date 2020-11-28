@@ -3,6 +3,13 @@
 #include <math.h>
 #include "Easing.h"
 
+#ifndef M_PI_2
+#define M_PI_2        0x1.921fb54442d18p+0
+#endif
+#ifndef M_PI
+#define M_PI          0x1.921fb54442d18p+1
+#endif
+
 namespace Easing
 {
 

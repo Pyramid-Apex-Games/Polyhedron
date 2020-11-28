@@ -1,6 +1,7 @@
 #pragma once
 #include "Event.h"
 #include <map>
+#include <functional>
 
 enum class GameEventType
 {

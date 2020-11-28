@@ -58,9 +58,10 @@ template <> std::string AttributeVisitCoercer<std::string>::operator()(const Att
         ""s,
         [](const std::string& head, const Attribute_T& attr) -> std::string
         {
+            std::string innerString = std::visit(AttributeVisitCoercer<std::string>(), attr);
             if (!head.empty())
-                return head + ARRAY_CLOSE + DELIMITER + "["s + std::visit(AttributeVisitCoercer<std::string>(), attr);
-            return std::visit(AttributeVisitCoercer<std::string>(), attr);
+                return head + ARRAY_CLOSE + DELIMITER + "["s + innerString;
+            return innerString;
         }
     ) + ARRAY_CLOSE + ARRAY_CLOSE;
 }

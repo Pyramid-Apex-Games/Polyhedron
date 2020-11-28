@@ -5,8 +5,11 @@
 #include "EntityFactory.h"
 #include "shared/event/EntityEvent.h"
 #include "engine/scriptexport.h"
+#include "shared/geom/vec.h"
+#include "shared/geom/ivec.h"
 #include <nlohmann/json.hpp>
 #include <map>
+#include <string>
 
 enum class EntityEditorState : int
 {

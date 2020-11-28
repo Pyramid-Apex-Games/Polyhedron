@@ -135,7 +135,7 @@ def input_sources():
 
 def calculate_output(file):
     path, ext = os.path.splitext(str(file))
-    outputname = (path + ".binding" + ext).replace(os.path.sep, "+")
+    outputname = (path + ".binding" + ext).replace("/", "+")
     # print(outputname)
     return outputname
 

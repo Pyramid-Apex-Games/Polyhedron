@@ -5,6 +5,9 @@
 #include "vec2.h"
 #include <algorithm>
 #include <math.h>
+#ifndef M_PI
+#define M_PI          0x1.921fb54442d18p+1
+#endif
 
 matrix3::matrix3(const quat &q)
 {

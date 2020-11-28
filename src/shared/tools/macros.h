@@ -68,7 +68,9 @@ static inline int bitscan(uint mask)
 #define PATHDIV '\\'
 
 #else
+#ifndef __cdecl
 #define __cdecl
+#endif
 #define _vsnprintf vsnprintf
 #define PATHDIV '/'
 #endif

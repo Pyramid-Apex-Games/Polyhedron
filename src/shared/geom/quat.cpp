@@ -1,6 +1,9 @@
 #include "quat.h"
 #include "vec.h"
 #include "matrix4x3.h"
+#ifndef M_PI
+#define M_PI          0x1.921fb54442d18p+1
+#endif
 
 quat::quat(float x, float y, float z, float w) : vec4(x, y, z, w) {}
 

@@ -2,6 +2,7 @@
 #include "Event.h"
 //#include "shared/entities/Entity.h"
 #include "shared/geom/vec.h"
+#include <functional>
 
 class Entity;
 

@@ -42,9 +42,9 @@ void ModelEntity::think()
 
 }
 
-void ModelEntity::render(game::RenderPass pass)
+void ModelEntity::render(RenderPass pass)
 {
-	if (pass == game::RenderPass::Main)
+	if (pass == RenderPass::Main)
 	{
 		rendermodel(modelname.c_str(), animation, o, d.x, d.y, d.z, MDL_NOBATCH/* MDL_NOBATCH | MDL_CULL_VFC | MDL_CULL_DIST | MDL_CULL_OCCLUDED*/, this, nullptr, curtime, curtime, size, color);
 	}
@@ -126,7 +126,7 @@ void ModelEntity::On(const Event& event)
 {
 	switch(event.type)
 	{
-		case EntityEventType::AttributeChanged:
+		case EventType::AttributeChanged:
 		{
 			const EntityEventAttributeChanged& attrChangeEvent = static_cast<const EntityEventAttributeChanged&>(event);
 			
@@ -135,31 +135,31 @@ void ModelEntity::On(const Event& event)
 				preload();
 			}
 		} break;
-		case EntityEventType::HoverStart:
+		case EventType::HoverStart:
 		break;
-		case EntityEventType::HoverStop:
+		case EventType::HoverStop:
 		break;
-		case EntityEventType::SelectStart:
+		case EventType::SelectStart:
 		break;
-		case EntityEventType::SelectStop:
+		case EventType::SelectStop:
 		break;
-		case EntityEventType::TouchStart:
+		case EventType::TouchStart:
 		break;
-		case EntityEventType::TouchStop:
+		case EventType::TouchStop:
 		break;
-		case EntityEventType::Tick:
+		case EventType::Tick:
 		break;
-		case EntityEventType::Use:
+		case EventType::Use:
 		break;
-		case EntityEventType::Trigger:
+		case EventType::Trigger:
 		break;
-		case EntityEventType::Precache:
+		case EventType::Precache:
 			preload();
 		break;
 
 		default:
-		case EntityEventType::None:
-		case EntityEventType::Count:
+		case EventType::None:
+		case EventType::Count:
 		break;
 	}
 }

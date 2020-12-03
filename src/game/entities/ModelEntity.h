@@ -17,7 +17,7 @@ public:
 
     virtual bool getBoundingBox(int entselradius, vec &minbb, vec &maxbb) const;
 
-    virtual void render(game::RenderPass pass);
+    virtual void render(RenderPass pass);
 public:
     void preloadMapModel(const std::string &filename);
     const std::string& getModelName() const;

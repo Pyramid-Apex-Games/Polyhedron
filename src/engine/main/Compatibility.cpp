@@ -29,7 +29,7 @@ void renderbackground(const char *caption, Texture *mapshot, const char *mapname
     Application::Instance().GetRenderer().RenderBackground(bgInfo, force);
 }
 
-void quit()
+SCRIPTEXPORT void quit()
 {
     Application::Instance().Quit();
 }

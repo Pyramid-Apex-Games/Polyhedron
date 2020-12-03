@@ -1,10 +1,17 @@
 // the interface the game uses to access the engine
+#pragma once
+#include "shared/geom/vec.h"
+#include "shared/geom/vec4.h"
+#include "shared/geom/ivec.h"
+#include "shared/geom/bvec.h"
+#include "shared/tools.h"
+#include "shared/command.h"
 
 extern int curtime;                     // current frame time
 extern int lastmillis;                  // last time
 extern int elapsedtime;                 // elapsed frame time
 extern int totalmillis;                 // total elapsed time
-extern uint totalsecs;
+extern unsigned int totalsecs;
 extern int gamespeed, paused;
 
 class Entity;

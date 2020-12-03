@@ -24,6 +24,7 @@
 #include "game/entities/SkeletalEntity.h"
 #include "engine/Camera.h"
 #include "shared/entities/Entity.h"
+#include "engine/state/MainMenuState.h"
 #include <SDL.h>
 
 VAR(numcpus, 1, 1, 16);
@@ -36,6 +37,8 @@ Application::Application(const CommandlineArguments& commandlineArguments)
 {
     assert(applicationInstance == nullptr && "Application is a singleton, only 1 instance allowed");
     applicationInstance = this;
+
+    InitializeEventHandlers();
 
     m_Console = std::make_unique<Console>();
 
@@ -101,21 +104,9 @@ Application::Application(const CommandlineArguments& commandlineArguments)
     resetfpshistory();
 
     //FIXME: move to game
-    game::initclient();
-    game::player1 = dynamic_cast<SkeletalEntity*>(game::iterdynents(0));
-    const auto& activeCamera = new Camera();
-    if (thirdperson)
-    {
-        player = game::player1;
-        extern float thirdpersonup;
-        thirdpersonup = 18.f;
-    }
-    else
-    {
-        player = activeCamera;
-    }
-    activeCamera->o = vec(0, 0, 9.f);
-    player->SetAttribute("model", "actors/bones");
+    m_ActiveState = std::make_unique<MainMenuState>();
+//    game::initclient();
+
     //emptymap(0, true, NULL, false);
 
     execfile("config/stdlib.cfg", true);
@@ -150,6 +141,7 @@ Application::~Application()
 #ifdef BUILD_WITH_PYTHON
     m_Python.release();
 #endif
+    m_Input.release();
     m_Renderer.release();
     m_Window.release();
 }
@@ -168,6 +160,8 @@ void Application::RunFrame()
 #endif
     m_Console->Update();
 
+    m_ActiveState->Update();
+
     UI::update();
     engine::nui::Update();
     EditorUI::Update();
@@ -182,7 +176,10 @@ void Application::RunFrame()
 
     updatefpshistory(elapsedtime);
 
-    m_Renderer->RunFrame();
+    m_Renderer->RunFrame(*m_ActiveState);
+    UI::render();
+    engine::nui::Render();
+    EditorUI::Render();
 
     m_Window->Swap();
 }

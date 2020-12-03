@@ -4,6 +4,7 @@
 class Window;
 class Texture;
 class Application;
+class State;
 
 struct BackgroundInfo
 {
@@ -18,10 +19,10 @@ public:
     Renderer(Window& window);
 
     void Initialize();
-    void RunFrame();
+    void RunFrame(State& activeState);
 
     void RenderBackground(const std::string& caption);
-    void RenderBackground(BackgroundInfo& info, bool force = false);
+    void RenderBackground(const BackgroundInfo& info, bool force = false);
     void RenderProgress(float bar, const std::string& text, bool background);
     void SetBackgroundInfo(
         const std::string& caption, Texture* texture,
@@ -35,7 +36,8 @@ private:
     );
     void RenderProgressView(float bar, const std::string& text);
     void RestoreBackground(bool force = false);
-    void RenderBackgroundView(BackgroundInfo& info);
+    void RenderBackgroundView(const BackgroundInfo& info);
+    void RenderFrame(State& activeState);
 
     long m_FrameCount = 0;
     Window& m_Window;

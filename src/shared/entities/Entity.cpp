@@ -83,9 +83,9 @@ bool Entity::getBoundingBox(int entselradius, vec &minbb, vec &maxbb) const
 	return true;
 }
 
-void Entity::render(game::RenderPass pass)
+void Entity::render(RenderPass pass)
 {
-	if (pass == game::RenderPass::Edit)
+	if (pass == RenderPass::Edit)
 	{
 		ldrnotextureshader->set();
 		vec bbmin;
@@ -173,17 +173,17 @@ void Entity::OnImpl(const Event& event)
 void Entity::On(const Event& event)
 {
 	if (
-        event.type != EntityEventType::HoverStart &&
-        event.type != EntityEventType::Tick &&
-        event.type != EntityEventType::AttributeChanged
+        event.type != EventType::HoverStart &&
+        event.type != EventType::Tick &&
+        event.type != EventType::AttributeChanged
     )
 	{
-		conoutf(CON_DEBUG, "EntityEvent: %s", EntityEventTypeToStringMap.at(event.type).c_str());
+		conoutf(CON_DEBUG, "EntityEvent: %s", EventTypeToStringMap.at(event.type).c_str());
 	}
 	
 	switch(event.type)
 	{
-		case EntityEventType::AttributeChanged: {
+		case EventType::AttributeChanged: {
 		    const auto changedEvent = static_cast<const EntityEventAttributeChanged*>(&event);
 		    if (changedEvent)
             {
@@ -213,55 +213,55 @@ void Entity::On(const Event& event)
                 }
             }
 		} break;
-		case EntityEventType::SelectStart:
+		case EventType::SelectStart:
 			selected = true;
 			EditorUI::StartEntityEditor(entityId);
 		break;
-		case EntityEventType::SelectStop:
+		case EventType::SelectStop:
 			selected = false;
 			EditorUI::StopEntityEditor(entityId);
 		break;
-		case EntityEventType::Tick:
+		case EventType::Tick:
 		break;
-		case EntityEventType::Use:
+		case EventType::Use:
 		break;
-		case EntityEventType::HoverStart:{
+		case EventType::HoverStart:{
 			hovered = true;
-			auto hoverEventData = static_cast<const EntityEventData<EntityEventType::HoverStart, int>&>(event);
+			auto hoverEventData = static_cast<const detail::EventData<int>&>(event);
 			hover_orientation = hoverEventData.payload;
-			conoutf("EntityEvent for #%d: %s %d", entityId, EntityEventTypeToStringMap.at(event.type).c_str(), hover_orientation);
+			conoutf("EntityEvent for #%d: %s %d", entityId, EventTypeToStringMap.at(event.type).c_str(), hover_orientation);
 		} break;
-		case EntityEventType::HoverStop:
+		case EventType::HoverStop:
 			hovered = false;
 			if (moving)
 			{
 				send_entity_event(this, EntityEventMoveStop());
 			}
 		break;
-		case EntityEventType::MoveStart:
+		case EventType::MoveStart:
 			moving = true;
 		break;
-		case EntityEventType::MoveStop:
+		case EventType::MoveStop:
 			moving = false;
 		break;
-		case EntityEventType::TouchStart:
+		case EventType::TouchStart:
 		break;
-		case EntityEventType::TouchStop:
+		case EventType::TouchStop:
 		break;
-		case EntityEventType::Trigger:
+		case EventType::Trigger:
 		break;
-		case EntityEventType::Precache:
+		case EventType::Precache:
 		break;
-		case EntityEventType::Spawn:
+		case EventType::Spawn:
 			spawned = true;
 		break;
-		case EntityEventType::ClearSpawn:
+		case EventType::ClearSpawn:
 			spawned = false;
 		break;
 
 		default:
-		case EntityEventType::None:
-		case EntityEventType::Count:
+		case EventType::None:
+		case EventType::Count:
 		break;
 	}
 }

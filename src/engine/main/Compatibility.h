@@ -9,7 +9,7 @@ class SkeletalEntity;
 
 extern MovableEntity *player;
 namespace game {
-    extern SkeletalEntity *player1;
+//    extern SkeletalEntity *player1;
 }
 
 enum { KR_CONSOLE = 1<<0, KR_GUI = 1<<1, KR_EDITMODE = 1<<2 };

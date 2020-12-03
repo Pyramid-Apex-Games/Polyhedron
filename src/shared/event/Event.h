@@ -1,20 +1,17 @@
 #pragma once
-#include "shared/tools/vector_util.h"
 
-namespace detail {
-    template<typename Type, typename SignalHandler>
-    struct Event {
-        Event(Type type)
-                : type(type) {}
+#include "EventDetail.h"
 
-        const Type type = Type::None;
-        using Signal_T = SignalHandler;
-        using Listener_T = typename Signal_T::Listener;
-        using Listeners_T = vector<Listener_T>;
+using Event = detail::Event;
 
-        static constexpr auto Broadcast = Signal_T::Broadcast;
-        static constexpr auto SendByIndex = Signal_T::SendByIndex;
-        static constexpr auto SendIf = Signal_T::SendIf;
-        static constexpr auto Send = Signal_T::Send;
-    };
-}
+#include "GameEvent.h"
+#include "StateEvent.h"
+#include "EntityEvent.h"
+
+#include "EventHandlerDetail.h"
+
+#include "EntitySignalHandler.h"
+#include "GameSignalHandler.h"
+#include "StateSignalHandler.h"
+
+void InitializeEventHandlers();

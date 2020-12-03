@@ -4632,9 +4632,6 @@ void workinoq()
 
     if(drawtex) return;
 
-    // Todo:: REMOVE?
-//    game::rendergame(true);
-
     if(shouldworkinoq())
     {
         inoq = true;
@@ -4952,11 +4949,8 @@ void preparegbuffer(bool depthclear)
     resetmodelbatches();
 }
 
-void rendergbuffer(bool depthclear)
+void rendergbuffer_before(bool depthclear)
 {
-    timer *gcputimer = drawtex ? NULL : begintimer("g-buffer", false);
-    timer *gtimer = drawtex ? NULL : begintimer("g-buffer");
-
     preparegbuffer(depthclear);
 
     if(limitsky())
@@ -4970,9 +4964,10 @@ void rendergbuffer(bool depthclear)
     GLERROR;
     rendermapmodels();
     GLERROR;
-    game::rendergame(game::RenderPass::Main);
-    GLERROR;
+}
 
+void rendergbuffer_after(bool depthclear)
+{
     if(drawtex == DRAWTEX_MINIMAP)
     {
         if(depthclear) findmaterials();
@@ -4989,9 +4984,6 @@ void rendergbuffer(bool depthclear)
         //renderavatar();
         //GLERROR;
     }
-
-    endtimer(gtimer);
-    endtimer(gcputimer);
 }
 
 void shademinimap(const vec &color)

@@ -35,9 +35,11 @@ namespace engine { namespace nui {
             //filter events, ignore NO_INPUT windows
             auto iter = NuklearPolyhedronDevice->GetContext()->begin;
             auto* input = &NuklearPolyhedronDevice->GetContext()->input;
-            while (iter) {
+            while (iter)
+            {
                 /* check if window is being hovered */
-                if(!(iter->flags & NK_WINDOW_NO_INPUT) && !(iter->flags & NK_WINDOW_HIDDEN)) {
+                if(!(iter->flags & NK_WINDOW_NO_INPUT) && !(iter->flags & NK_WINDOW_HIDDEN))
+                {
                     /* check if window popup is being hovered */
                     if (
                         iter->popup.active &&
@@ -46,13 +48,16 @@ namespace engine { namespace nui {
                     )
                         return InputEventProcessState::Handled;
 
-                    if (iter->flags & NK_WINDOW_MINIMIZED) {
+                    if (iter->flags & NK_WINDOW_MINIMIZED)
+                    {
                         struct nk_rect header = iter->bounds;
                         header.h = NuklearPolyhedronDevice->GetContext()->style.font->height +
                                 2 * NuklearPolyhedronDevice->GetContext()->style.window.header.padding.y;
                         if (nk_input_is_mouse_hovering_rect(input, header))
                             return InputEventProcessState::Handled;
-                    } else if (nk_input_is_mouse_hovering_rect(input, iter->bounds)) {
+                    }
+                    else if (nk_input_is_mouse_hovering_rect(input, iter->bounds))
+                    {
                         return InputEventProcessState::Handled;
                     }
                 }

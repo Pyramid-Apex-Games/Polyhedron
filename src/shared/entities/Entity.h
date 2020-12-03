@@ -36,7 +36,7 @@ public:
     void SaveToJson(nlohmann::json& document);
     void LoadFromJson(const nlohmann::json& document);
 
-    virtual void render(game::RenderPass pass);
+    virtual void render(RenderPass pass);
 
     PHUI_VEC("Position") vec o {0.0f, 0.0f, 0.0f};
     PHUI_IVEC("Orientation") ivec d {0, 0, 0}; //yaw, pitch, roll

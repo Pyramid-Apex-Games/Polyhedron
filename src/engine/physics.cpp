@@ -2121,49 +2121,6 @@ void updatephysstate(MovableEntity *d)
     d->o = old;
 }
 
-SCRIPTEXPORT void backward(CommandTypes::KeyPress down)
-{
-    player->k_down = *down != 0;
-    player->move = player->k_down ? -1 : (player->k_up ? 1 : 0);
-}
-
-SCRIPTEXPORT void forward(CommandTypes::KeyPress down)
-{
-    player->k_up = *down != 0;
-    player->move = player->k_up ? 1 : (player->k_down ? -1 : 0);
-}
-
-SCRIPTEXPORT void left(CommandTypes::KeyPress down)
-{
-    player->k_left = *down != 0;
-    player->strafe = player->k_left ? 1 : (player->k_right ? -1 : 0);
-}
-
-SCRIPTEXPORT void right(CommandTypes::KeyPress down)
-{
-    player->k_right = *down != 0;
-    player->strafe = player->k_right ? -1 : (player->k_left ? 1 : 0);
-}
-
-SCRIPTEXPORT void jump(CommandTypes::KeyPress down)
-{
-    if(!*down || game::canjump())
-    {
-        player->jumping = *down!=0;
-    }
-}
-
-SCRIPTEXPORT void crouch(CommandTypes::KeyPress down)
-{
-    if(!*down)
-    {
-        player->crouching = abs(player->crouching);
-    }
-    else if(game::cancrouch())
-    {
-        player->crouching = -1;
-    }
-}
 
 bool entinmap(MovableEntity *d, bool avoidplayers)        // brute force but effective way to find a free spawn spot in the map
 {

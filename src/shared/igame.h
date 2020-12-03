@@ -1,5 +1,5 @@
 // the interface the engine uses to run the gameplay module
-
+#include "engine/engine.h"
 
 extern void editent(int i, bool local);
 extern const char *entname(int i);
@@ -18,13 +18,6 @@ extern void animatemapmodel(const Entity *e, int &anim, int &basetime);
 
 namespace game
 {
-	enum class RenderPass {
-		Main,
-		Lights,
-		Edit,
-		Gui
-	};
-
     extern void parseoptions(vector<const char *> &args);
 
     extern void gamedisconnect(bool cleanup);
@@ -70,7 +63,6 @@ namespace game
     extern void startmap(const char *name);
     extern void preload();
     extern float abovegameplayhud(int w, int h);
-    extern void gameplayhud(int w, int h);
     extern bool canjump();
     extern bool cancrouch();
     extern bool allowmove(const MovableEntity *d);

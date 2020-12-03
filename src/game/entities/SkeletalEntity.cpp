@@ -17,7 +17,7 @@ SkeletalEntity::SkeletalEntity() : ModelEntity("actors/bones") {
 
 void SkeletalEntity::think()
 {
-	moveplayer(this, 10, true);
+
 }
 
 namespace
@@ -209,14 +209,14 @@ SkeletalEntity::AnimationParams SkeletalEntity::CalculateAnimation() const
     return AnimationParams { anim, basetime};
 }
 
-void SkeletalEntity::render(game::RenderPass pass)
+void SkeletalEntity::render(RenderPass pass)
 {
     //extern void rendermodel(const char *mdl, int anim, const vec &o, float yaw, float pitch, float roll, int flags, MovableEntity *d, modelattach *a, int basetime, int basetime2, float size, const vec4 &color);
 //    ModelEntity::render(pass);
 
-    if (pass == game::RenderPass::Main)
+    if (pass == RenderPass::Main)
     {
-        if(this==game::player1 && thirdperson)
+        if(/*this==game::player1 &&*/ thirdperson)
         {
             auto [anim, basetime] = CalculateAnimation();
 
@@ -267,7 +267,7 @@ void SkeletalEntity::On(const Event& event)
 {
 	switch(event.type)
 	{
-	    case EntityEventType::Spawn:
+	    case EventType::Spawn:
         {
             if (editmode)
             {
@@ -280,12 +280,15 @@ void SkeletalEntity::On(const Event& event)
 
 
         } break;
-	    case EntityEventType::ClearSpawn:
+	    case EventType::ClearSpawn:
         {
             state = CS_SPECTATOR;
 
 
         } break;
+	    case EventType::Tick:
+	        moveplayer(this, 10, true);
+        break;
 	}
 }
 

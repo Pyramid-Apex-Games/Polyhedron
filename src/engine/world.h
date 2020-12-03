@@ -55,20 +55,6 @@ enum
 
 struct vertex { vec pos; bvec4 norm; vec tc; bvec4 tangent; };
 
-template <class ET>
-ET* getentitybytype(int searchStartIndex = 0)
-{
-	const auto &ents = getents();
-	for(int i = searchStartIndex; i < ents.size(); i++)
-	{
-		auto e = dynamic_cast<ET*>(ents[i]);
-
-		if (e) return e;
-	}
-
-	return nullptr;
-}
-
 Entity *new_game_entity(bool local, const vec &o, int &idx, const char *strclass = "");
 
 inline void transformbb(const Entity *e, vec &center, vec &radius);

@@ -67,6 +67,13 @@ float calcfogcull();
 void writecrosshairs(stream *f);
 void renderavatar();
 
+float findsurface(int fogmat, const vec &v, int &abovemat);
+void setfog(int fogmat, float below = 0, float blend = 1, int abovemat = MAT_AIR);
+void setcamprojmatrix(bool init = true, bool flush = false);
+void drawfogoverlay(int fogmat, float fogbelow, float fogblend, int abovemat);
+
+void synctimers();
+
 namespace modelpreview
 {
     void start(int x, int y, int w, int h, bool background = true, bool scissor = false);
@@ -74,5 +81,6 @@ namespace modelpreview
 }
 
 struct timer;
+timer *findtimer(const char *name, bool gpu = true);
 timer *begintimer(const char *name, bool gpu = true);
 void endtimer(timer *t);

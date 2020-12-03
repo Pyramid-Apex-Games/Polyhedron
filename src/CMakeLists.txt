@@ -40,8 +40,6 @@ endif()
 
 include(../cmake/thirdparty.cmake)
 
-#defines, project wide
-#Silence OpenGL deprecations .. yes Apple, you like Metal and you can't shutup about it .. :rolleyes:
 add_definitions("-DGL_SILENCE_DEPRECATION")
 include_directories(
     ext/json-develop/include
@@ -51,6 +49,8 @@ include_directories(
     ext/imgui
 )
 
+add_subdirectory(ext/enet)
+
 CHECK_INCLUDE_FILE(renderdoc.h HAVE_RENDERDOC_H)
 if (HAVE_RENDERDOC_H)
     add_definitions("-DHAVE_RENDERDOC_H")
@@ -59,7 +59,6 @@ if (HAVE_RENDERDOC_H)
 endif()
 
 #The engine, server and shared sub projects
-add_subdirectory(enet)
 
 list(APPEND fileListEngine
     engine/aa.cpp
@@ -110,6 +109,8 @@ list(APPEND fileListEngine
     engine/main/GLContext.h
     engine/main/Input.cpp
     engine/main/Input.h
+    engine/main/KeyControl.cpp
+    engine/main/KeyControl.h
     engine/main/Renderer.cpp
     engine/main/Renderer.h
     engine/main/SoundConfig.cpp
@@ -163,6 +164,11 @@ list(APPEND fileListEngine
     engine/world.cpp
     engine/world.h
     engine/worldio.cpp
+
+    engine/state/MainMenuState.h
+    engine/state/State.cpp
+    engine/state/MainMenuState.cpp
+    engine/state/State.h
 )
 
 list(APPEND fileListShared
@@ -325,25 +331,28 @@ list(APPEND fileListGame
     game/render.cpp
     game/server.cpp
     game/commands.cpp
+
+    game/state/FpsGameState.cpp
+    game/state/FpsGameState.h
 )
 
 list(APPEND fileListGameEntities
-        game/entities/ModelEntity.cpp
-        game/entities/ModelEntity.h
-        game/entities/DoorEntity.cpp
-        game/entities/DoorEntity.h
-        game/entities/LightEntity.cpp
-        game/entities/LightEntity.h
-        game/entities/MonsterEntity.cpp
-        game/entities/MonsterEntity.h
-        game/entities/PickupEntity.cpp
-        game/entities/PickupEntity.h
-        game/entities/PlayerSpawnEntity.cpp
-        game/entities/PlayerSpawnEntity.h
-        game/entities/SkeletalEntity.cpp
-        game/entities/SkeletalEntity.h
-        game/entities/SoundEntity.cpp
-        game/entities/SoundEntity.h
+    game/entities/ModelEntity.cpp
+    game/entities/ModelEntity.h
+    game/entities/DoorEntity.cpp
+    game/entities/DoorEntity.h
+    game/entities/LightEntity.cpp
+    game/entities/LightEntity.h
+    game/entities/MonsterEntity.cpp
+    game/entities/MonsterEntity.h
+    game/entities/PickupEntity.cpp
+    game/entities/PickupEntity.h
+    game/entities/PlayerSpawnEntity.cpp
+    game/entities/PlayerSpawnEntity.h
+    game/entities/SkeletalEntity.cpp
+    game/entities/SkeletalEntity.h
+    game/entities/SoundEntity.cpp
+    game/entities/SoundEntity.h
 )
 
 list(APPEND fileListSharedEntities
@@ -368,10 +377,30 @@ list(APPEND fileListSharedEntities
     shared/entities/attributes.h
     shared/event/EntityEvent.cpp
     shared/event/EntityEvent.h
+    shared/event/EntityEventType.cpp
+    shared/event/EntityEventType.h
+    shared/event/EntitySignalHandler.cpp
+    shared/event/EntitySignalHandler.h
     shared/event/Event.cpp
     shared/event/Event.h
+    shared/event/EventDetail.cpp
+    shared/event/EventDetail.h
+    shared/event/EventHandlerDetail.cpp
+    shared/event/EventHandlerDetail.h
+    shared/event/EventType.cpp
+    shared/event/EventType.h
     shared/event/GameEvent.cpp
     shared/event/GameEvent.h
+    shared/event/GameEventType.cpp
+    shared/event/GameEventType.h
+    shared/event/GameSignalHandler.cpp
+    shared/event/GameSignalHandler.h
+    shared/event/StateEvent.cpp
+    shared/event/StateEvent.h
+    shared/event/StateEventType.cpp
+    shared/event/StateEventType.h
+    shared/event/StateSignalHandler.cpp
+    shared/event/StateSignalHandler.h
 )
 
 list(APPEND extRenderdocFiles
@@ -408,6 +437,23 @@ list(APPEND extImguiFiles
     ext/imgui/examples/imgui_impl_opengl3.cpp
 )
 
+
+list(APPEND extConstexprFiles
+    ext/constexpr/cx_map.h
+    ext/constexpr/cx_algorithm.h
+    ext/constexpr/cx_vector.h
+    ext/constexpr/.DS_Store
+    ext/constexpr/cx_string.h
+    ext/constexpr/algorithms/cx_nonmod_seq.h
+    ext/constexpr/algorithms/cx_mod_seq.h
+    ext/constexpr/cx_iterator.h
+    ext/constexpr/cx_parser.h
+    ext/constexpr/cx_json_value.h
+    ext/constexpr/cx_json_parser.h
+    ext/constexpr/cx_pair.h
+    ext/constexpr/cx_optional.h
+)
+
 list(APPEND engineEditorFiles
     engine/editor/ui.cpp
     engine/editor/ui.h
@@ -425,6 +471,7 @@ list(APPEND fileList
     ${extNuklearFiles}
     ${extGladFiles}
     ${extImguiFiles}
+    ${extConstexprFiles}
 )
 
 option(LIBCLANG_PATH "LIBCLANG_PATH" "${CMAKE_CURRENT_BINARY_DIR}/thirdparty_sources/libclang/bin/libclang.dll")
@@ -587,6 +634,7 @@ target_include_directories(Polyhedron
         shared
         game
         engine
+        ext/constexpr
         ${THIRDPARTY_INCLUDE_DIRS}
 )
 

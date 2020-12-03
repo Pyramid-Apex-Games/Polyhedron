@@ -1,83 +1,22 @@
 #pragma once
 #include "Event.h"
-//#include "shared/entities/Entity.h"
 #include "shared/geom/vec.h"
 #include <functional>
 
-class Entity;
-
-enum class EntityEventType
-{
-    None,
-
-    Tick,
-    AttributeChanged,
-    SelectStart,
-    SelectStop,
-    MoveStart,
-    MoveStop,
-    HoverStart,
-    HoverStop,
-    TouchStart,
-    TouchStop,
-    Use,
-    Trigger,
-    Precache,
-    Spawn,
-    ClearSpawn,
-
-    Count
-};
-
-struct EntitySignalHandler;
-using Event = detail::Event<EntityEventType, EntitySignalHandler>;
-
-static const std::map<EntityEventType, std::string> EntityEventTypeToStringMap = {
-    {EntityEventType::None, "None"},
-    {EntityEventType::Tick, "Tick"},
-    {EntityEventType::AttributeChanged, "AttributeChanged"},
-    {EntityEventType::SelectStart, "SelectStart"},
-    {EntityEventType::SelectStop, "SelectStop"},
-    {EntityEventType::MoveStart, "MoveStart"},
-    {EntityEventType::MoveStop, "MoveStop"},
-    {EntityEventType::HoverStart, "HoverStart"},
-    {EntityEventType::HoverStop, "HoverStop"},
-    {EntityEventType::TouchStart, "TouchStart"},
-    {EntityEventType::TouchStop, "TouchStop"},
-    {EntityEventType::Use, "Use"},
-    {EntityEventType::Trigger, "Trigger"},
-    {EntityEventType::Precache, "Precache"},
-    {EntityEventType::Spawn, "Spawn"},
-    {EntityEventType::ClearSpawn, "ClearSpawn"},
-    {EntityEventType::Count, "Count"}
-};
-
-struct EntitySignalHandler
-{
-    using Listener = Entity *;
-    using FindListenerPredicate = std::function<bool (const Listener&)>;
-
-    static void Broadcast(const Event& event);
-    static void SendByIndex(const Event& event, int index);
-    static void SendIf(const Event& event, const FindListenerPredicate& target_if);
-    static void Send(const Event& event, const Listener& target);
-};
-
-template <EntityEventType E>
 struct EntityEvent
     : public Event
 {
-    EntityEvent()
+    EntityEvent(EventType E)
         : Event(E)
     {}
 };
 
-template <EntityEventType E, typename T>
+template <typename T>
 struct EntityEventData
-    : public EntityEvent<E>
+    : public EntityEvent
 {
-    EntityEventData(const T& payload)
-        : EntityEvent<E>()
+    EntityEventData(EventType E, const T& payload)
+        : EntityEvent(E)
         , payload(payload)
     {}
 
@@ -85,75 +24,85 @@ struct EntityEventData
 };
 
 struct EntityEventAttributeChanged
-    : public EntityEventData<EntityEventType::AttributeChanged, std::string>
+    : public EntityEventData<std::string>
 {
     EntityEventAttributeChanged(const std::string& key)
-        : EntityEventData<EntityEventType::AttributeChanged, std::string>(key)
+        : EntityEventData<std::string>(EventType::AttributeChanged, key)
     {}
 };
 
 struct EntityEventSelectStart
-    : public EntityEvent<EntityEventType::SelectStart>
+    : public EntityEvent
 {
+    EntityEventSelectStart() : EntityEvent(EventType::SelectStart) {}
 };
 
 struct EntityEventSelectStop
-    : public EntityEvent<EntityEventType::SelectStop>
+    : public EntityEvent
 {
+    EntityEventSelectStop() : EntityEvent(EventType::SelectStop) {}
 };
 
 struct EntityEventMoveStart
-    : public EntityEvent<EntityEventType::MoveStart>
+    : public EntityEvent
 {
+    EntityEventMoveStart() : EntityEvent(EventType::MoveStart) {}
 };
 
 struct EntityEventMoveStop
-    : public EntityEvent<EntityEventType::MoveStop>
+    : public EntityEvent
 {
+    EntityEventMoveStop() : EntityEvent(EventType::MoveStop) {}
 };
 
 struct EntityEventTouchStart
-    : public EntityEventData<EntityEventType::TouchStart, vec>
+    : public EntityEventData<vec>
 {
     EntityEventTouchStart(const vec& val)
-    : EntityEventData<EntityEventType::TouchStart, vec>(val)
+    : EntityEventData(EventType::TouchStart, val)
     {}
 };
 
 struct EntityEventTouchStop
-    : public EntityEvent<EntityEventType::TouchStop>
+    : public EntityEvent
 {
+    EntityEventTouchStop() : EntityEvent(EventType::TouchStop) {}
 };
 
 struct EntityEventHoverStart
-    : public EntityEventData<EntityEventType::HoverStart, int>
+    : public EntityEventData<int>
 {
     EntityEventHoverStart(int orient)
-        : EntityEventData<EntityEventType::HoverStart, int>(orient)
+        : EntityEventData(EventType::HoverStart, orient)
     {}
 };
 
 struct EntityEventHoverStop
-    : public EntityEvent<EntityEventType::HoverStop>
+    : public EntityEvent
 {
+    EntityEventHoverStop() : EntityEvent(EventType::HoverStop) {}
 };
 
 struct EntityEventPrecache
-    : public EntityEvent<EntityEventType::Precache>
+    : public EntityEvent
 {
+    EntityEventPrecache() : EntityEvent(EventType::Precache) {}
 };
 
 struct EntityEventSpawn
-    : public EntityEvent<EntityEventType::Spawn>
+    : public EntityEvent
 {
+    EntityEventSpawn() : EntityEvent(EventType::Spawn) {}
 };
 
 struct EntityEventClearSpawn
-    : public EntityEvent<EntityEventType::ClearSpawn>
+    : public EntityEvent
 {
+    EntityEventClearSpawn() : EntityEvent(EventType::ClearSpawn) {}
 };
 
 struct EntityEventTick
-    : public EntityEvent<EntityEventType::Tick>
+    : public EntityEvent
 {
+    EntityEventTick() : EntityEvent(EventType::Tick) {}
 };

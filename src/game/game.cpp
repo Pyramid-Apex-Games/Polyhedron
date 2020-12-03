@@ -4,6 +4,9 @@
 #include "entities/SkeletalEntity.h"
 #include "entities/LightEntity.h"
 #include "engine/scriptexport.h"
+#include "engine/Camera.h"
+#include "engine/main/Application.h"
+#include "game/state/FpsGameState.h"
 
 
 
@@ -20,36 +23,21 @@ namespace game
 
     // Map Game State properties.
     cubestr clientmap = "";     // Current map filename.
-    int maptime = 0;            // Frame time.
-    int maprealtime = 0;        // Total time.
 
     void updateworld() {
-        // Update the map time. (First frame since maptime = 0.
-        if(!maptime) { maptime = lastmillis; maprealtime = totalmillis; return; }
 
-        // Escape this function if there is no currenttime yet from server to client. (Meaning it is 0.)
-        if(!curtime) return; //{ gets2c(); if (player1->) c2sinfo(); return; } //c2sinfo(); }///if(player1->clientnum>=0) c2sinfo(); return; }
-        //if(!curtime) return; //{ gets2c(); c2sinfo(); }///if(player1->clientnum>=0) c2sinfo(); return; }
-
-		// Update the physics.
-        physicsframe();
-
-        // Update all our entity objects.
-        updateentities();
-        // gets2c();
-		// if(player->clientnum >=0) c2sinfo();   // do this last, to reduce the effective frame lag
     }
 
     void SpawnPlayer()   // place at random spawn
     {
-        if (player1)
-        {
-            player1->reset();
-            player1->respawn();
-        } else {
-            player1 = new SkeletalEntity();
-            player1->respawn();
-        }
+//        if (player1)
+//        {
+//            player1->reset();
+//            player1->respawn();
+//        } else {
+//            player1 = new SkeletalEntity();
+//            player1->respawn();
+//        }
     }
 
     void updateentities() {
@@ -62,8 +50,8 @@ namespace game
 
         }
 
-        if (game::player1)
-            game::player1->think();
+//        if (game::player1)
+//            game::player1->think();
     }
 
     void gameconnect(bool _remote)
@@ -138,7 +126,7 @@ namespace game
     }
     void newmap(int size) {
         // Copy into mapname and reset maptime.
-        maptime = 0;
+//        maptime = 0;
 
         // Clear old entity list..
         clearents();
@@ -147,7 +135,7 @@ namespace game
         SpawnPlayer();
 
         // Find our playerspawn.
-        findplayerspawn(player1);
+//        findplayerspawn(player1);
     }
     void loadingmap(const char *name) {
 
@@ -155,16 +143,18 @@ namespace game
 
     void startmap(const char *name)
     {
-        // Reset entity spawns.
-		resetspawns();
-
-        // Spawn our player.
-        SpawnPlayer();
-
-		// Find player spawn point.
-		findplayerspawn(player1);
-
-        copycubestr(clientmap, name ? name : "");
+        Application::Instance().SetState<FpsGameState>();
+//
+//        // Reset entity spawns.
+//		resetspawns();
+//
+//        // Spawn our player.
+//        SpawnPlayer();
+//
+//		// Find player spawn point.
+//		findplayerspawn(player1);
+//
+//        copycubestr(clientmap, name ? name : "");
         execident("mapstart");
     }
 
@@ -173,18 +163,15 @@ namespace game
     }
 
     float abovegameplayhud(int w, int h) {
-        switch(player1->state)
-        {
-            case CS_EDITING:
-                return 1;
-            default:
+//        switch(player1->state)
+//        {
+//            case CS_EDITING:
+//                return 1;
+//            default:
                 return (h-min(128, h))/float(h);
-        }
+//        }
     }
 
-    void gameplayhud(int w, int h) {
-
-    }
 
     float clipconsole(float w, float h) {
         return 0;
@@ -204,12 +191,12 @@ namespace game
 
     bool canjump()
     {
-        return player1->state!=CS_DEAD;
+        return true;//player1->state!=CS_DEAD;
     }
 
     bool cancrouch()
     {
-        return player1->state!=CS_DEAD;
+        return true;//player1->state!=CS_DEAD;
     }
 
     bool allowmove(const MovableEntity *d)
@@ -220,15 +207,15 @@ namespace game
     }
 
     Entity *iterdynents(int i) {
-        if (i == 0) {
-            return player1;
-        } else {
+//        if (i == 0) {
+//            return player1;
+//        } else {
             if (i < getents().size()) {
                 return dynamic_cast<DynamicEntity *>(getents()[i]);
             } else {
                 return nullptr;
             }
-        }
+//        }
 
         //if (i < g_lightEnts.size()) return (classes::BaseEntity*)g_lightEnts[i];
         //    i -= g_lightEnts.size();
@@ -236,14 +223,7 @@ namespace game
     }
     // int numdynents() { return players.size()+monsters.size()+movables.size(); }
     int numdynents() {
-        return getents().size() + 1; // + 1 is for the player.
-    }
-
-    // This function should be used to render HUD View stuff etc.
-    void rendergame(RenderPass pass) {
-        // This function should be used to render HUD View stuff etc.
-        
-        game::renderentities(pass);
+        return getents().size(); // + 1 is for the player.
     }
 
     const char *defaultcrosshair(int index) {
@@ -251,7 +231,7 @@ namespace game
     }
 
     int selectcrosshair(vec &color) {
-        if(player1->state==CS_DEAD) return -1;
+        //if(player1->state==CS_DEAD) return -1;
         return 0;
     }
 
@@ -274,11 +254,11 @@ namespace game
     }
 
     bool detachcamera() {
-        return player1->state==CS_DEAD;
+        return false;//player1->state==CS_DEAD;
     }
 
     bool collidecamera() {
-        return player1->state!=CS_EDITING;
+        return false;// player1->state!=CS_EDITING;
     }
 
     void lighteffects(Entity *e, vec&color, vec &dir) {
@@ -293,7 +273,7 @@ namespace game
             auto e = dynamic_cast<LightEntity *>(ents[i]);
             if (!e) continue;
             
-            e->render(game::RenderPass::Lights);
+            e->render(RenderPass::Lights);
         }
     }
 
@@ -351,9 +331,9 @@ namespace game
 
     void initclient() {
         // Setup the map time.
-        maptime = 0;
+//        maptime = 0;
 		SpawnPlayer();
-        findplayerspawn(player1);
+//        findplayerspawn(player1);
     }
 
     const char *gameident() {
@@ -365,7 +345,4 @@ namespace game
 
 }; // namespace game.
 
-bool iGame::OnEvent(const GameEvent &)
-{
-    return true;
-}
+

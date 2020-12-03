@@ -15,6 +15,7 @@ class Renderer;
 class Window;
 class SoundConfig;
 class Console;
+class State;
 
 #ifdef __APPLE__
 #define main SDL_main
@@ -48,6 +49,22 @@ public:
     void ProcessEvents();
     void PeekEvents(const PeekEventCallback& peekCallback);
 
+    template<class T>
+    void SetState()
+    {
+        m_ActiveState = std::make_unique<T>();
+    }
+
+    template<class T = State>
+    T& GetState() const
+    {
+        if (!m_ActiveState)
+        {
+            Instance().Fatal("ActiveState == nullptr!");
+        }
+        return static_cast<T&>(*m_ActiveState.get());
+    }
+
     template <class... Args>
     void Fatal(const std::string& s, Args&&...);
     void Fatal(const std::string& s);
@@ -63,6 +80,7 @@ private:
     std::unique_ptr<Renderer> m_Renderer;
     std::unique_ptr<Input> m_Input;
     std::unique_ptr<SoundConfig> m_SoundConfig;
+    std::unique_ptr<State> m_ActiveState;
 #ifdef BUILD_WITH_PYTHON
     std::unique_ptr<PythonScript> m_Python;
 #endif

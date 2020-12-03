@@ -1,5 +1,9 @@
 // 6-directional octree heightfield map format
 #pragma once
+#include "shared/iengine.h"
+#include "shared/geom.h"
+#include "shared/tools/vector_util.h"
+
 struct vertex;
 
 struct elementset
@@ -84,7 +88,7 @@ struct grasstri
 struct occludequery
 {
     void *owner;
-    GLuint id;
+    uint id;
     int fragments;
 };
 

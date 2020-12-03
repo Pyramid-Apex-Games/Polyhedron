@@ -1640,6 +1640,19 @@ int findentity_byclass(const std::string &classname)
 	return -1;
 }
 
+template <class ET>
+ET* getentitybytype(int searchStartIndex = 0)
+{
+	const auto &ents = getents();
+	for(int i = searchStartIndex; i < ents.size(); i++)
+	{
+		auto e = dynamic_cast<ET*>(ents[i]);
+
+		if (e) return e;
+	}
+
+	return nullptr;
+}
 
 // We do not need forceent = -1 anymore atm, neither do we need tag = 0 for now. But it's here for backwards reasons.
 void findplayerspawn(SkeletalEntity *d, int forceent, int tag) // Place at spawn (some day, random spawn).

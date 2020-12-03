@@ -7,19 +7,18 @@
 
 class SkeletalEntity;
 class Entity;
+class Camera;
 
 namespace game
 {
     // Extern variables.
     extern SkeletalEntity *player1;  // Main player entity in the game code.
-    extern int maptime, maprealtime;            // Times.
     extern cubestr clientmap;                   // The map the client is currently running or loading.
 
     // Update functions.
     extern void updateentities();
 
     // Render functions.
-    extern void rendergame(RenderPass pass);
     extern void renderobjects();
 
     // HUD functions.
@@ -47,24 +46,11 @@ namespace game
     extern vec hudgunorigin(int gun, const vec &from, const vec &to, Entity *d);
 }
 
-class iGame
-{
-public:
-    virtual void Render(game::RenderPass pass) = 0;
-    virtual void Update();
-    virtual bool OnEvent(const GameEvent&) = 0;
-
-protected:
-
-};
 
 
-class FpsGame : public iGame
-{
-    void Render(game::RenderPass pass) override;
-    void Update() override;
-    bool OnEvent(const GameEvent&) override;
-};
+
+
+
 
 #endif
 

@@ -15,11 +15,11 @@ namespace game {
 
     SCRIPTEXPORT void gotosel()
     {
-        if(player1->state!=CS_EDITING) return;
-        player1->o = getselpos();
-        vec dir;
-        vecfromyawpitch(player1->d.x, player1->d.y, 1, 0, dir);
-        player1->o.add(dir.mul(-32));
-        player1->resetinterp();
+//        if(player1->state!=CS_EDITING) return;
+//        player1->o = getselpos();
+//        vec dir;
+//        vecfromyawpitch(player1->d.x, player1->d.y, 1, 0, dir);
+//        player1->o.add(dir.mul(-32));
+//        player1->resetinterp();
     }
 }

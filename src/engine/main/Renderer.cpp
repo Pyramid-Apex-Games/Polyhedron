@@ -8,6 +8,7 @@
 #include "engine/client.h"
 #include "engine/console.h"
 #include "engine/rendergl.h"
+#include "engine/renderva.h"
 #include "engine/texture.h"
 #include "engine/renderlights.h"
 #include "engine/renderparticles.h"
@@ -19,6 +20,8 @@
 #include "engine/GLFeatures.h"
 #include "engine/editor/ui.h"
 #include "renderdoc_api.h"
+#include "engine/state/State.h"
+#include "Clock.h"
 
 extern Texture *notexture;
 
@@ -38,11 +41,9 @@ Renderer::Renderer(Window& window)
     gl_init();
 }
 
-void Renderer::Initialize()
-{
+void Renderer::Initialize() {
     notexture = textureload("media/texture/game/notexture.png");
-    if(!notexture)
-    {
+    if (!notexture) {
         Application::Instance().Fatal("could not find core textures");
     }
 
@@ -54,12 +55,10 @@ void Renderer::Initialize()
 //    {
 //        Application::Instance().Fatal("test.cfg failed");
 //    }
-    if(!execfile("config/font.cfg", false))
-    {
+    if (!execfile("config/font.cfg", false)) {
         Application::Instance().Fatal("cannot find default font");
     }
-    if(!setfont("default"))
-    {
+    if (!setfont("default")) {
         Application::Instance().Fatal("no default font specified");
     }
 
@@ -74,7 +73,7 @@ void Renderer::Initialize()
     inbetweenframes = true;
 }
 
-void Renderer::RunFrame()
+void Renderer::RunFrame(State& activeState)
 {
     recomputecamera();
     updateparticles();
@@ -86,9 +85,7 @@ void Renderer::RunFrame()
     gl_setupframe(true);
 
     inbetweenframes = false;
-    gl_drawframe();
-    engine::nui::Render();
-    EditorUI::Render();
+    RenderFrame(activeState);
 
     if (m_FrameCount == 4)
     {
@@ -97,6 +94,55 @@ void Renderer::RunFrame()
 
     m_FrameCount++;
     renderedframe = inbetweenframes = true;
+}
+
+void Renderer::RenderFrame(State& activeState)
+{
+    extern int frametimer;
+    extern int framemillis;
+    extern int totalmillis;
+
+    synctimers();
+    xtravertsva = xtraverts = glde = gbatches = vtris = vverts = 0;
+    flipqueries();
+    aspect = forceaspect ? forceaspect : hudw/float(hudh);
+    fovy = 2*atan2(tan(curfov/2*RAD), aspect)/RAD;
+    vieww = hudw;
+    viewh = hudh;
+
+    activeState.Render(RenderPass::Main);
+
+    int w = hudw, h = hudh;
+    if(forceaspect) w = int(ceil(h*forceaspect));
+
+    gettextres(w, h);
+
+    hudmatrix.ortho(0, w, h, 0, -1, 1);
+    resethudmatrix();
+    resethudshader();
+
+    pushfont();
+    setfont("default_outline");
+
+    activeState.Render(RenderPass::Gui);
+
+    float conw = w/conscale, conh = h/conscale, abovehud = conh - FONTH;
+
+    pushhudscale(conscale);
+    abovehud -= rendercommand(FONTH/2, abovehud - FONTH/2, conw-FONTH);
+
+    pophudmatrix();
+    popfont();
+
+    if(frametimer)
+    {
+        glFinish();
+        framemillis = getclockmillis() - totalmillis;
+    }
+//    if(mainmenu) gl_drawmainmenu();
+//    else gl_drawview();
+//    UI::render();
+//    gl_drawhud();
 }
 
 namespace {
@@ -238,7 +284,7 @@ void Renderer::RenderBackground(const std::string &caption)
     RenderBackground(bg);
 }
 
-void Renderer::RenderBackground(BackgroundInfo &info, bool force)
+void Renderer::RenderBackground(const BackgroundInfo &info, bool force)
 {
     if (!inbetweenframes && !force)
     {
@@ -267,7 +313,7 @@ void Renderer::RenderBackground(BackgroundInfo &info, bool force)
     SetBackgroundInfo(info.caption, info.texture, info.mapName, info.mapInfo);
 }
 
-void Renderer::RenderBackgroundView(BackgroundInfo &info)
+void Renderer::RenderBackgroundView(const BackgroundInfo &info)
 {
     static int lastupdate = -1, lastw = -1, lasth = -1;
     static float backgroundu = 0, backgroundv = 0;

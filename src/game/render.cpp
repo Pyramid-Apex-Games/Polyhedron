@@ -5,20 +5,7 @@
 
 namespace game
 {
-    void renderentities(RenderPass pass)
-    {
-		auto& ents = getents();
-		
-        for (int i = 0; in_range(i, ents); ++i)
-        {
-			auto& entity = ents[i];
-			
-			entity->render(pass);
-        }
 
-        if (player1)
-            player1->render(pass);
-    }
 
     VARP(hudgun, 0, 1, 1);
     VARP(hudgunsway, 0, 1, 1);

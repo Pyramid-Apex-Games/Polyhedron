@@ -1,6 +1,7 @@
 #pragma once
 
 struct Texture;
+struct materialsurface;
 
 extern int vertwater, waterreflect, caustics;
 extern float watersx1, watersy1, watersx2, watersy2;

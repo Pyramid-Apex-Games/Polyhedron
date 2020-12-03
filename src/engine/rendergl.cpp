@@ -282,7 +282,7 @@ void setcammatrix()
     Camera::UpdateAll();
 }
 
-void setcamprojmatrix(bool init = true, bool flush = false)
+void setcamprojmatrix(bool init, bool flush)
 {
     if(init)
     {
@@ -421,7 +421,9 @@ void recomputecamera()
     computezoom();
 
     const auto& activeCamera = Camera::GetActiveCamera();
-    assert(activeCamera);
+    if (!activeCamera)
+        return;
+
     assert(player);
 
     bool allowthirdperson = true;
@@ -883,7 +885,7 @@ VARR(fog, 16, 4000, 1000024);
 CVARR(fogcolour, 0x8099B3);
 VAR(fogoverlay, 0, 1, 1);
 
-static float findsurface(int fogmat, const vec &v, int &abovemat)
+float findsurface(int fogmat, const vec &v, int &abovemat)
 {
     fogmat &= MATF_VOLUME;
     ivec o(v), co;
@@ -968,7 +970,7 @@ float calcfogcull()
     return log(fogcullintensity) / (M_LN2*calcfogdensity(fog - (fog+64)/8));
 }
 
-static void setfog(int fogmat, float below = 0, float blend = 1, int abovemat = MAT_AIR)
+void setfog(int fogmat, float below, float blend, int abovemat)
 {
     float start = 0, end = 0;
     float logscale = 256, logblend = log(1 + (logscale - 1)*blend) / log(logscale);
@@ -1437,7 +1439,8 @@ void gl_drawview()
 #endif
     }
 
-    rendergbuffer();
+    rendergbuffer_before();
+    rendergbuffer_after();
 
     if(wireframe && editmode){
 #ifndef OPEN_GL_ES
@@ -1502,7 +1505,6 @@ void gl_drawview()
             glCheckError(glDepthMask(GL_FALSE));
             renderblendbrush();
             rendereditcursor();
-            game::rendergame(game::RenderPass::Edit);
             glCheckError(glDepthMask(GL_TRUE));
         }
     }
@@ -1552,6 +1554,7 @@ void damagecompass(int n, const vec &loc)
     if(damagedirs[dir]>1) damagedirs[dir] = 1;
 
 }
+
 void drawdamagecompass(int w, int h)
 {
     hudnotextureshader->set();
@@ -1714,7 +1717,7 @@ VARP(wallclock, 0, 0, 1);
 VARP(wallclock24, 0, 0, 1);
 VARP(wallclocksecs, 0, 0, 1);
 
-static time_t walltime = 0;
+time_t walltime = 0;
 
 VARP(showfps, 0, 1, 1);
 VARP(showfpsrange, 0, 0, 1);
@@ -1806,7 +1809,7 @@ void gl_drawhud()
         {
             resethudshader();
             glCheckError(glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA));
-            game::gameplayhud(w, h);
+//            game::gameplayhud(w, h);
             abovehud = min(abovehud, conh*game::abovegameplayhud(w, h));
         }
 
@@ -1845,19 +1848,7 @@ void gl_setupframe(bool force)
 
 void gl_drawframe()
 {
-    synctimers();
-    xtravertsva = xtraverts = glde = gbatches = vtris = vverts = 0;
-    flipqueries();
-    aspect = forceaspect ? forceaspect : hudw/float(hudh);
-    fovy = 2*atan2(tan(curfov/2*RAD), aspect)/RAD;
-    vieww = hudw;
-    viewh = hudh;
-    if(mainmenu) gl_drawmainmenu();
-    else gl_drawview();
-    UI::render();
-    gl_drawhud();
-    
-    game::rendergame(game::RenderPass::Gui);
+
 }
 
 void cleanupgl()

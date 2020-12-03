@@ -5,7 +5,7 @@
 
 extern vector<Entity *> &getents();
 
-void EntitySignalHandler::Broadcast(const Event& event)
+/* void EntitySignalHandler::Broadcast(const detail::EventBase& event)
 {
     for (const auto& ent : getents())
     {
@@ -13,7 +13,7 @@ void EntitySignalHandler::Broadcast(const Event& event)
     }
 }
 
-void EntitySignalHandler::SendByIndex(const Event& event, int index)
+void EntitySignalHandler::SendByIndex(const detail::EventBase& event, int index)
 {
     const auto& ents = getents();
     if (in_range(index, ents))
@@ -26,7 +26,7 @@ void EntitySignalHandler::SendByIndex(const Event& event, int index)
     }
 }
 
-void EntitySignalHandler::SendIf(const Event& event, const FindListenerPredicate& target_if)
+void EntitySignalHandler::SendIf(const detail::EventBase& event, const FindListenerPredicate& target_if)
 {
     for (const auto& ent : getents())
     {
@@ -37,10 +37,18 @@ void EntitySignalHandler::SendIf(const Event& event, const FindListenerPredicate
     }
 }
 
-void EntitySignalHandler::Send(const Event& event, Entity* const & target)
+void EntitySignalHandler::Send(const detail::EventBase& event, Entity* const & target)
 {
     if (target)
 	{
-		target->OnImpl(event);
+		//target->OnImpl(event);
 	}
 }
+*/
+//bool operator==(const detail::EventBase::event_type_t ve, const EntityEventType e)
+//{
+//    if (!std::holds_alternative<EntityEventType>(ve))
+//        return false;
+//
+//    return std::get<EntityEventType>(ve) == e;
+//}

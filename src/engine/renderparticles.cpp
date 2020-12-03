@@ -1472,7 +1472,9 @@ void updateparticles()
     {
         int emitted = 0, replayed = 0;
         addedparticles = 0;
-        assert(Camera::GetActiveCamera());
+        if (!Camera::GetActiveCamera())
+            return;
+
         const auto& cameraPos = Camera::GetActiveCamera()->o;
         loopv(emitters)
         {

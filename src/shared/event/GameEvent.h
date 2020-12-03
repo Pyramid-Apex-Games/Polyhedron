@@ -1,43 +1,77 @@
 #pragma once
+#include "EventDetail.h"
 #include "Event.h"
 #include <map>
 #include <functional>
 
-enum class GameEventType
+//using GameEvent = detail::Event<std::pair<GameEventType, GameSignalHandler> >;
+
+struct GameEvent
+    : public Event
 {
-    None,
-
-    Start,
-    Tick,
-    Use,
-    Shoot,
-    Stop,
-
-    Count
+    GameEvent(EventType E)
+        : Event(E)
+    {}
 };
 
-struct GameSignalHandler;
-using GameEvent = detail::Event<GameEventType, GameSignalHandler>;
-
-static const std::map<GameEventType, std::string> GameEventTypeToStringMap = {
-    {GameEventType::None, "None"},
-    {GameEventType::Start, "Start"},
-    {GameEventType::Tick, "Tick"},
-    {GameEventType::Use, "Use"},
-    {GameEventType::Shoot, "Shoot"},
-    {GameEventType::Stop, "Stop"},
-    {GameEventType::Count, "Count"}
+template <typename T>
+struct GameEventData
+    : public detail::EventData<T>
+{
+    GameEventData(EventType E, const T& payload)
+        : detail::EventData<T>(E, payload)
+    {}
 };
 
-class iGame;
-
-struct GameSignalHandler
+struct GameEventLoad
+    : public GameEvent
 {
-    using Listener = iGame *;
-    using FindListenerPredicate = std::function<bool (const Listener&)>;
+    GameEventLoad() : GameEvent(EventType::Load) {}
+};
 
-    static void Broadcast(const GameEvent& event);
-    static void SendByIndex(const GameEvent& event, int index) {}
-    static void SendIf(const GameEvent& event, const FindListenerPredicate& target_if) {}
-    static void Send(const GameEvent& event, const Listener& target) {}
+struct GameEventTick
+    : public GameEvent
+{
+    GameEventTick(EventType E) : GameEvent(E) {}
+};
+
+struct GameEventMove
+: public GameEventData<int>
+{
+    GameEventMove(int axis) : GameEventData(EventType::Move, axis)
+    {}
+};
+
+struct GameEventStrafe
+: public GameEventData<int>
+{
+    GameEventStrafe(int axis) : GameEventData(EventType::Strafe, axis)
+    {}
+};
+
+struct GameEventJump
+: public GameEventData<bool>
+{
+    GameEventJump(bool pressed) : GameEventData(EventType::Jump, pressed)
+    {}
+};
+
+struct GameEventCrouch
+: public GameEventData<bool>
+{
+    GameEventCrouch(bool pressed) : GameEventData(EventType::Crouch, pressed)
+    {}
+};
+
+
+struct GameEventShoot
+    : public GameEvent
+{
+    GameEventShoot() : GameEvent(EventType::Shoot) {}
+};
+
+struct GameEventUnload
+    : public GameEvent
+{
+    GameEventUnload() : GameEvent(EventType::Unload) {}
 };

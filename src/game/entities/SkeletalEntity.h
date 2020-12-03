@@ -24,7 +24,7 @@ public:
     bool onTrigger(const Entity *otherEnt, const vec &dir);
     bool onTouch(const Entity *otherEnt, const vec &dir);
 
-    virtual void render(game::RenderPass pass);
+    virtual void render(RenderPass pass);
 
     static int AnimationsCount();
     static void FindAnimations(const std::string& pattern, vector<int> &anims);

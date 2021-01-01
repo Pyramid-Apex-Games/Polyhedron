@@ -26,6 +26,7 @@
 #include "shared/entities/Entity.h"
 #include "engine/state/MainMenuState.h"
 #include <SDL.h>
+#include <filesystem>
 
 VAR(numcpus, 1, 1, 16);
 
@@ -59,6 +60,8 @@ Application::Application(const CommandlineArguments& commandlineArguments)
     }
 
     LoadJson(*this, "config/init.json", m_AppConfig);
+
+    logoutf("working dir: %s", std::filesystem::current_path().string().c_str());
 
     logoutf("init: sdl");
     if (SDL_Init(SDL_INIT_TIMER|SDL_INIT_VIDEO|SDL_INIT_AUDIO) < 0)

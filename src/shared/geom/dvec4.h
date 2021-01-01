@@ -1,6 +1,6 @@
 #pragma once
 
-class vec4;
+struct vec4;
 
 struct dvec4
 {

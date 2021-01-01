@@ -97,6 +97,12 @@ void Input::Grab(bool enable)
 
     if (enable)
     {
+        SDL_WarpMouseInWindow(
+            m_App.GetWindow().GetWindowHandle(),
+            m_App.GetWindow().GetWidth() / 2,
+            m_App.GetWindow().GetHeight() / 2
+        );
+
         if (SDL_SetRelativeMouseMode(SDL_TRUE) >= 0)
         {
             SDL_SetWindowGrab(m_App.GetWindow().GetWindowHandle(), SDL_TRUE);

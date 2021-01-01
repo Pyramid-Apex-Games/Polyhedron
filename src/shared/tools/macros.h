@@ -1,4 +1,5 @@
 #pragma once
+#include "shared/types.h"
 #include <cassert>
 
 #ifdef _DEBUG

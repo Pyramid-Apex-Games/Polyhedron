@@ -1,7 +1,8 @@
 #pragma once
 #include "shared/types.h"
-class ivec;
-class vec4;
+
+struct ivec;
+struct vec4;
 
 struct ivec4
 {

@@ -32,7 +32,7 @@
     #include <dbghelp.h>
     #include <intrin.h>
   #endif
-  #define ZLIB_DLL
+//  #define ZLIB_DLL
 #endif
 
 #ifndef STANDALONE

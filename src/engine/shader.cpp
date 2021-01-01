@@ -175,7 +175,7 @@ static const char *finddecls(const char *line)
 
 extern int amd_eal_bug;
 
-std::string GetShaderVersionHeader()
+const std::string& GetShaderVersionHeader()
 {
     struct OpenGLShaderVersion {
         int version;
@@ -187,14 +187,15 @@ std::string GetShaderVersionHeader()
     };
 
 #ifndef OPEN_GL_ES
-    static const std::array<OpenGLShaderVersion, 7> glslVersions {
+    static const std::array<OpenGLShaderVersion, 8> glslVersions {
         OpenGLShaderVersion { 400, "#version 400\n" },
         OpenGLShaderVersion { 330, "#version 330\n" },
         OpenGLShaderVersion { 320, "#version 150\n" },
         OpenGLShaderVersion { 150, "#version 150\n" },
         OpenGLShaderVersion { 140, "#version 140\n" },
         OpenGLShaderVersion { 130, "#version 130\n" },
-        OpenGLShaderVersion { 120, "#version 120\n" }
+        OpenGLShaderVersion { 120, "#version 120\n" },
+        OpenGLShaderVersion { 100, "#version 100\n" }
     };
 #else
     static const std::array<OpenGLShaderVersion, 6> glslVersions {
@@ -206,13 +207,13 @@ std::string GetShaderVersionHeader()
         OpenGLShaderVersion { 200, "#version 100\nprecision mediump float;\nprecision mediump sampler3D;\n" }
     };
 #endif
-    for(auto glslVersion : glslVersions) {
+    for(const auto& glslVersion : glslVersions) {
         if (GLFeatures::ShaderVersion() >= glslVersion.version) {
             return glslVersion.header;
         }
     }
 
-    return "#version 100";
+    return glslVersions.back().header;
 }
 
 static void compileglslshader(Shader &s, GLenum type, GLuint &obj, const char *def, const char *name, bool msg = true)
@@ -221,8 +222,8 @@ static void compileglslshader(Shader &s, GLenum type, GLuint &obj, const char *d
     char *modsource = NULL;
     const char *parts[16];
     int numparts = 0;
-
-    parts[numparts++] = GetShaderVersionHeader().c_str();
+    auto shaderVerStr = GetShaderVersionHeader();
+    parts[numparts++] = shaderVerStr.c_str();
 
     if(GLFeatures::ShaderVersion() < 140)
     {

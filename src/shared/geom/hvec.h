@@ -1,7 +1,7 @@
 #pragma once
 #include "half.h"
 
-class vec;
+struct vec;
 
 struct hvec
 {

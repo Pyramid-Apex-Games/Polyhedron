@@ -1,3 +1,3 @@
 #pragma once
 
-std::string GetShaderVersionHeader();
+const std::string& GetShaderVersionHeader();

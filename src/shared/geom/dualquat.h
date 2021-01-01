@@ -1,7 +1,7 @@
 #pragma once
 #include "quat.h"
 
-class matrix4x3;
+struct matrix4x3;
 
 struct dualquat
 {

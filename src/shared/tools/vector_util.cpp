@@ -131,7 +131,7 @@ namespace TEST
 
         assert(compare() && "put 1");
 
-        std::vector lst = {101,102,103,100};
+        std::vector<int> lst = {101,102,103,100};
         put(lst, cubevector);
         put(lst, stlvector);
 

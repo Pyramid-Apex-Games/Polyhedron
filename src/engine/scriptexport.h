@@ -7,9 +7,16 @@
 #define VISIBLE_SYMBOL __attribute__((__visibility__("default")))
 #endif
 
+#ifdef SCRIPTBIND_RUN
 #define SCRIPTEXPORT __attribute__((annotate("scriptexport"))) VISIBLE_SYMBOL
 #define SCRIPTEXPORT_AS(NAME) __attribute__((annotate("scriptexport" #NAME))) VISIBLE_SYMBOL
 #define SCRIPTBIND_OPT(KEY, OP, VALUE) __attribute__((annotate("bindopt;" #KEY ";" #OP ";" #VALUE))) VISIBLE_SYMBOL
+#else
+#define SCRIPTEXPORT
+#define SCRIPTEXPORT_AS(NAME)
+#define SCRIPTBIND_OPT(KEY, OP, VALUE)
+#endif
+
 #define BINDOPT_GENERATORS
 #define BINDOPER_ADD
 #define BINDOPER_DROP
@@ -19,6 +26,7 @@
 #define BINDGENERATOR_JSON
 #define BINDGENERATOR_ATTRIBUTES
 
+#ifdef SCRIPTBIND_RUN
 #define DONTSERIALIZE __attribute__((annotate("dontserialize")))
 #define DONTUNSERIALIZE __attribute__((annotate("dontunserialize")))
 
@@ -29,3 +37,15 @@
 #define PHUI_SLIDER(label, minVal, maxVal, stepVal) __attribute__((annotate("phui;slider;" #label ";" #minVal ";" #maxVal ";" #stepVal)))
 #define PHUI_CHECKBOX(label) __attribute__((annotate("phui;checkbox;" #label)))
 #define PHUI_INPUT(label) __attribute__((annotate("phui;input;" #label )))
+#else
+#define DONTSERIALIZE
+#define DONTUNSERIALIZE
+
+
+#define PHUI_HIDDEN(label)
+#define PHUI_VEC(label)
+#define PHUI_IVEC(label)
+#define PHUI_SLIDER(label, minVal, maxVal, stepVal)
+#define PHUI_CHECKBOX(label)
+#define PHUI_INPUT(label)
+#endif

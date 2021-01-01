@@ -1534,6 +1534,10 @@ SDL_Surface *loadsurface(const char *name)
         delete z;
     }
     if(!s) s = IMG_Load(findfile(name, "rb"));
+    if(!s)
+    {
+        conoutf(CON_ERROR, "could not load surface %s: %s", name, SDL_GetError());
+    }
     return fixsurfaceformat(s);
 }
 

@@ -51,22 +51,6 @@ template <> std::string AttributeVisitCoercer<std::string>::operator()(const ive
 	return std::to_string(value.x) + DELIMITER + std::to_string(value.y) + DELIMITER + std::to_string(value.z);
 }
 
-template <> std::string AttributeVisitCoercer<std::string>::operator()(const AttributeRow_T& value) const
-{
-    return ""s + ARRAY_OPEN + ARRAY_OPEN + std::accumulate(
-        value.begin(), value.end(),
-        ""s,
-        [](const std::string& head, const Attribute_T& attr) -> std::string
-        {
-            std::string innerString = std::visit(AttributeVisitCoercer<std::string>(), attr);
-            if (!head.empty())
-                return head + ARRAY_CLOSE + DELIMITER + "["s + innerString;
-            return innerString;
-        }
-    ) + ARRAY_CLOSE + ARRAY_CLOSE;
-}
-
-
 template <> float AttributeVisitCoercer<float>::operator()(const std::monostate& value) const
 {
 	return 0.0f;

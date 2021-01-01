@@ -383,7 +383,7 @@ float raycube(const vec &o, const vec &ray, float radius, int mode, int size, En
                     dent = min(dent, edist);
                 }
             }
-            if (lc->children == __null)break;
+            if (lc->children == nullptr) break;
             lc = lc->children;
             levels[lshift] = lc;
         }

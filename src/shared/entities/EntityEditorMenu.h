@@ -6,8 +6,8 @@
 #include <cstring>
 
 class Entity;
-class ImGuiContext;
-class ImGuiInputTextCallbackData;
+struct ImGuiContext;
+struct ImGuiInputTextCallbackData;
 
 class EditorRenderable
 {

@@ -1,8 +1,8 @@
 #pragma once
 #include "vec2.h"
 
-class matrix3;
-class matrix4;
+struct matrix3;
+struct matrix4;
 
 struct matrix2
 {

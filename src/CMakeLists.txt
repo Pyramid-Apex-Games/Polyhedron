@@ -29,14 +29,14 @@ if (APPLE)
 #    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -stdlib=libc++ -std=c++17")
 endif()
 
-if (CMAKE_CXX_COMPILER_ID MATCHES "Clang" AND NOT ANDROID)
+if (CMAKE_CXX_COMPILER_ID MATCHES "Clang" AND NOT ANDROID AND NOT WIN32)
     add_compile_options(-stdlib=libc++)
     add_link_options(-stdlib=libc++)
 endif()
-if (CMAKE_CXX_COMPILER_ID MATCHES "Clang" AND WIN32)
-    add_compile_options(--target=x86_64-w64-windows-gnu)
-    add_compile_options(-IC:\\msys64\\mingw64\\lib\\clang\\11.0.0\\include)
-endif()
+#if (CMAKE_CXX_COMPILER_ID MATCHES "Clang" AND WIN32)
+#    add_compile_options(--target=x86_64-w64-windows-gnu)
+#    add_compile_options(-IC:\\msys64\\mingw64\\lib\\clang\\11.0.0\\include)
+#endif()
 
 include(../cmake/thirdparty.cmake)
 
@@ -466,11 +466,11 @@ list(APPEND fileList
     ${fileListGame}
     ${fileListSharedEntities}
     ${fileListGameEntities}
+    ${extImguiFiles}
     ${engineEditorFiles}
     ${extRenderdocFiles}
     ${extNuklearFiles}
     ${extGladFiles}
-    ${extImguiFiles}
     ${extConstexprFiles}
 )
 
@@ -606,6 +606,12 @@ elseif(ANDROID)
         ${generatedFileList}
         ${fileList}
     )
+elseif(WIN32)
+    add_executable(Polyhedron WIN32
+        ${generatedFileList}
+        ${fileList}
+    )
+    target_link_options(Polyhedron PRIVATE -mwindows)
 else()
     add_executable(Polyhedron
         ${generatedFileList}
@@ -624,9 +630,12 @@ target_compile_definitions(Polyhedron
 target_compile_features(Polyhedron
     PUBLIC
         cxx_std_20)
-target_compile_options(Polyhedron
-        PUBLIC
-            -Wno-attributes)
+
+if (NOT WIN32)
+    target_compile_options(Polyhedron
+            PUBLIC
+                -Wno-attributes)
+endif()
 
 target_include_directories(Polyhedron
     PRIVATE

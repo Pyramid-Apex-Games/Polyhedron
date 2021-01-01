@@ -1,6 +1,6 @@
 #pragma once
 
-class ivec;
+struct ivec;
 
 struct svec
 {

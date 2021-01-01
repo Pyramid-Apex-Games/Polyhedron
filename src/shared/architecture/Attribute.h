@@ -8,6 +8,7 @@
 #include <functional>
 #include <string>
 #include <variant>
+#include <numeric>
 
 
 namespace detail
@@ -79,5 +80,22 @@ struct AttributeVisitCoercer
     }
 };
 
-template <> std::string AttributeVisitCoercer<std::string>::operator()(const AttributeRow_T& value) const;
+template <> std::string AttributeVisitCoercer<std::string>::operator()(const AttributeRow_T& value) const
+{
+    using std::literals::string_literals::operator""s;
+    static constexpr auto DELIMITER = ", ";
+    static constexpr auto ARRAY_OPEN = "[";
+    static constexpr auto ARRAY_CLOSE = "]";
 
+    return ""s + ARRAY_OPEN + ARRAY_OPEN + std::accumulate(
+        value.begin(), value.end(),
+        ""s,
+        [](const std::string& head, const Attribute_T& attr) -> std::string
+        {
+            std::string innerString = std::visit(AttributeVisitCoercer<std::string>(), attr);
+            if (!head.empty())
+                return head + ARRAY_CLOSE + DELIMITER + "["s + innerString;
+            return innerString;
+        }
+    ) + ARRAY_CLOSE + ARRAY_CLOSE;
+}

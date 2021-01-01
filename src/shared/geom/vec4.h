@@ -1,5 +1,6 @@
 #pragma once
 #include <nlohmann/json_fwd.hpp>
+
 struct vec2;
 struct vec;
 

@@ -69,11 +69,16 @@ static void writelogv(FILE *file, const char *fmt, va_list args)
 
 void logoutfv(const char *fmt, va_list args)
 {
-#ifndef ANDROID
-    FILE *f = getlogfile();
-    if(f) writelogv(f, fmt, args);
-#else
+#if defined(ANDROID)
     __android_log_vprint(ANDROID_LOG_WARN, "POLYHDRN", fmt, args);
+#elif defined(WIN32)
+    char buf[1024]={0};
+    vsnprintf(buf, 1024, fmt, args);
+    OutputDebugString(buf);
+    OutputDebugString("\n");
+#else
+    FILE* f = getlogfile();
+    if (f) writelogv(f, fmt, args);
 #endif
 }
 

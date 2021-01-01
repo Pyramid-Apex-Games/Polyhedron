@@ -1,7 +1,7 @@
 #pragma once
 #include "vec.h"
 
-class vec4;
+struct vec4;
 
 struct plane : vec
 {

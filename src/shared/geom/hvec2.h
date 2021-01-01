@@ -2,7 +2,7 @@
 #include "half.h"
 
 
-class vec2;
+struct vec2;
 
 struct hvec2
 {

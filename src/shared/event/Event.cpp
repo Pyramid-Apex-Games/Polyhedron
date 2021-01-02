@@ -1,8 +1,10 @@
 #include "Event.h"
-
-//constexpr detail::EventHandlerBase::EventHandlerMap_t detail::EventHandlerBase::RegisteredEventHandlers = detail::EventHandlerBase::ForEachEnumGenerator<EventType>();
+#ifdef WIN32
+detail::EventHandlerBase::EventHandlerMap_t detail::EventHandlerBase::RegisteredEventHandlers = detail::EventHandlerBase::ForEachEnumGenerator<EventType>();
+#else
 constinit detail::EventHandlerBase::EventHandlerMap_t detail::EventHandlerBase::RegisteredEventHandlers =
     detail::EventHandlerBase::ForEachEnumGenerator<EventType>();
+#endif
 void InitializeEventHandlers()
 {
     static GameSignalHandler gameSignalHandler;

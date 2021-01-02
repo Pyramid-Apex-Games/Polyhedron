@@ -325,17 +325,22 @@ bool FpsGameState::OnEvent(const Event& event)
     {
         case EventType::Move:
             m_Player->move = static_cast<const GameEventMove &>(event).payload;;
+            return true;
             break;
         case EventType::Strafe:
             m_Player->strafe = static_cast<const GameEventStrafe &>(event).payload;
+            return true;
             break;
         case EventType::Jump:
             m_Player->jumping = static_cast<const GameEventJump &>(event).payload;
+            return true;
             break;
         case EventType::Crouch:
             m_Player->crouching = static_cast<const GameEventCrouch &>(event).payload;
+            return true;
             break;
     }
+    return false;
 }
 
 

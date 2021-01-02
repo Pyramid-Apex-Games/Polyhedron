@@ -442,7 +442,6 @@ list(APPEND extConstexprFiles
     ext/constexpr/cx_map.h
     ext/constexpr/cx_algorithm.h
     ext/constexpr/cx_vector.h
-    ext/constexpr/.DS_Store
     ext/constexpr/cx_string.h
     ext/constexpr/algorithms/cx_nonmod_seq.h
     ext/constexpr/algorithms/cx_mod_seq.h

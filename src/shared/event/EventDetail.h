@@ -3,7 +3,7 @@
 #include "EventType.h"
 #include <variant>
 #include <cassert>
-#include <experimental/coroutine>
+//#include <experimental/coroutine>
 #include <cx_map.h>
 #include <cx_vector.h>
 #if 0
@@ -96,8 +96,11 @@ namespace detail {
             return map;
         }
 
+#ifdef WIN32
+        static EventHandlerMap_t RegisteredEventHandlers;
+#else
         static constinit EventHandlerMap_t RegisteredEventHandlers;
-
+#endif
         virtual void OnEvent(const EventBase& event) const = 0;
 
         static constexpr void Broadcast(const EventBase& event)

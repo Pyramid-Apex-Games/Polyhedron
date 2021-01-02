@@ -6,7 +6,7 @@ class State;
 struct GameSignalHandler;
 struct GameEvent;
 struct GameSignalHandler;
-struct Entity;
+class Entity;
 
 using GameEventHandlerBaseType =
     detail::EventHandler<

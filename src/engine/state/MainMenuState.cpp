@@ -24,5 +24,5 @@ void MainMenuState::Update()
 
 bool MainMenuState::OnEvent(const Event&)
 {
-
+    return false;
 }
